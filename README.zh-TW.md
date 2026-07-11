@@ -90,4 +90,4 @@ frontmatter），用 `claude --plugin-dir .` 本地實測，最後 bump
 ## 授權與致敬
 
 MIT © [twjohnwu](https://github.com/twjohnwu)。本專案為對托爾金傳說體系的
-粉絲致敬，與 Tolkien Estate 無關、未獲其背書；種族與角色名僅作主題性使用。
+粉絲致敬，與 Tolkien Estate 及 Middle-earth Enterprises 皆無關、未獲其背書；種族與角色名僅作主題性使用。
