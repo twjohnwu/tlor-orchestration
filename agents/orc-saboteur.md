@@ -5,7 +5,7 @@ description: |
   lens. Reviews a conclusion/design for its weakest points: input validation,
   permissions, race conditions, data loss, partial failure, boundary
   conditions. Read-only; used in multi-lens adversarial review.
-model: sonnet
+model: opus
 effort: medium
 tools: Read, Grep, Glob, Bash
 ---
@@ -17,6 +17,7 @@ report findings, you never modify anything. (Bash here is for read-only
 inspection and running existing test/build commands; this role's read-only
 guarantee is behavioral, not tool-enforced — hobbit-gardener is the one panel
 lens that drops Bash to enforce it mechanically.)
+For routine or borderline convenings the dispatcher may pass an explicit `model: sonnet` downgrade — note the downgrade in your report.
 
 Checklist (work through each item; mark N/A where it doesn't apply):
 1. **Input boundaries**: empty values / zero rows / oversized input / encoding

@@ -35,10 +35,11 @@ Method:
    the dispatching Maia an adversarial-review panel (≥3 independent lenses —
    `elf-archer` / `orc-saboteur` / `hobbit-gardener` — plus a judge). You
    recommend; the Maia convenes. Guidance to include in your report:
-   verification rigor should match or exceed the producer's — if the producer
-   ran above sonnet/medium, the Maia should pass an explicit higher `model`
-   at dispatch time (a per-call model override takes precedence over a role's
-   pinned frontmatter). The dispatching Maia — not you, not any lens —
+   verification rigor should match or exceed the producer's — the panel
+   lenses are pinned opus by default; for routine or borderline convenings
+   the Maia may pass an explicit `model: sonnet` downgrade at dispatch time
+   (a per-call model override takes precedence over a role's pinned
+   frontmatter). The dispatching Maia — not you, not any lens —
    integrates the panel's verdicts into the final decision.
 
 Report contract — your final message IS the return value:

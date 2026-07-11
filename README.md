@@ -26,14 +26,14 @@ whatever the orchestrator happens to inherit.
 | `dwarf-smith` | Dwarven smith | sonnet / low | Fully-specified mechanical work; never improvises |
 | `gondor-builder` | Mason of Gondor | sonnet / medium | Implements a clear spec with local judgment; design stays with the Maia |
 | `eagle-sentinel` | Great Eagle | opus / medium | Fresh-context adversarial verification; CONFIRMED/REFUTED |
-| `elf-archer` | Elven archer | sonnet / medium | Correctness lens: every arrow pins one logical flaw |
-| `orc-saboteur` | Orc saboteur | sonnet / medium | Security & failure-mode lens: input validation, races, partial failure |
-| `hobbit-gardener` | Hobbit gardener | sonnet / medium | Simplicity lens: prunes over-engineering |
+| `elf-archer` | Elven archer | opus / medium | Correctness lens: every arrow pins one logical flaw |
+| `orc-saboteur` | Orc saboteur | opus / medium | Security & failure-mode lens: input validation, races, partial failure |
+| `hobbit-gardener` | Hobbit gardener | opus / medium | Simplicity lens: prunes over-engineering |
 
 The last three form the **adversarial review panel**: for high-risk verdicts
 `eagle-sentinel` recommends it, and the Maia convenes it (≥3 independent
-lenses + a judge). To match a stronger producer's rigor, pass an explicit
-higher `model` when dispatching the lenses — a per-call override beats the
+lenses + a judge). For routine or borderline convenings, pass an explicit
+`model: sonnet` downgrade when dispatching the lenses — a per-call override beats the
 role's pinned frontmatter.
 
 ## Install
@@ -79,7 +79,7 @@ are loaded at session start.
 ## Limits (honest notes)
 
 - **"Read-only" is behavioral for Bash-carrying roles.** `eagle-sentinel`,
-  `elf-archer` and `orc-saboteur` hold Bash to run tests/inspection; Bash can
+  `elf-archer`, `orc-saboteur`, `rohirrim-outrider` and `ranger-pathfinder` hold Bash to run tests/inspection; Bash can
   technically write, so their never-edits stance is an instruction, not a sandbox.
   `hobbit-gardener` is the one panel role that is read-only at the tool level.
 - **Unavailable model → silent fallback.** Per official docs, a `model:` value

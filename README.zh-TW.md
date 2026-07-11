@@ -24,13 +24,13 @@ English version: [README.md](README.md).
 | `dwarf-smith` | 矮人鍛造師 | sonnet / low | 規格完全明確的機械工作；絕不即興 |
 | `gondor-builder` | 剛鐸石匠 | sonnet / medium | 照明確 spec 實作、容許區域性小判斷；設計歧義留給 Maia |
 | `eagle-sentinel` | 巨鷹哨兵 | opus / medium | Fresh-context 對抗式驗證；CONFIRMED/REFUTED |
-| `elf-archer` | 精靈神射手 | sonnet / medium | 正確性鏡頭：每一箭命中一個邏輯漏洞 |
-| `orc-saboteur` | 半獸人破壞者 | sonnet / medium | 安全與失效鏡頭：輸入驗證、競態、部分失敗 |
-| `hobbit-gardener` | 哈比人園丁 | sonnet / medium | 簡潔性鏡頭：修剪過度工程 |
+| `elf-archer` | 精靈神射手 | opus / medium | 正確性鏡頭：每一箭命中一個邏輯漏洞 |
+| `orc-saboteur` | 半獸人破壞者 | opus / medium | 安全與失效鏡頭：輸入驗證、競態、部分失敗 |
+| `hobbit-gardener` | 哈比人園丁 | opus / medium | 簡潔性鏡頭：修剪過度工程 |
 
 後三者組成**抗辯審查小組**——高風險判定時由 `eagle-sentinel` 建議、
-**Maia 召集**（≥3 個獨立鏡頭＋一位裁判）。要匹配更強 producer 的嚴謹度，
-派遣鏡頭時明示更高的 `model` 參數——派遣時的覆寫優先於角色的 frontmatter pin。
+**Maia 召集**（≥3 個獨立鏡頭＋一位裁判）。例行或邊界案的召集，
+派遣鏡頭時可明示 `model: sonnet` 降級——派遣時的覆寫優先於角色的 frontmatter pin。
 
 ## 安裝
 
@@ -71,7 +71,7 @@ session**——agent 定義在 session 啟動時載入。
 ## 誠實限制
 
 - **帶 Bash 的「唯讀」是行為約束**：`eagle-sentinel`、`elf-archer`、
-  `orc-saboteur` 為了跑測試持有 Bash，而 Bash 技術上能寫檔——「絕不編輯」
+  `orc-saboteur`、`rohirrim-outrider`、`ranger-pathfinder` 為了跑測試持有 Bash，而 Bash 技術上能寫檔——「絕不編輯」
   是指令不是沙箱。`hobbit-gardener` 是唯一工具層真唯讀的小組成員。
 - **模型不可用時靜默 fallback**：依官方文件，被組織排除的 `model:` 值會
   讓 subagent 改跑 session 繼承的模型、不報錯。沒有 opus 的環境，
