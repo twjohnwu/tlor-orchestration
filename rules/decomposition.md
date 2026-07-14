@@ -112,7 +112,7 @@ After parallel results return:
 
 ## 6. While agents run / when results come back wrong
 
-- **While waiting**, the orchestrator may ONLY: draft the next dispatch
+- **While waiting**, the Maia may ONLY: draft the next dispatch
   prompts, write status for the user, answer the user. It MUST NOT run the
   same search/read "in the meantime" — that duplicates the agent's work and
   floods the main context with exactly what delegation was avoiding.

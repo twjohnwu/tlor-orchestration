@@ -146,7 +146,7 @@ answer — default role: `eagle-sentinel` (template §5):
 
 ## 6. Report contract (paste into every dispatch)
 
-> Your final message is data for the orchestrator, not prose for a human.
+> Your final message is data for the Maia, not prose for a human.
 > Return: (1) conclusion in ≤5 bullet points, (2) `file:line` references for
 > every claim, (3) paths of any files you wrote, (4) anything you could NOT
 > verify, stated explicitly, (5) out-of-scope problems you noticed but did
@@ -156,18 +156,25 @@ answer — default role: `eagle-sentinel` (template §5):
 ## Plan mode requirements
 
 Every plan produced in plan mode must include a **Subagent Dispatch Table**
-listing which subagent type and model to use for each phase/step.
+listing which subagent type, model, and effort to use for each phase/step.
 
-| Phase | Agent | Model | Why |
-|-------|-------|-------|-----|
-| (step name) | (agent type or "orchestrator") | (haiku/sonnet/opus) | (one-line rationale) |
+| Phase | Agent | Model | Effort | Why |
+|-------|-------|-------|--------|-----|
+| (step name) | (agent type or "Maia") | (haiku/sonnet/opus) | (low/medium/high) | (one-line rationale) |
 
 Required annotations:
 - **Parallelism**: mark which phases can run concurrently vs sequential,
   state the dependency.
 - **Executor naming**: every step must name its executor — a tlor-agents role,
-  a generic subagent with explicit `model`, or "orchestrator".
+  a generic subagent with explicit `model`, or "Maia".
 - **Model justification**: the "Why" column must state why this tier was chosen.
+- **Effort justification**: the "Effort" column must match the agent's
+  frontmatter default or state why it differs.
+
+**Dispatch is mandatory, not advisory.** Every step assigned to a subagent in
+the table MUST be dispatched via the Agent tool — the Maia must not execute
+those steps inline. §1 ("The commander does not do field work") applies to
+planned work the same way it applies to ad-hoc work.
 
 Plan mode's default "Only use built-in search" is overridden — use
 tlor-agents roles per the dispatch table above.

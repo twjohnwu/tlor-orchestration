@@ -41,15 +41,15 @@ English version: [README.md](README.md).
 | Skill | 用途 |
 |---|---|
 | `/rivendell-council` | 召集抗辯小組（三鏡頭，多數存活制判定）|
-| `/tlor-init` | 安裝 agents + rules + CLAUDE.md 路由 + 選配 hooks |
+| `/tlor-init` | 安裝 agents + rules + CLAUDE.md 路由 + AGENTS.md + 選配 hooks |
 | `/tlor-restore` | 從備份還原到先前的安裝狀態 |
 
 **rivendell-council** — 抗辯小組的召集流程：組裝自足審查包、並行派遣三鏡頭、
 以多數存活制判定、關鍵結論循環至收斂。
 
 **tlor-init** — 一次性設定 skill：選安裝層級（使用者層/專案層/repo 層）、
-複製 agents 與 rules、產生 CLAUDE.md 路由、選配啟用 hooks。偵測既有安裝並
-提供帶備份的升級流程。
+複製 agents 與 rules、產生 CLAUDE.md 路由與 AGENTS.md、選配啟用 hooks。
+偵測既有安裝並提供帶備份的升級流程。
 
 **tlor-restore** — 從 `/tlor-init` 升級時建立的備份還原。
 
@@ -78,12 +78,16 @@ High-risk verdicts (irreversible ops, contract/schema changes, money/precision, 
 | `risk-tiers.md` | 行動風險分級（T1 不可逆 / T2 難復原 / T3 可逆）|
 | `maintenance.md` | session 可自行修改 vs 需人類核准的項目 |
 
-**選裝**（2 檔——`--with-optional` 或在 `/tlor-init` 中選擇）：
+**選裝**（2 檔，位於 `rules/customize/`——`--with-optional` 或在
+`/tlor-init` 中選擇）：
 
 | Rule | 用途 |
 |---|---|
 | `design-principles.md` | 7 個未覆蓋情境的備用原則（P1-P7）|
 | `user-decision-patterns.md` | 3 個 AI 輔助開發的決策模式（D1-D3）|
+
+你也可以把自己團隊的規則檔（`.md`）直接放進 `rules/customize/`——安裝時
+會一併複製，且會透過 CLAUDE.md 的路由表自動載入，不需要另外接線。
 
 ## Hooks（選配）
 
@@ -123,18 +127,24 @@ cd tlor-agents && ./install.sh          # --dry-run / --force / --uninstall / --
 ```
 
 複製 agents 到 `~/.claude/agents/`、rules 到 `~/.claude/rules/`、skills 到
-`~/.claude/skills/`。加 `--with-optional` 安裝選裝 rules。寫入 manifest 供
-`--uninstall` 精確移除。Hooks 不接入——需要 hooks 請用方式 A。
+`~/.claude/skills/`。加 `--with-optional` 一併安裝 `rules/customize/` 裡的
+選裝 rules。寫入 manifest 供 `--uninstall` 精確移除。Hooks 不接入——需要
+hooks 請用方式 A。
 
 ### 方式 C——/tlor-init（plugin 安裝後推薦）
 
 方式 A 安裝後，在 Claude Code 中執行 `/tlor-init` 做引導式設定：選安裝
-層級、安裝 rules、產生 CLAUDE.md 路由、選配啟用 hooks。
+層級、安裝 rules、產生 CLAUDE.md 路由與 AGENTS.md、選配啟用 hooks。
 
 無論哪種方式，裝完**都要開新 session**——agent 定義在 session 啟動時載入。
 
 ## 備註
 
+- **CLAUDE.md + AGENTS.md 雙檔架構**：`/tlor-init` 會產生一個精簡的
+  CLAUDE.md（只含幾條最高優先級規則＋`@AGENTS.md` import，交由 harness
+  自動內聯）以及一份含完整路由表的 AGENTS.md。這樣拆的理由是 AGENTS.md
+  也能被其他 AI coding 工具（Cursor、Codex 等）讀取，CLAUDE.md 則專屬
+  Claude Code 的自動載入保證。
 - **Serena 為選配**：兩個搜尋角色的 tools 列了
   [Serena](https://github.com/oraios/serena) 語意工具；沒裝該 plugin 時
   角色會 fallback 到 Grep/Glob（指令內已註明）。

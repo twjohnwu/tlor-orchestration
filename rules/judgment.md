@@ -133,6 +133,6 @@ These defaults prevent common AI coding failures: silent scope creep,
 unexplained detours, and destructive edits made without checking the
 target first.
 
-See rules-optional/user-decision-patterns.md if installed for additional
+See rules/customize/user-decision-patterns.md if installed for additional
 guidance on cross-project decision style (spec-first, single-source-of-truth,
 verify-before-trusting).

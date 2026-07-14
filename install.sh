@@ -30,10 +30,10 @@ done
 ROLES=$(cd "$SRC" && ls ./*.md | sed 's|^\./||')
 SKILLS=$(cd "$SKILLS_SRC" && ls -d */ | sed 's|/$||')
 RULES=$(cd "$RULES_SRC" && ls ./*.md | sed 's|^\./||')
+CUSTOMIZE_SRC="$(cd "$(dirname "$0")/rules/customize" && pwd)"
+CUSTOMIZE_FILES=""
 if [ "$WITH_OPTIONAL" -eq 1 ]; then
-  RULES_OPT_SRC="$(cd "$(dirname "$0")/rules-optional" && pwd)"
-  RULES_OPT=$(cd "$RULES_OPT_SRC" && ls ./*.md | sed 's|^\./||')
-  RULES="$RULES $RULES_OPT"
+  CUSTOMIZE_FILES=$(cd "$CUSTOMIZE_SRC" && ls ./*.md 2>/dev/null | sed 's|^\./||')
 fi
 
 if [ "$UNINSTALL" -eq 1 ]; then
@@ -62,6 +62,8 @@ if [ "$UNINSTALL" -eq 1 ]; then
       [ "$DRY" -eq 1 ] && echo "would remove $RULES_DEST/$f" || { rm "$RULES_DEST/$f"; echo "removed $RULES_DEST/$f"; }
     fi
   done
+  # Clean up empty customize dir
+  [ -d "$RULES_DEST/customize" ] && rmdir "$RULES_DEST/customize" 2>/dev/null || true
   if [ "$DRY" -eq 0 ] && [ -f "$RULES_MANIFEST" ]; then rm "$RULES_MANIFEST"; fi
 
   if [ "$DRY" -eq 1 ]; then echo "uninstall dry-run done (nothing removed)."; else echo "uninstall done."; fi
@@ -81,10 +83,13 @@ for s in $SKILLS; do
   fi
 done
 for f in $RULES; do
-  rule_src="$RULES_SRC/$f"
-  [ -f "$rule_src" ] || rule_src="$RULES_OPT_SRC/$f"
-  if [ -f "$RULES_DEST/$f" ] && ! cmp -s "$rule_src" "$RULES_DEST/$f"; then
+  if [ -f "$RULES_DEST/$f" ] && ! cmp -s "$RULES_SRC/$f" "$RULES_DEST/$f"; then
     conflicts="$conflicts $f"
+  fi
+done
+for f in $CUSTOMIZE_FILES; do
+  if [ -f "$RULES_DEST/customize/$f" ] && ! cmp -s "$CUSTOMIZE_SRC/$f" "$RULES_DEST/customize/$f"; then
+    conflicts="$conflicts customize/$f"
   fi
 done
 if [ -n "$conflicts" ] && [ "$FORCE" -ne 1 ]; then
@@ -110,10 +115,14 @@ done
 
 mkdir -p "$RULES_DEST"
 for f in $RULES; do
-  rule_src="$RULES_SRC/$f"
-  [ -f "$rule_src" ] || rule_src="$RULES_OPT_SRC/$f"
-  [ "$DRY" -eq 1 ] && echo "would install $RULES_DEST/$f" || { cp "$rule_src" "$RULES_DEST/$f"; echo "installed $RULES_DEST/$f"; }
+  [ "$DRY" -eq 1 ] && echo "would install $RULES_DEST/$f" || { cp "$RULES_SRC/$f" "$RULES_DEST/$f"; echo "installed $RULES_DEST/$f"; }
 done
+if [ -n "$CUSTOMIZE_FILES" ]; then
+  mkdir -p "$RULES_DEST/customize"
+  for f in $CUSTOMIZE_FILES; do
+    [ "$DRY" -eq 1 ] && echo "would install $RULES_DEST/customize/$f" || { cp "$CUSTOMIZE_SRC/$f" "$RULES_DEST/customize/$f"; echo "installed $RULES_DEST/customize/$f"; }
+  done
+fi
 [ "$DRY" -eq 1 ] && { echo "dry-run done (nothing written)."; exit 0; }
 
 # Record what we installed, then verify every file actually landed.
@@ -133,9 +142,12 @@ if [ "$got_skills" -ne "$want_skills" ]; then
   exit 1
 fi
 
-printf '%s\n' $RULES > "$RULES_MANIFEST"
-want_rules=$(echo $RULES | wc -w | tr -d ' '); got_rules=0
+ALL_RULES="$RULES"
+for f in $CUSTOMIZE_FILES; do ALL_RULES="$ALL_RULES customize/$f"; done
+printf '%s\n' $ALL_RULES > "$RULES_MANIFEST"
+want_rules=$(echo $ALL_RULES | wc -w | tr -d ' '); got_rules=0
 for f in $RULES; do [ -f "$RULES_DEST/$f" ] && got_rules=$((got_rules+1)); done
+for f in $CUSTOMIZE_FILES; do [ -f "$RULES_DEST/customize/$f" ] && got_rules=$((got_rules+1)); done
 if [ "$got_rules" -ne "$want_rules" ]; then
   echo "ERROR: expected $want_rules rules in $RULES_DEST but found $got_rules — partial install, re-run." >&2
   exit 1
@@ -150,5 +162,5 @@ echo "  If you need hooks (institution_guard, verify_gate), install via:"
 echo "  claude plugin add twjohnwu/tlor-agents"
 
 echo ""
-echo "ROUTING: For rules to auto-load, set up CLAUDE.md routing."
-echo "  Run /tlor-init in Claude Code to generate CLAUDE.md with routing."
+echo "ROUTING: For rules to auto-load, set up CLAUDE.md + AGENTS.md routing."
+echo "  Run /tlor-init in Claude Code to generate CLAUDE.md and AGENTS.md with routing."

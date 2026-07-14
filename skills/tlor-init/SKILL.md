@@ -1,11 +1,11 @@
 ---
-description: Initialize tlor-agents orchestration framework — install agents, rules, CLAUDE.md routing, and optional hooks
+description: Initialize tlor-agents orchestration framework — install agents, rules, CLAUDE.md/AGENTS.md routing, and optional hooks
 ---
 
 # /tlor-init — Orchestration Framework Setup
 
 Initialize or upgrade the tlor-agents orchestration framework. Installs agent
-roles, dispatch rules, CLAUDE.md routing, and optional guard hooks.
+roles, dispatch rules, CLAUDE.md/AGENTS.md routing, and optional guard hooks.
 
 ## Workflow
 
@@ -80,32 +80,80 @@ Same version-check and backup logic as Step 3.
 
 ### Step 5: Offer optional rules
 
-Ask the user whether to install optional rules from `rules-optional/`:
+Ask the user whether to install optional rules from `rules/customize/` in the
+plugin bundle:
 
 - **design-principles.md** — 7 fallback principles for uncovered cases (P1-P7)
 - **user-decision-patterns.md** — 3 decision patterns for AI-assisted development (D1-D3)
 
 These provide design philosophy guidance. The framework works without them.
+If installed, copy them to `<target>/rules/customize/`.
 
-### Step 6: Set up CLAUDE.md routing
+### Step 6: Create the customize directory
 
-Generate a CLAUDE.md file with the following content (replace `<rules-path>`
-with the actual path, e.g. `.claude/rules` for project level).
+Ensure `<target>/rules/customize/` exists at the install destination:
 
-The CLAUDE.md should contain:
-- An agent routing priority section declaring tlor-agents as PRIMARY targets
-- Three non-negotiable rules: delegate don't do, verify before done, plan mode uses dispatch roles
-- A routing table pointing to each installed rule file
+- If Step 5 installed optional rules, this directory already exists — nothing
+  further to do.
+- If the user skipped Step 5, create the empty directory anyway.
 
-If no CLAUDE.md exists: create it with the above content.
+This is the landing zone for the user's own project- or team-specific rules.
+Explain to the user: any `.md` file placed in `rules/customize/` is picked up
+automatically by the routing table's catch-all row (Step 7) — no further
+wiring needed, just drop the file in.
 
-If CLAUDE.md already exists: show the user the routing additions that would
-be added and ask whether to:
-- **Append**: add the routing table to the existing CLAUDE.md
-- **Replace**: overwrite with the generated content (backup first)
-- **Skip**: leave CLAUDE.md unchanged (warn that rules won't auto-load)
+### Step 7: Set up CLAUDE.md + AGENTS.md routing
 
-### Step 7: Detect agent collisions
+Generate TWO files (replace `<rules-path>` with the actual path, e.g.
+`.claude/rules` for project level).
+
+**CLAUDE.md** (thin router, <20 lines):
+
+```
+@AGENTS.md
+
+## Non-negotiable rules
+1. Delegate, don't do. (→ rules/dispatch.md)
+2. Verify before claiming done. (→ rules/dispatch.md §5)
+3. Plan mode uses dispatch.md roles. (overrides built-in search default)
+```
+
+**AGENTS.md** (routing + agent priority):
+
+```
+# AGENTS.md — tlor-agents orchestration
+
+## Agent routing priority
+This environment uses tlor-agents roles as the PRIMARY dispatch targets.
+If other plugins provide agents with similar functions, prefer tlor-agents
+roles unless the user explicitly names another plugin's agent.
+
+## Routing table
+| Situation | Read first |
+|---|---|
+| Dispatching subagents, model/effort, escalation, verification | <rules-path>/dispatch.md |
+| Splitting a task into dispatches | <rules-path>/decomposition.md |
+| Writing a delegation prompt | <rules-path>/delegation-templates.md |
+| Unsure: escalate? done? ask user? wrong direction? | <rules-path>/judgment.md |
+| Classifying action risk before executing | <rules-path>/risk-tiers.md |
+| Updating rules or instruction files | <rules-path>/maintenance.md |
+| Project/team-specific conventions | <rules-path>/customize/ (scan all .md files) |
+```
+
+Handle CLAUDE.md and AGENTS.md as two SEPARATE existing-file checks:
+
+- If neither exists: create both with the above content.
+- If CLAUDE.md exists but AGENTS.md does not (or vice versa): create the
+  missing one; for the existing one, apply the same append/replace/skip
+  choice below.
+- For each file that already exists, show the user the content that would
+  be added and ask whether to:
+  - **Append**: add the generated content to the existing file
+  - **Replace**: overwrite with the generated content (backup first)
+  - **Skip**: leave the file unchanged (warn that routing won't auto-load
+    for that file)
+
+### Step 8: Detect agent collisions
 
 Scan `<target>/agents/` for all agent definitions (not just tlor-agents).
 If agents from OTHER sources are found with overlapping functionality:
@@ -116,11 +164,11 @@ Report collisions:
 |-------|--------|---------------|
 | (name) | (plugin/source) | (tlor-agents role) |
 
-The dispatch.md routing table already declares tlor-agents as PRIMARY targets.
-Remind the user that explicit routing in CLAUDE.md is the only reliable way
+The AGENTS.md routing table already declares tlor-agents as PRIMARY targets.
+Remind the user that explicit routing in AGENTS.md is the only reliable way
 to prevent namespace-based agent selection in multi-plugin environments.
 
-### Step 8: Offer hooks (opt-in)
+### Step 9: Offer hooks (opt-in)
 
 Present available hooks with clear descriptions:
 
@@ -149,7 +197,7 @@ export TLOR_INSTITUTION_GUARD=1  # Enable institution file guard
 export TLOR_VERIFY_GATE=1        # Enable test verification gate
 ```
 
-### Step 9: Report summary
+### Step 10: Report summary
 
 Print installation summary:
 
@@ -157,8 +205,9 @@ Print installation summary:
 tlor-agents initialization complete:
   Agents:    N installed (M updated, K skipped)
   Rules:     N installed (M updated, K skipped)
-  Optional:  N installed
+  Optional:  N installed (rules/customize/)
   CLAUDE.md: created / updated / skipped
+  AGENTS.md: created / updated / skipped
   Hooks:     institution_guard (enabled/skipped), verify_gate (enabled/skipped)
   Backups:   .tlor-backup-YYYYMMDD/ (N files)
 ```

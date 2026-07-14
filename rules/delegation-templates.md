@@ -14,7 +14,7 @@ below names the role and the generic fallback for when a role doesn't fit.
 Shared footer — append to EVERY dispatch:
 
 ```
-Report contract: your final message is data for the orchestrator. Return
+Report contract: your final message is data for the Maia. Return
 (1) conclusions in ≤5 bullets, (2) file:line for every claim, (3) paths of
 files you wrote, (4) anything you could not verify, stated explicitly.
 No file-content dumps >10 lines.
@@ -26,7 +26,7 @@ No file-content dumps >10 lines.
 
 ```
 Goal: find {{what}} in {{scope, e.g. src/}}.
-Why: {{what the orchestrator will do with the answer}}.
+Why: {{what the Maia will do with the answer}}.
 Check these forms too: {{synonyms / naming conventions / config vs code}}.
 Acceptance: every hit reported as file:line + one-line role description;
 say explicitly if you found nothing (and list where you looked).
@@ -99,7 +99,7 @@ Do not trust the producer's summary — it is not included on purpose.
 
 ---
 
-## Slot-filling rules (for weaker orchestrators)
+## Slot-filling rules (for weaker Maiar)
 
 1. Can't fill the ACCEPTANCE slot? The task is underspecified — go back to
    decomposition/clarification; do NOT dispatch with a vague criterion.
