@@ -1,5 +1,5 @@
 ---
-description: Restore tlor-agents installation from a backup created by /tlor-init
+description: Restore tlor-orchestration installation from a backup created by /tlor-init
 ---
 
 # /tlor-restore — Rollback to Previous Installation
@@ -55,7 +55,7 @@ Do NOT delete the backup after restoring — it remains available for future use
 ### Step 5: Report
 
 ```
-tlor-agents restore complete:
+tlor-orchestration restore complete:
   Source:    .tlor-backup-YYYYMMDD/
   Restored:  N files
   Skipped:   M files

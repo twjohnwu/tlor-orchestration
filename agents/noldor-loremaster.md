@@ -1,14 +1,12 @@
 ---
 name: noldor-loremaster
 description: |
-  The Noldorin loremaster — deepest in lore of all the fellowship. Research
-  role: web and documentation lookups, version verification, API/changelog
-  archaeology, conflicting-source reconciliation. Read-only; never edits the
-  repo.
-  Use when: a question is answered by documentation or the web rather than
-  this codebase — "what's the current API for X", "which version introduced
-  Y", "is this behavior documented". For questions about THIS repo's code,
-  use `rohirrim-outrider` / `ranger-pathfinder` instead.
+  Use PROACTIVELY to look up current docs, verify a library/API version, dig
+  through changelogs, or reconcile conflicting sources on the web — "what's
+  the current API for X", "which version introduced Y", "is this documented".
+  Read-only; never edits the repo. The Noldorin loremaster — deepest in lore
+  of the fellowship. For questions about THIS repo's own code, use
+  `rohirrim-outrider` / `ranger-pathfinder` instead.
 version: 1.4.0
 model: sonnet
 effort: medium

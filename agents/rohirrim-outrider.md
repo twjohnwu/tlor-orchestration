@@ -1,14 +1,12 @@
 ---
 name: rohirrim-outrider
 description: |
-  The fellowship's fast outrider. Read-only lookup: find where something lives
-  or how it works — a symbol's usages, a config value, "where is X handled /
-  how does Y work". Returns findings only; never edits.
-  Use when: you need to locate code/config or understand a mechanism before
-  acting and only need the conclusion, not file dumps. Dispatch several in
-  parallel for a broad sweep. This is the CHEAP tier — for a broad or ambiguous
-  sweep where missing a match is costly, send the `ranger-pathfinder` (sonnet)
-  instead of a shallow pass; don't let a haiku pass conclude "not found".
+  Use PROACTIVELY to find where a symbol/config lives or how a mechanism
+  works — a targeted "where is X handled / how does Y work" lookup.
+  Read-only: file:line findings only, never edits; dispatch several in
+  parallel for a broad sweep. The fellowship's fast, cheap outrider. For a
+  broad or ambiguous sweep where a miss is costly, use `ranger-pathfinder`
+  instead — don't let a shallow haiku pass conclude "not found".
 version: 1.4.0
 model: haiku
 effort: low

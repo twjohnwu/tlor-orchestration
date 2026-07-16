@@ -6,7 +6,7 @@
   },
   "plugins": [
     {
-      "name": "tlor-agents",
+      "name": "tlor-orchestration",
       "source": "./",
       "description": "Nine Middle-earth-themed pinned subagent roles for Claude Code: rohirrim-outrider, ranger-pathfinder, noldor-loremaster, dwarf-smith, gondor-builder, eagle-sentinel, elf-archer, orc-saboteur, hobbit-gardener."
     }

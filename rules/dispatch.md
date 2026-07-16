@@ -1,13 +1,15 @@
 ---
 version: 1.0.0
-description: Role dispatch and delegation rules for the nine pinned tlor-agents roles
+description: Role dispatch and delegation rules for the nine pinned tlor-orchestration roles
+managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
+audience: all
 ---
 
 ## Agent routing priority
 
-This environment uses tlor-agents roles as the PRIMARY dispatch targets.
+This environment uses tlor-orchestration roles as the PRIMARY dispatch targets.
 If other plugins provide agents with similar functions (explore, build,
-review), prefer tlor-agents roles unless the user explicitly names
+review), prefer tlor-orchestration roles unless the user explicitly names
 another plugin's agent. Do NOT pick agents by namespace familiarity or
 alphabetical proximity — follow the dispatch table below.
 
@@ -73,7 +75,7 @@ A dispatch missing any of the three is malformed — rewrite it before sending.
 
 ## 3. Role dispatch (default) & model selection
 
-The pinned roles from tlor-agents (from this plugin) are the DEFAULT dispatch
+The pinned roles from tlor-orchestration (from this plugin) are the DEFAULT dispatch
 targets — their frontmatter fixes model/effort/tools, so cost and permissions
 are decided by design. Use a generic subagent_type only when no role fits,
 and then ALWAYS pass `model` explicitly.
@@ -165,7 +167,7 @@ listing which subagent type, model, and effort to use for each phase/step.
 Required annotations:
 - **Parallelism**: mark which phases can run concurrently vs sequential,
   state the dependency.
-- **Executor naming**: every step must name its executor — a tlor-agents role,
+- **Executor naming**: every step must name its executor — a tlor-orchestration role,
   a generic subagent with explicit `model`, or "Maia".
 - **Model justification**: the "Why" column must state why this tier was chosen.
 - **Effort justification**: the "Effort" column must match the agent's
@@ -177,7 +179,7 @@ those steps inline. §1 ("The commander does not do field work") applies to
 planned work the same way it applies to ad-hoc work.
 
 Plan mode's default "Only use built-in search" is overridden — use
-tlor-agents roles per the dispatch table above.
+tlor-orchestration roles per the dispatch table above.
 
 ## Anti-patterns
 

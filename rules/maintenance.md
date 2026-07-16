@@ -1,6 +1,8 @@
 ---
 version: 1.0.0
 description: What sessions may change in this rule system on their own, and what needs human approval first.
+managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
+audience: all
 ---
 
 # maintenance.md — How sessions update this rule system safely
@@ -34,20 +36,17 @@ making it looser = user decision.
 
 ## Where lessons go
 
-1. **Recurring workflow failures** (a dispatch pattern that misfires, a
-   judgment call the rubrics got wrong) → append to the `## Lessons` section
-   at the bottom of the relevant rules file, format:
+| Lesson type | Destination | Format |
+|-------------|-------------|--------|
+| Recurring workflow failure (a dispatch pattern that misfires, a judgment call the rubrics got wrong) | `## Lessons` section at the bottom of the relevant rules file | `- YYYY-MM-DD (model): symptom → root cause → rule adjustment made/proposed` |
+| Project/code decision that got reversed or argued | that project's decisions log (e.g. `decisions_log/{repo}.md`) | that project's decision-log convention |
+| Project-specific gotcha | that project's instruction file (AGENTS.md or equivalent) | inline note |
+| Environment/tooling facts (a new tool/command recipe) | `rules/customize/` or the memory system | recipe with a runnable example, or the memory file format |
+| User preference / correction | whatever persistent memory mechanism the host tooling provides, if any | memory file format |
 
-   ```
-   - YYYY-MM-DD (model): symptom → root cause → rule adjustment made/proposed
-   ```
-
-   If the lesson demands a rule change that falls in the ask-first list,
-   record it as `proposed:` and raise it with the user.
-2. **Project-specific gotchas** → that project's instruction file (AGENTS.md
-   or equivalent).
-3. **One-off environment/user facts** → whatever persistent memory mechanism
-   the host tooling provides, if any.
+If the lesson demands a rule change that falls in the ask-first list above,
+record it as `proposed:` and raise it with the user rather than landing it
+directly.
 
 After ANY edit to rules or routing/instruction files: dispatch one fresh-context
 verification pass to read the changed files and report contradictions,
@@ -56,11 +55,11 @@ without session context would misread.
 
 ## Compaction triggers
 
-- Any single rules file > 150 lines, or instruction files > 100 lines, or
+- Any single rules file > 400 lines, or instruction files > 120 lines, or
   the routing file > 40 lines → compact: merge duplicate lessons into the rule body, extract
   detail into a referenced file, delete superseded entries. Keep a dated
   `.bak-YYYYMMDD` copy beside the file before compacting.
-- A `## Lessons` section > 10 entries → fold the stable ones into the rules
+- A `## Lessons` section > 20 entries → fold the stable ones into the rules
   proper and delete the entries.
 
 ## Invariants (never break during maintenance)

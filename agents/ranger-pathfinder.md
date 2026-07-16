@@ -1,15 +1,12 @@
 ---
 name: ranger-pathfinder
 description: |
-  The fellowship's wide-ranging pathfinder. Broad, thorough read-only sweep
-  across many files, directories, and naming conventions — the wide-net
-  counterpart to `rohirrim-outrider`. Returns findings only; never edits.
-  Use when: the search surface is broad or ambiguous and a miss is costly —
-  "where is X handled" across an unfamiliar area, tracing a flow through
-  several modules, or when a cheap `rohirrim-outrider` pass risks a false
-  "not found". For a targeted, known-shape lookup use `rohirrim-outrider`
-  (haiku) instead — this is the pricier sonnet tier, reached for when breadth
-  matters.
+  Use PROACTIVELY for a broad, thorough sweep: map how something works
+  across many files/modules, trace a flow through an unfamiliar area, or
+  search under ambiguous naming where a missed match is costly. Read-only:
+  returns file:line findings only, never edits. The fellowship's wide-ranging
+  pathfinder — the pricier sonnet counterpart to `rohirrim-outrider`. For a
+  targeted, known-shape lookup, use `rohirrim-outrider` (haiku) instead.
 version: 1.4.0
 model: sonnet
 effort: low

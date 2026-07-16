@@ -8,7 +8,7 @@ description: 'Multi-lens adversarial review — for major conclusions, architect
 > Named for the council at Rivendell that debated the Ring — and only then
 > dispatched the Fellowship. Debate first; act on what survives.
 
-> Ships with tlor-agents; the lenses are this plugin's `elf-archer`,
+> Ships with tlor-orchestration; the lenses are this plugin's `elf-archer`,
 > `orc-saboteur`, `hobbit-gardener` (pinned opus since v1.2.0).
 
 ## Purpose

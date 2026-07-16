@@ -1,6 +1,8 @@
 ---
 version: 1.0.0
 description: How to split a task into dispatches before delegating to subagents
+managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
+audience: all
 ---
 
 # decomposition.md — How to split a task before dispatching

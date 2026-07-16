@@ -1,17 +1,17 @@
 ---
-description: Initialize tlor-agents orchestration framework — install agents, rules, CLAUDE.md/AGENTS.md routing, and optional hooks
+description: Initialize tlor-orchestration orchestration framework — install agents, rules, CLAUDE.md/AGENTS.md routing, and optional hooks
 ---
 
 # /tlor-init — Orchestration Framework Setup
 
-Initialize or upgrade the tlor-agents orchestration framework. Installs agent
+Initialize or upgrade the tlor-orchestration orchestration framework. Installs agent
 roles, dispatch rules, CLAUDE.md/AGENTS.md routing, and optional guard hooks.
 
 ## Workflow
 
 ### Step 1: Detect existing installation
 
-Scan for existing tlor-agents files:
+Scan for existing tlor-orchestration files:
 
 ```bash
 # Check common locations for existing agents
@@ -41,10 +41,24 @@ Ask the user which installation level to use:
 
 Do NOT cross-contaminate levels. User-level install does not touch project files.
 
-### Step 3: Install agents
+### Step 3: Set up the institution layout and install agents
 
-Copy the 9 agent role definitions from the plugin's `agents/` directory to
-`<target>/agents/`:
+For a **User level** install only (`~/.claude/`), first make the layout
+idempotent so this and future installs never clobber a directory the user
+relocated by hand. Apply this 3-branch check to each of
+`~/.claude/agents`, `~/.claude/rules`, `~/.claude/hooks`:
+
+1. **Already a symlink** → skip, nothing to do.
+2. **A real directory exists** → move it to `~/.claude/institution/<name>/`,
+   then symlink `~/.claude/<name>` to it (so nothing already there is lost).
+3. **Missing** → create `~/.claude/institution/<name>/` and symlink
+   `~/.claude/<name>` to it.
+
+(Project/repo level installs use plain directories — this institution layout
+is a `~/.claude/` concept only.)
+
+Then copy the 9 agent role definitions from the plugin's `agents/` directory
+to `<target>/agents/`:
 
 - rohirrim-outrider.md
 - ranger-pathfinder.md
@@ -65,8 +79,12 @@ If local version >= bundled version, skip automatically.
 
 ### Step 4: Install required rules
 
-Copy 6 required rule files from the plugin's `rules/` directory to
-`<target>/rules/`:
+Base rules are **plugin-owned**: copy the 7 required rule files from the
+plugin's `rules/` directory to `<target>/rules/` as an **unconditional
+overwrite** — no version-compare-and-ask here, the plugin is the single
+source of truth for these files. While copying, inject a `version: <plugin
+version>` line into each file's frontmatter (reading the version from the
+plugin's `.claude-plugin/plugin.json`, not from the shipped file itself).
 
 - dispatch.md — role dispatch table, delegation rules, escalation paths,
   plan mode dispatch table requirements
@@ -75,8 +93,12 @@ Copy 6 required rule files from the plugin's `rules/` directory to
 - judgment.md — when to escalate, when done, when to ask
 - risk-tiers.md — classify actions by risk before executing
 - maintenance.md — what's safe to change vs needs user approval
+- skill-triggers.md — when to invoke a skill instead of following a blanket
+  "always invoke" injection
 
-Same version-check and backup logic as Step 3.
+After installing `skill-triggers.md`, guide the user to fill in its
+placeholder namespace-priority table with the plugins they actually have
+installed — that table can't be filled in generically at build time.
 
 ### Step 5: Offer optional rules
 
@@ -85,9 +107,14 @@ plugin bundle:
 
 - **design-principles.md** — 7 fallback principles for uncovered cases (P1-P7)
 - **user-decision-patterns.md** — 3 decision patterns for AI-assisted development (D1-D3)
+- **customize/letter-to-future-sessions.md** — a blank template the user
+  fills in over time (non-obvious project facts, decay countermeasures,
+  honest limits); ships empty on purpose.
 
 These provide design philosophy guidance. The framework works without them.
-If installed, copy them to `<target>/rules/customize/`.
+If installed, copy them to `<target>/rules/customize/`. Per the ownership
+model below, only copy a file if it does not already exist at the
+destination — never overwrite something already in `customize/`.
 
 ### Step 6: Create the customize directory
 
@@ -97,10 +124,13 @@ Ensure `<target>/rules/customize/` exists at the install destination:
   further to do.
 - If the user skipped Step 5, create the empty directory anyway.
 
-This is the landing zone for the user's own project- or team-specific rules.
-Explain to the user: any `.md` file placed in `rules/customize/` is picked up
-automatically by the routing table's catch-all row (Step 7) — no further
-wiring needed, just drop the file in.
+This is the landing zone for the user's own project- or team-specific rules,
+and the only place user content lives — **the installer never overwrites
+anything already in `customize/`**, no matter how it got there (Step 5
+optional copy, or the user's own files). Explain to the user: any `.md` file
+placed in `rules/customize/` is picked up automatically by the routing
+table's catch-all row (Step 7) — no further wiring needed, just drop the
+file in.
 
 ### Step 7: Set up CLAUDE.md + AGENTS.md routing
 
@@ -121,11 +151,11 @@ Generate TWO files (replace `<rules-path>` with the actual path, e.g.
 **AGENTS.md** (routing + agent priority):
 
 ```
-# AGENTS.md — tlor-agents orchestration
+# AGENTS.md — tlor-orchestration orchestration
 
 ## Agent routing priority
-This environment uses tlor-agents roles as the PRIMARY dispatch targets.
-If other plugins provide agents with similar functions, prefer tlor-agents
+This environment uses tlor-orchestration roles as the PRIMARY dispatch targets.
+If other plugins provide agents with similar functions, prefer tlor-orchestration
 roles unless the user explicitly names another plugin's agent.
 
 ## Routing table
@@ -137,6 +167,7 @@ roles unless the user explicitly names another plugin's agent.
 | Unsure: escalate? done? ask user? wrong direction? | <rules-path>/judgment.md |
 | Classifying action risk before executing | <rules-path>/risk-tiers.md |
 | Updating rules or instruction files | <rules-path>/maintenance.md |
+| Deciding whether to invoke a skill | <rules-path>/skill-triggers.md |
 | Project/team-specific conventions | <rules-path>/customize/ (scan all .md files) |
 ```
 
@@ -155,16 +186,16 @@ Handle CLAUDE.md and AGENTS.md as two SEPARATE existing-file checks:
 
 ### Step 8: Detect agent collisions
 
-Scan `<target>/agents/` for all agent definitions (not just tlor-agents).
+Scan `<target>/agents/` for all agent definitions (not just tlor-orchestration).
 If agents from OTHER sources are found with overlapping functionality:
 
 Report collisions:
 
 | Agent | Source | Overlaps with |
 |-------|--------|---------------|
-| (name) | (plugin/source) | (tlor-agents role) |
+| (name) | (plugin/source) | (tlor-orchestration role) |
 
-The AGENTS.md routing table already declares tlor-agents as PRIMARY targets.
+The AGENTS.md routing table already declares tlor-orchestration as PRIMARY targets.
 Remind the user that explicit routing in AGENTS.md is the only reliable way
 to prevent namespace-based agent selection in multi-plugin environments.
 
@@ -187,9 +218,11 @@ Present available hooks with clear descriptions:
 Let the user choose per-hook: install or skip. Do NOT install any hook without
 explicit consent.
 
-For hooks chosen: explain that the hooks are bundled with the plugin and
-activated via environment variables. Tell the user to add the relevant
-env var to their shell profile:
+For hooks chosen: copy `hooks/institution_guard.py` and `hooks/verify_gate.py`
+from the plugin bundle to `~/.claude/institution/hooks/` (this lands at
+`~/.claude/hooks/` through the Step 3 symlink). Then explain that activation
+is still via environment variables. Tell the user to add the relevant env
+var to their shell profile:
 
 ```bash
 # Add to ~/.zshrc or ~/.bashrc
@@ -202,7 +235,7 @@ export TLOR_VERIFY_GATE=1        # Enable test verification gate
 Print installation summary:
 
 ```
-tlor-agents initialization complete:
+tlor-orchestration initialization complete:
   Agents:    N installed (M updated, K skipped)
   Rules:     N installed (M updated, K skipped)
   Optional:  N installed (rules/customize/)

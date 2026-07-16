@@ -1,10 +1,10 @@
 {
-  "name": "tlor-agents",
+  "name": "tlor-orchestration",
   "displayName": "TLOR Agents — a Middle-earth fellowship for Claude Code",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Orchestration framework for Claude Code: nine Middle-earth-themed pinned subagent roles, dispatch rules, judgment rubrics, risk tiers, and the /tlor-init setup skill. Roles pin model/effort/tools by design; rules enforce delegation discipline and verification.",
   "author": { "name": "twjohnwu", "url": "https://github.com/twjohnwu" },
-  "repository": "https://github.com/twjohnwu/tlor-agents",
+  "repository": "https://github.com/twjohnwu/tlor-orchestration",
   "license": "MIT",
   "keywords": ["agents", "subagents", "lotr", "roles", "dispatch", "rivendell-council", "rules", "orchestration", "tlor-init"]
 }

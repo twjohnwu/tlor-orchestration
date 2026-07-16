@@ -1,7 +1,7 @@
-# TLOR Agents — a Middle-earth fellowship for Claude Code
+# TLOR Orchestration — a Middle-earth fellowship for Claude Code
 
-[![CI](https://github.com/twjohnwu/tlor-agents/actions/workflows/validate.yml/badge.svg)](https://github.com/twjohnwu/tlor-agents/actions/workflows/validate.yml)
-[![version](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/twjohnwu/tlor-agents/blob/main/.claude-plugin/plugin.json)
+[![CI](https://github.com/twjohnwu/tlor-orchestration/actions/workflows/validate.yml/badge.svg)](https://github.com/twjohnwu/tlor-orchestration/actions/workflows/validate.yml)
+[![version](https://img.shields.io/badge/version-3.0.0-blue)](https://github.com/twjohnwu/tlor-orchestration/blob/main/.claude-plugin/plugin.json)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 An orchestration framework for [Claude Code](https://code.claude.com), themed
@@ -10,6 +10,60 @@ plus dispatch rules, setup skills, and opt-in guard hooks — everything an AI
 coding session needs to delegate reliably.
 
 繁體中文說明請見 [README.zh-TW.md](README.zh-TW.md).
+
+## Renamed: tlor-agents → tlor-orchestration (2.x → 3.0)
+
+This repo was renamed from `tlor-agents` to `tlor-orchestration`; GitHub
+redirects the old URLs automatically, but plugin installs are keyed by repo
+name, so a manual step is required:
+
+```
+/plugin uninstall tlor-agents@tlor        # remove the old install
+/plugin marketplace add twjohnwu/tlor-orchestration
+/plugin install tlor-orchestration@tlor   # re-add under the new name
+```
+
+If you installed via `install.sh` (plain copy), just re-run the new
+`install.sh` — see the ownership model below for what changes on upgrade.
+
+**v3.0.0 also changes the install/ownership model** (see below): base rule
+files are now plugin-owned and overwritten unconditionally on every install;
+anything you want to keep across upgrades belongs in `rules/customize/`,
+which the installer never touches. If you had hand-edited a base rule file
+in place under 2.x, move your edits into `rules/customize/` before
+upgrading — the next install will overwrite the base file with the shipped
+version.
+
+## Two ways to use this
+
+- **Lightweight** — just install the plugin. The nine roles become available
+  in any NEW session after install (in an already-running session, run
+  `/reload-plugins` first). Invoke them explicitly by name, or add the
+  CLAUDE.md snippet below for consistent dispatch — in our headless probes,
+  descriptions alone did not reliably trigger automatic delegation, so the
+  snippet is the recommended lightweight setup.
+- **Full** — additionally run `/tlor-init`. This lays down the rules files,
+  the `~/.claude/institution/` layout (see below), and CLAUDE.md/AGENTS.md
+  routing so dispatch discipline is enforced automatically rather than
+  relying on the model to remember to use the roles.
+
+## Ownership model
+
+- **Base rules are plugin-owned.** Every install/upgrade overwrites the
+  required rule files unconditionally and stamps them with the plugin's
+  `version` (the single source of truth — not a value baked into the shipped
+  file). Don't hand-edit these; edits are lost on the next install.
+- **`rules/customize/` is yours.** The installer creates it, may seed it with
+  optional starter files on first install, and never overwrites anything
+  already there afterward — this is the only place persistent local
+  customization belongs.
+- **`~/.claude/institution/` layout.** For user-level installs,
+  `~/.claude/{agents,rules,hooks}` become symlinks into
+  `~/.claude/institution/<name>/`. This is idempotent: already a symlink →
+  left alone; a real directory already there → moved under `institution/`
+  and symlinked (nothing is lost); missing → created fresh. The indirection
+  means the plugin's overwrite-on-install semantics for base rules/hooks
+  never fight with a directory you relocated or are backing up by hand.
 
 ## The worldview
 
@@ -66,7 +120,7 @@ upgrades.
 situation. For a hard guarantee, add one line to your project's `CLAUDE.md`:
 
 ```
-High-risk verdicts (irreversible ops, contract/schema changes, money/precision, architecture decisions, root-cause claims, production-affecting conclusions) MUST pass /tlor-agents:rivendell-council before adoption.
+High-risk verdicts (irreversible ops, contract/schema changes, money/precision, architecture decisions, root-cause claims, production-affecting conclusions) MUST pass /tlor-orchestration:rivendell-council before adoption.
 ```
 
 `eagle-sentinel`'s HIGH-RISK recommendation is the convening signal.
@@ -76,7 +130,8 @@ High-risk verdicts (irreversible ops, contract/schema changes, money/precision, 
 The plugin bundles depersonalized orchestration rules — install them via
 `/tlor-init` or `install.sh`:
 
-**Required** (6 files):
+**Required** (7 files, plugin-owned — unconditionally overwritten on every
+install/upgrade, `version` stamped from `.claude-plugin/plugin.json`):
 
 | Rule | Purpose |
 |---|---|
@@ -86,22 +141,26 @@ The plugin bundles depersonalized orchestration rules — install them via
 | `judgment.md` | When to escalate, when done, when to ask, wrong-direction signals |
 | `risk-tiers.md` | Classify actions by risk (T1 irreversible / T2 hard-to-undo / T3 reversible) |
 | `maintenance.md` | What sessions may change vs what needs human approval |
+| `skill-triggers.md` | When to invoke a skill instead of following a blanket "always invoke" injection — fill in your installed plugins' namespace priority |
 
-**Optional** (2 files, now living in `rules/customize/` — install with
-`--with-optional` or choose in `/tlor-init`):
+**Optional** (3 files, living in `rules/customize/` — install with
+`--with-optional` or choose in `/tlor-init`; once copied, never overwritten):
 
 | Rule | Purpose |
 |---|---|
 | `design-principles.md` | 7 fallback principles for uncovered cases (P1-P7) |
 | `user-decision-patterns.md` | 3 decision patterns for AI-assisted development (D1-D3) |
+| `letter-to-future-sessions.md` | Blank template — fill in over time with project facts, decay countermeasures, honest limits |
 
 You can also drop your own `.md` rule files into `rules/customize/` — they
-get auto-loaded via the routing table generated by `/tlor-init`.
+get auto-loaded via the routing table generated by `/tlor-init`, and the
+installer will never touch them.
 
 ## Hooks (opt-in)
 
 Both hooks are **OFF by default** — enable via environment variables.
-Plugin installs only: `install.sh` does not wire hooks.
+`install.sh` copies the hook scripts but does not wire or activate them
+(no `hooks.json`, no env vars); use the plugin route for that.
 
 ### institution_guard (PreToolUse)
 
@@ -124,8 +183,8 @@ Enable: `export TLOR_VERIFY_GATE=1`
 ### Option A — as a plugin (recommended)
 
 ```
-/plugin marketplace add twjohnwu/tlor-agents
-/plugin install tlor-agents@tlor
+/plugin marketplace add twjohnwu/tlor-orchestration
+/plugin install tlor-orchestration@tlor
 ```
 
 Updates: bump happens on our side via the `version` field; refresh with
@@ -134,14 +193,36 @@ Updates: bump happens on our side via the `version` field; refresh with
 ### Option B — plain copy
 
 ```bash
-git clone https://github.com/twjohnwu/tlor-agents.git
-cd tlor-agents && ./install.sh          # --dry-run / --force / --uninstall / --with-optional
+git clone https://github.com/twjohnwu/tlor-orchestration.git
+cd tlor-orchestration && ./install.sh          # --dry-run / --force / --uninstall / --with-optional
 ```
 
-Copies agents to `~/.claude/agents/`, rules to `~/.claude/rules/`, and skills
-to `~/.claude/skills/`. Add `--with-optional` to include the optional rules
-installed from `rules/customize/`. Records manifests for clean `--uninstall`.
-Hooks are not wired — use the plugin route (Option A) for hooks.
+Copies agents to `~/.claude/agents/`, rules to `~/.claude/rules/`, hook
+scripts to `~/.claude/hooks/`, and skills to `~/.claude/skills/`, setting up
+the `~/.claude/institution/` symlink layout on first run (see Ownership
+model above). Add `--with-optional` to include the optional rules installed
+from `rules/customize/`. Records manifests for clean `--uninstall`. Hook
+*activation* (env vars, `hooks.json` wiring) still needs the plugin route
+(Option A) — `install.sh` only places the files.
+
+**Lightweight users** (plugin only, no `/tlor-init`): add this to your
+project's `CLAUDE.md` to get dispatch discipline without the full rules
+install:
+
+```markdown
+## Subagent dispatch (tlor-orchestration)
+
+Prefer the pinned tlor-orchestration roles over generic subagents:
+- Targeted code/config lookup ("where is X") → rohirrim-outrider
+- Broad/ambiguous search where a miss is costly → ranger-pathfinder
+- Web/docs research, version checks → noldor-loremaster
+- Mechanical batch edits with an exact recipe → dwarf-smith
+- Implement against a written spec → gondor-builder
+- Verify finished work (fresh context; never self-certify) → eagle-sentinel
+- Adversarial review of major conclusions → elf-archer + orc-saboteur + hobbit-gardener in parallel
+
+Delegate any read of >3 files or repo-wide scan; keep only conclusions + file:line in the main thread.
+```
 
 ### Option C — /tlor-init (recommended after plugin install)
 

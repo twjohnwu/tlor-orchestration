@@ -1,6 +1,8 @@
 ---
 version: 1.0.0
 description: Fill-in dispatch prompt templates for the five standard delegation shapes
+managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
+audience: all
 ---
 
 # delegation-templates.md — Fill-in prompts for the Agent tool
@@ -8,7 +10,7 @@ description: Fill-in dispatch prompt templates for the five standard delegation 
 Copy the template, fill every `{{slot}}`, delete unused optional lines. Every
 template already embeds the three-part contract (goal+why / acceptance /
 report format) from dispatch.md §2 and the report contract §6. Dispatch
-targets are the pinned tlor-agents roles (dispatch.md §3 table); each header
+targets are the pinned tlor-orchestration roles (dispatch.md §3 table); each header
 below names the role and the generic fallback for when a role doesn't fit.
 
 Shared footer — append to EVERY dispatch:

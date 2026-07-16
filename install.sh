@@ -1,21 +1,29 @@
 #!/usr/bin/env bash
-# install.sh — copy TLOR agent roles, skills, and rules into ~/.claude/
+# install.sh — copy TLOR agent roles, skills, rules, and hooks into ~/.claude/
 # (no plugin system needed).
 # Usage: ./install.sh [--dry-run] [--force] [--uninstall] [--with-optional]
 # Prefer the plugin route when possible:
-#   /plugin marketplace add twjohnwu/tlor-agents   then   /plugin install tlor-agents@tlor
+#   /plugin marketplace add twjohnwu/tlor-orchestration   then   /plugin install tlor-orchestration@tlor
 set -euo pipefail
 
 : "${HOME:?HOME is not set — refusing to guess an install location}"
-SRC="$(cd "$(dirname "$0")/agents" && pwd)"
-SKILLS_SRC="$(cd "$(dirname "$0")/skills" && pwd)"
-RULES_SRC="$(cd "$(dirname "$0")/rules" && pwd)"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+SRC="$ROOT/agents"
+SKILLS_SRC="$ROOT/skills"
+RULES_SRC="$ROOT/rules"
+HOOKS_SRC="$ROOT/hooks"
+PLUGIN_JSON="$ROOT/.claude-plugin/plugin.json"
+
+INSTITUTION="$HOME/.claude/institution"
 DEST="$HOME/.claude/agents"
 SKILLS_DEST="$HOME/.claude/skills"
 RULES_DEST="$HOME/.claude/rules"
+HOOKS_DEST="$HOME/.claude/hooks"
 MANIFEST="$DEST/.tlor-manifest"
 SKILLS_MANIFEST="$SKILLS_DEST/.tlor-manifest"
 RULES_MANIFEST="$RULES_DEST/.tlor-manifest"
+HOOKS_MANIFEST="$HOOKS_DEST/.tlor-manifest"
+
 DRY=0; FORCE=0; UNINSTALL=0; WITH_OPTIONAL=0
 for a in "$@"; do
   case "$a" in
@@ -27,14 +35,66 @@ for a in "$@"; do
   esac
 done
 
+# Single source of truth for the version stamped into every base rule file's
+# frontmatter — read directly from plugin.json, no jq dependency.
+VERSION=$(grep -m1 '"version"' "$PLUGIN_JSON" | sed -E 's/.*"version": *"([^"]+)".*/\1/')
+
 ROLES=$(cd "$SRC" && ls ./*.md | sed 's|^\./||')
 SKILLS=$(cd "$SKILLS_SRC" && ls -d */ | sed 's|/$||')
 RULES=$(cd "$RULES_SRC" && ls ./*.md | sed 's|^\./||')
-CUSTOMIZE_SRC="$(cd "$(dirname "$0")/rules/customize" && pwd)"
+HOOK_FILES="institution_guard.py verify_gate.py"
+CUSTOMIZE_SRC="$RULES_SRC/customize"
 CUSTOMIZE_FILES=""
 if [ "$WITH_OPTIONAL" -eq 1 ]; then
   CUSTOMIZE_FILES=$(cd "$CUSTOMIZE_SRC" && ls ./*.md 2>/dev/null | sed 's|^\./||')
 fi
+
+# Idempotent institution layout: ~/.claude/{agents,rules,hooks} become
+# symlinks into ~/.claude/institution/<name>, so this plugin's overwrite-on-
+# install semantics for base rules/hooks never clobber a directory the user
+# relocated or is backing up by hand. Three branches per path:
+#   already a symlink        -> skip
+#   a real directory exists  -> move it under institution/<name>, then symlink
+#   missing                  -> create institution/<name>, then symlink
+ensure_institution_symlink() {
+  local name="$1"
+  local target="$HOME/.claude/$name"
+  local real="$INSTITUTION/$name"
+  if [ -L "$target" ]; then
+    echo "institution: $target already a symlink — skip"
+  elif [ -e "$target" ]; then
+    if [ "$DRY" -eq 1 ]; then
+      echo "would move $target -> $real and symlink"
+    else
+      mkdir -p "$INSTITUTION"
+      mv "$target" "$real"
+      ln -s "$real" "$target"
+      echo "institution: moved $target -> $real, symlinked"
+    fi
+  else
+    if [ "$DRY" -eq 1 ]; then
+      echo "would create $real and symlink $target"
+    else
+      mkdir -p "$real"
+      ln -s "$real" "$target"
+      echo "institution: created $real, symlinked $target"
+    fi
+  fi
+}
+
+# Inject `version: X.Y.Z` (from plugin.json) into a rule file's frontmatter —
+# replaces an existing `version:` line if present, otherwise inserts one
+# before the closing `---`. This is the only place a base rule file's
+# version comes from; the shipped file itself is not authoritative.
+inject_version() {
+  local file="$1"
+  awk -v ver="$VERSION" '
+    NR==1 && $0=="---" { print; infm=1; next }
+    infm && /^version:/ { print "version: " ver; done=1; next }
+    infm && $0=="---" { if (!done) print "version: " ver; print; infm=0; next }
+    { print }
+  ' "$file" > "$file.tmp.$$" && mv "$file.tmp.$$" "$file"
+}
 
 if [ "$UNINSTALL" -eq 1 ]; then
   # Remove what was actually installed (manifest), not what the current
@@ -66,9 +126,24 @@ if [ "$UNINSTALL" -eq 1 ]; then
   [ -d "$RULES_DEST/customize" ] && rmdir "$RULES_DEST/customize" 2>/dev/null || true
   if [ "$DRY" -eq 0 ] && [ -f "$RULES_MANIFEST" ]; then rm "$RULES_MANIFEST"; fi
 
+  if [ -f "$HOOKS_MANIFEST" ]; then REMOVE_HOOKS=$(cat "$HOOKS_MANIFEST"); else REMOVE_HOOKS=$HOOK_FILES; fi
+  for f in $REMOVE_HOOKS; do
+    if [ -f "$HOOKS_DEST/$f" ]; then
+      [ "$DRY" -eq 1 ] && echo "would remove $HOOKS_DEST/$f" || { rm "$HOOKS_DEST/$f"; echo "removed $HOOKS_DEST/$f"; }
+    fi
+  done
+  if [ "$DRY" -eq 0 ] && [ -f "$HOOKS_MANIFEST" ]; then rm "$HOOKS_MANIFEST"; fi
+
+  # Institution layout and its symlinks are left in place on uninstall —
+  # unwinding a relocated real directory safely needs a decision only the
+  # user can make; use /tlor-restore or undo it by hand.
   if [ "$DRY" -eq 1 ]; then echo "uninstall dry-run done (nothing removed)."; else echo "uninstall done."; fi
   exit 0
 fi
+
+for n in agents rules hooks; do
+  ensure_institution_symlink "$n"
+done
 
 mkdir -p "$DEST"
 conflicts=""
@@ -82,18 +157,8 @@ for s in $SKILLS; do
     conflicts="$conflicts $s"
   fi
 done
-for f in $RULES; do
-  if [ -f "$RULES_DEST/$f" ] && ! cmp -s "$RULES_SRC/$f" "$RULES_DEST/$f"; then
-    conflicts="$conflicts $f"
-  fi
-done
-for f in $CUSTOMIZE_FILES; do
-  if [ -f "$RULES_DEST/customize/$f" ] && ! cmp -s "$CUSTOMIZE_SRC/$f" "$RULES_DEST/customize/$f"; then
-    conflicts="$conflicts customize/$f"
-  fi
-done
 if [ -n "$conflicts" ] && [ "$FORCE" -ne 1 ]; then
-  echo "ABORT: these already exist at $DEST, $SKILLS_DEST, or $RULES_DEST with different content:$conflicts" >&2
+  echo "ABORT: these already exist at $DEST or $SKILLS_DEST with different content:$conflicts" >&2
   echo "Re-run with --force to overwrite, or remove them first." >&2
   exit 1
 fi
@@ -113,16 +178,43 @@ for s in $SKILLS; do
   fi
 done
 
+# Base rules are plugin-owned: unconditional overwrite, version stamped from
+# plugin.json. Never touches rules/customize/ — that's the user's landing
+# zone, handled separately below.
 mkdir -p "$RULES_DEST"
 for f in $RULES; do
-  [ "$DRY" -eq 1 ] && echo "would install $RULES_DEST/$f" || { cp "$RULES_SRC/$f" "$RULES_DEST/$f"; echo "installed $RULES_DEST/$f"; }
+  if [ "$DRY" -eq 1 ]; then
+    echo "would install $RULES_DEST/$f (version $VERSION)"
+  else
+    cp "$RULES_SRC/$f" "$RULES_DEST/$f"
+    inject_version "$RULES_DEST/$f"
+    echo "installed $RULES_DEST/$f (version $VERSION)"
+  fi
 done
+
+mkdir -p "$RULES_DEST/customize"
 if [ -n "$CUSTOMIZE_FILES" ]; then
-  mkdir -p "$RULES_DEST/customize"
   for f in $CUSTOMIZE_FILES; do
-    [ "$DRY" -eq 1 ] && echo "would install $RULES_DEST/customize/$f" || { cp "$CUSTOMIZE_SRC/$f" "$RULES_DEST/customize/$f"; echo "installed $RULES_DEST/customize/$f"; }
+    if [ -f "$RULES_DEST/customize/$f" ]; then
+      echo "skipped $RULES_DEST/customize/$f (already exists — customize/ is never overwritten)"
+    elif [ "$DRY" -eq 1 ]; then
+      echo "would install $RULES_DEST/customize/$f"
+    else
+      cp "$CUSTOMIZE_SRC/$f" "$RULES_DEST/customize/$f"
+      echo "installed $RULES_DEST/customize/$f"
+    fi
   done
 fi
+
+# Hooks are plugin-owned scripts: unconditional overwrite, no frontmatter to
+# stamp a version into.
+mkdir -p "$HOOKS_DEST"
+for f in $HOOK_FILES; do
+  if [ -f "$HOOKS_SRC/$f" ]; then
+    [ "$DRY" -eq 1 ] && echo "would install $HOOKS_DEST/$f" || { cp "$HOOKS_SRC/$f" "$HOOKS_DEST/$f"; echo "installed $HOOKS_DEST/$f"; }
+  fi
+done
+
 [ "$DRY" -eq 1 ] && { echo "dry-run done (nothing written)."; exit 0; }
 
 # Record what we installed, then verify every file actually landed.
@@ -153,13 +245,23 @@ if [ "$got_rules" -ne "$want_rules" ]; then
   exit 1
 fi
 
-echo "install done: $got roles in $DEST (manifest: $MANIFEST), $got_skills skills in $SKILLS_DEST (manifest: $SKILLS_MANIFEST), $got_rules rules in $RULES_DEST (manifest: $RULES_MANIFEST)"
+printf '%s\n' $HOOK_FILES > "$HOOKS_MANIFEST"
+want_hooks=$(echo $HOOK_FILES | wc -w | tr -d ' '); got_hooks=0
+for f in $HOOK_FILES; do [ -f "$HOOKS_DEST/$f" ] && got_hooks=$((got_hooks+1)); done
+if [ "$got_hooks" -ne "$want_hooks" ]; then
+  echo "ERROR: expected $want_hooks hooks in $HOOKS_DEST but found $got_hooks — partial install, re-run." >&2
+  exit 1
+fi
+
+echo "install done: $got roles in $DEST (manifest: $MANIFEST), $got_skills skills in $SKILLS_DEST (manifest: $SKILLS_MANIFEST), $got_rules rules in $RULES_DEST (manifest: $RULES_MANIFEST), $got_hooks hooks in $HOOKS_DEST (manifest: $HOOKS_MANIFEST)"
 echo "NOTE: open a NEW Claude Code session to load the roles and skills (both are read at session start)."
 
 echo ""
-echo "HOOKS: Hooks only work with plugin installation (not install.sh)."
-echo "  If you need hooks (institution_guard, verify_gate), install via:"
-echo "  claude plugin add twjohnwu/tlor-agents"
+echo "HOOKS: institution_guard.py and verify_gate.py are now copied to $HOOKS_DEST."
+echo "  They still need wiring into a hooks.json (PreToolUse/Stop) and the"
+echo "  TLOR_INSTITUTION_GUARD / TLOR_VERIFY_GATE env vars to activate — the"
+echo "  plugin route (claude plugin add twjohnwu/tlor-orchestration) wires this"
+echo "  automatically; install.sh only places the files."
 
 echo ""
 echo "ROUTING: For rules to auto-load, set up CLAUDE.md + AGENTS.md routing."

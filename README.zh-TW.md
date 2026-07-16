@@ -1,7 +1,7 @@
-# TLOR Agents — 給 Claude Code 的中土遠征隊
+# TLOR Orchestration — 給 Claude Code 的中土遠征隊
 
-[![CI](https://github.com/twjohnwu/tlor-agents/actions/workflows/validate.yml/badge.svg)](https://github.com/twjohnwu/tlor-agents/actions/workflows/validate.yml)
-[![version](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/twjohnwu/tlor-agents/blob/main/.claude-plugin/plugin.json)
+[![CI](https://github.com/twjohnwu/tlor-orchestration/actions/workflows/validate.yml/badge.svg)](https://github.com/twjohnwu/tlor-orchestration/actions/workflows/validate.yml)
+[![version](https://img.shields.io/badge/version-3.0.0-blue)](https://github.com/twjohnwu/tlor-orchestration/blob/main/.claude-plugin/plugin.json)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 一個中土世界主題的 Claude Code 編排框架。九個固定職責的 subagent 角色，
@@ -9,6 +9,52 @@
 所需的一切。
 
 English version: [README.md](README.md).
+
+## 更名：tlor-agents → tlor-orchestration（2.x → 3.0）
+
+本 repo 已從 `tlor-agents` 更名為 `tlor-orchestration`；GitHub 會自動轉址
+舊網址，但 plugin 安裝是依 repo 名稱識別的，需要手動一步：
+
+```
+/plugin uninstall tlor-agents@tlor        # 移除舊安裝
+/plugin marketplace add twjohnwu/tlor-orchestration
+/plugin install tlor-orchestration@tlor   # 以新名稱重新加入
+```
+
+若你是用 `install.sh`（直接複製）安裝的，重新跑新版 `install.sh` 即可——
+升級時實際變動請見下方的所有權模型。
+
+**v3.0.0 同時改變了安裝／所有權模型**（見下）：base rule 檔案現在由
+plugin 擁有，每次安裝都無條件覆蓋；想跨版本保留的內容一律放進
+`rules/customize/`，installer 永遠不會動它。若你在 2.x 曾就地手改過
+base rule 檔案，升級前請把你的修改搬到 `rules/customize/`——下次安裝
+會用官方版本覆蓋掉 base 檔案。
+
+## 兩種使用方式
+
+- **輕量**——只裝 plugin。安裝後，任何一個新開的 session 都能使用九個角色
+  （若是在已開啟的 session 中安裝，須先執行 `/reload-plugins`）。請直接
+  以名稱明確呼叫角色，或加上下方的 CLAUDE.md snippet 以取得穩定的派工——
+  我們的 headless 測試顯示，僅靠 description 並不能穩定觸發自動派工，因此
+  snippet 是建議的輕量做法。
+- **完整**——再加跑 `/tlor-init`。這會落地 rules 檔案、`~/.claude/institution/`
+  layout（見下）、以及 CLAUDE.md/AGENTS.md 路由，讓派工紀律自動強制執行，
+  不必仰賴模型自己記得用這些角色。
+
+## 所有權模型
+
+- **Base rules 由 plugin 擁有。** 每次安裝／升級都無條件覆蓋必裝 rule
+  檔案，並蓋上 plugin 的 `version`（唯一真相來源——不是寫死在檔案裡的值）。
+  別手改這些檔案，下次安裝就會被蓋掉。
+- **`rules/customize/` 是你的。** installer 會建立這個目錄，首次安裝可能
+  幫你種入選配的起始檔案，之後**永遠不覆蓋**裡面已存在的任何東西——這是
+  唯一該放持久本地客製化內容的地方。
+- **`~/.claude/institution/` layout。** 使用者層級安裝時，
+  `~/.claude/{agents,rules,hooks}` 會變成指向 `~/.claude/institution/<name>/`
+  的 symlink。這是冪等的：已經是 symlink → 不動；已有真實目錄 → 搬到
+  `institution/` 底下再建 symlink（不遺失任何東西）；不存在 → 直接新建。
+  這層間接讓 plugin 對 base rules/hooks 的覆蓋式安裝，永遠不會跟你手動
+  搬過的目錄打架。
 
 ## 世界觀
 
@@ -58,7 +104,7 @@ English version: [README.md](README.md).
 你專案的 `CLAUDE.md` 加一行：
 
 ```
-High-risk verdicts (irreversible ops, contract/schema changes, money/precision, architecture decisions, root-cause claims, production-affecting conclusions) MUST pass /tlor-agents:rivendell-council before adoption.
+High-risk verdicts (irreversible ops, contract/schema changes, money/precision, architecture decisions, root-cause claims, production-affecting conclusions) MUST pass /tlor-orchestration:rivendell-council before adoption.
 ```
 
 `eagle-sentinel` 給出 HIGH-RISK 建議就是該召集的訊號。
@@ -67,7 +113,8 @@ High-risk verdicts (irreversible ops, contract/schema changes, money/precision, 
 
 本 plugin 附帶去個人化的編排規則——透過 `/tlor-init` 或 `install.sh` 安裝：
 
-**必裝**（6 檔）：
+**必裝**（7 檔，由 plugin 擁有——每次安裝／升級皆無條件覆蓋，`version`
+由 `.claude-plugin/plugin.json` 蓋上）：
 
 | Rule | 用途 |
 |---|---|
@@ -77,22 +124,25 @@ High-risk verdicts (irreversible ops, contract/schema changes, money/precision, 
 | `judgment.md` | 何時升級、何時完成、何時問人、錯方向訊號 |
 | `risk-tiers.md` | 行動風險分級（T1 不可逆 / T2 難復原 / T3 可逆）|
 | `maintenance.md` | session 可自行修改 vs 需人類核准的項目 |
+| `skill-triggers.md` | 何時該呼叫 skill，而非照單全收「一律呼叫」的注入規則——需自行填入已裝 plugin 的 namespace 優先序 |
 
-**選裝**（2 檔，位於 `rules/customize/`——`--with-optional` 或在
-`/tlor-init` 中選擇）：
+**選裝**（3 檔，位於 `rules/customize/`——`--with-optional` 或在
+`/tlor-init` 中選擇；一旦複製過去就不會再被覆蓋）：
 
 | Rule | 用途 |
 |---|---|
 | `design-principles.md` | 7 個未覆蓋情境的備用原則（P1-P7）|
 | `user-decision-patterns.md` | 3 個 AI 輔助開發的決策模式（D1-D3）|
+| `letter-to-future-sessions.md` | 空白模板——逐次填入專案事實、制度衰退對策、誠實的能力邊界 |
 
 你也可以把自己團隊的規則檔（`.md`）直接放進 `rules/customize/`——安裝時
-會一併複製，且會透過 CLAUDE.md 的路由表自動載入，不需要另外接線。
+會一併複製，且會透過 CLAUDE.md 的路由表自動載入，installer 永遠不會動它。
 
 ## Hooks（選配）
 
-兩個 hook **預設皆關閉**——透過環境變數啟用。僅 plugin 安裝支援：
-`install.sh` 不接 hooks。
+兩個 hook **預設皆關閉**——透過環境變數啟用。`install.sh` 會複製 hook
+腳本，但不接線或啟用它們（不寫 `hooks.json`、不設環境變數）——要接線請走
+plugin 安裝。
 
 ### institution_guard（PreToolUse）
 
@@ -113,8 +163,8 @@ fail-then-pass 證據。任何內部錯誤一律 fail-open。
 ### 方式 A——plugin（推薦）
 
 ```
-/plugin marketplace add twjohnwu/tlor-agents
-/plugin install tlor-agents@tlor
+/plugin marketplace add twjohnwu/tlor-orchestration
+/plugin install tlor-orchestration@tlor
 ```
 
 更新：我們 bump `version` 後，用 `/plugin marketplace update tlor` 取得。
@@ -122,14 +172,34 @@ fail-then-pass 證據。任何內部錯誤一律 fail-open。
 ### 方式 B——直接複製
 
 ```bash
-git clone https://github.com/twjohnwu/tlor-agents.git
-cd tlor-agents && ./install.sh          # --dry-run / --force / --uninstall / --with-optional
+git clone https://github.com/twjohnwu/tlor-orchestration.git
+cd tlor-orchestration && ./install.sh          # --dry-run / --force / --uninstall / --with-optional
 ```
 
-複製 agents 到 `~/.claude/agents/`、rules 到 `~/.claude/rules/`、skills 到
-`~/.claude/skills/`。加 `--with-optional` 一併安裝 `rules/customize/` 裡的
-選裝 rules。寫入 manifest 供 `--uninstall` 精確移除。Hooks 不接入——需要
-hooks 請用方式 A。
+複製 agents 到 `~/.claude/agents/`、rules 到 `~/.claude/rules/`、hook 腳本到
+`~/.claude/hooks/`、skills 到 `~/.claude/skills/`，首次執行時建立
+`~/.claude/institution/` symlink layout（見上方所有權模型）。加
+`--with-optional` 一併安裝 `rules/customize/` 裡的選裝 rules。寫入 manifest
+供 `--uninstall` 精確移除。Hook **啟用**（環境變數、`hooks.json` 接線）
+仍需走方式 A——`install.sh` 只負責放檔案。
+
+**輕量使用者**（只裝 plugin、不跑 `/tlor-init`）：在你專案的 CLAUDE.md
+加這段，不必完整安裝 rules 也能有派工紀律：
+
+```markdown
+## Subagent dispatch (tlor-orchestration)
+
+Prefer the pinned tlor-orchestration roles over generic subagents:
+- Targeted code/config lookup ("where is X") → rohirrim-outrider
+- Broad/ambiguous search where a miss is costly → ranger-pathfinder
+- Web/docs research, version checks → noldor-loremaster
+- Mechanical batch edits with an exact recipe → dwarf-smith
+- Implement against a written spec → gondor-builder
+- Verify finished work (fresh context; never self-certify) → eagle-sentinel
+- Adversarial review of major conclusions → elf-archer + orc-saboteur + hobbit-gardener in parallel
+
+Delegate any read of >3 files or repo-wide scan; keep only conclusions + file:line in the main thread.
+```
 
 ### 方式 C——/tlor-init（plugin 安裝後推薦）
 

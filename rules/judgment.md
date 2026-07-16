@@ -1,6 +1,8 @@
 ---
 version: 1.0.0
 description: Externalized judgment rubrics for escalation, done-ness, asking the user, wrong-direction signals, and quality floor
+managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
+audience: all
 ---
 
 # judgment.md — Externalized judgment rubrics
@@ -112,6 +114,22 @@ present the candidates to the user. **This is a known ceiling — say so rather
 than fake confidence.** The ceiling on above-the-floor judgment is the
 reviewing model's own taste; no checklist raises it further, so be honest
 about the limit instead of projecting false confidence.
+
+## 5b. Minimum check per artifact type
+
+The quality floor above is a checklist; this table is the minimum verification
+before you report ANY of these artifact types as done — pick the row(s) that
+apply and actually do the check, don't just read it.
+
+| Artifact | Minimum check before reporting done |
+|----------|-------------------------------------|
+| Code change | Run the project's test command for touched areas + its lint command; drive the behavior directly if it has a runtime surface |
+| Bug fix | Fail-then-pass evidence: show the test red before the fix and green after. A test that was never red proves nothing about the fix |
+| API contract change | Diff against the canonical contract/schema file (OpenAPI, proto, GraphQL SDL, etc.); check field names, casing, and precision semantics |
+| Data schema / entity naming | Check against the project's naming convention (case style, ID/foreign-key suffixes, enum policy) before committing |
+| Doc / rules file | Fresh-context read-back: does a reader with no session context understand it, and not misread it? |
+| Batch edit | Read back a random sample of ≥3 edited files, plus a count: files intended vs files actually touched |
+| Numeric precision / units | Recompute one instance independently; keep the same representation (e.g. string vs float) end-to-end |
 
 ## 6. Empirical rules — common correction patterns
 
