@@ -1,5 +1,4 @@
 ---
-version: 1.0.0
 description: What sessions may change in this rule system on their own, and what needs human approval first.
 managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
 audience: all

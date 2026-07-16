@@ -1,5 +1,4 @@
 ---
-version: 1.0.0
 description: Externalized judgment rubrics for escalation, done-ness, asking the user, wrong-direction signals, and quality floor
 managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
 audience: all

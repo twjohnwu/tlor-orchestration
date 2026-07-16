@@ -1,5 +1,4 @@
 ---
-version: 1.0.0
 description: Fill-in dispatch prompt templates for the five standard delegation shapes
 managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
 audience: all

@@ -1,5 +1,4 @@
 ---
-version: 1.0.0
 description: Classify a state-changing action into a risk tier before acting, and apply that tier's required protocol.
 managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
 audience: all

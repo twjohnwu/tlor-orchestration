@@ -1,5 +1,4 @@
 ---
-version: 1.0.0
 description: Role dispatch and delegation rules for the nine pinned tlor-orchestration roles
 managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
 audience: all
