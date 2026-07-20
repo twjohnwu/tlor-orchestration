@@ -87,7 +87,11 @@ flavor wording optional, but the state itself must be unambiguous):
 - `uiux in progress`
 - `spec awaiting approval`
 - `plan pending`
-- `execute in progress N/M complete` (count `[x]` vs total tasks in `tasks.md`)
+- `execute in progress N/M complete` — the canonical denominator M counts
+  ALL tasks in `tasks.md` (scenario + `[INFRA]`; `[MANUAL]` entries live in
+  the checklist, not the task count). If you also want to show scenario-only
+  progress, present it as a secondary figure, clearly labeled — never as
+  the headline N/M.
 
 Then suggest exactly one next command appropriate to that stage (`/stdd-uiux`,
 `/stdd-spec`, `/stdd-plan`, or `/stdd-execute`).

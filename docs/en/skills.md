@@ -65,7 +65,7 @@ matches the skill description's trigger words against the situation. For a
 hard guarantee, add one line to your project's `CLAUDE.md`:
 
 ```
-High-risk verdicts (irreversible ops, contract/schema changes, money/precision, architecture decisions, root-cause claims, production-affecting conclusions) MUST pass /tlor-orchestration:rivendell-council before adoption.
+High-risk verdicts (irreversible ops, contract/schema changes, money/precision, architecture decisions, root-cause claims, production-affecting conclusions) MUST pass /tlor:rivendell-council before adoption.
 ```
 
 `eagle-sentinel`'s HIGH-RISK recommendation is the convening signal.

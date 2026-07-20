@@ -39,7 +39,7 @@ Method:
    the dispatching Maia a rivendell-council panel (≥3 independent lenses —
    `elf-archer` / `orc-saboteur` / `hobbit-gardener` — plus a judge). You
    recommend; the Maia convenes. The convening procedure is this plugin's
-   `rivendell-council` skill — invoke `/tlor-orchestration:rivendell-council`
+   `rivendell-council` skill — invoke `/tlor:rivendell-council`
    (plugin install) or `/rivendell-council` (install.sh). Guidance to
    include in your report: verification rigor should match or exceed the
    producer's — the panel lenses are pinned opus by default; for routine or

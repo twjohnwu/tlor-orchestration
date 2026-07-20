@@ -37,7 +37,7 @@
 
 ```
 /plugin marketplace add twjohnwu/tlor-orchestration
-/plugin install tlor-orchestration@tlor
+/plugin install tlor@tlor
 ```
 
 更新：我們 bump `version` 後，用 `/plugin marketplace update tlor` 取得。
@@ -46,7 +46,7 @@
 
 更新支援僅限 marketplace 安裝路徑（方式 A）：
 `/plugin marketplace add twjohnwu/tlor-orchestration` 後
-`/plugin install tlor-orchestration@tlor`。每次發布都會 bump
+`/plugin install tlor@tlor`。每次發布都會 bump
 `.claude-plugin/plugin.json` 的 `version`——依 Claude Code 官方 plugin
 文件，光是推送 commit 不會讓更新出現，只有版本號變動才會，之後
 `/plugin marketplace update tlor` 才拉得到新版。`install.sh` 直接複製路徑

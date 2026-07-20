@@ -63,6 +63,13 @@ python3 skills/erebor-ledger/scripts/erebor_ledger.py [--project SUBSTR] [--sinc
 
 Python 3 standard library only — no `pip install` required.
 
+Run the script **once** per report and quote that single run's output —
+never re-run it "to double-check" and never re-type or recompute numbers by
+hand in the prose. Transcripts grow while a session is live (including from
+the very dispatches producing this report), so two runs minutes apart give
+slightly different totals; a report whose prose disagrees with its own
+quoted raw output reads as fabricated even when both numbers were real.
+
 ## Savings methodology
 
 - **Actual cost** = Σ(each subagent assistant record's tokens × that

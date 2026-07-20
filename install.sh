@@ -4,7 +4,7 @@
 # Usage: ./install.sh [--dry-run] [--force] [--uninstall] [--with-optional]
 #                      [--stdd-role=RD|PM|UIUX|ALL] [--install-hook]
 # Prefer the plugin route when possible:
-#   /plugin marketplace add twjohnwu/tlor-orchestration   then   /plugin install tlor-orchestration@tlor
+#   /plugin marketplace add twjohnwu/tlor-orchestration   then   /plugin install tlor@tlor
 #
 # --stdd-role=RD|PM|UIUX|ALL: opt-in install of the STDD workflow skills
 #   (stdd-skills/*, non-autoload). Only ALL is implemented this round; RD/PM/

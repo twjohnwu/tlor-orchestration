@@ -43,7 +43,7 @@
 
 ```
 /plugin marketplace add twjohnwu/tlor-orchestration
-/plugin install tlor-orchestration@tlor
+/plugin install tlor@tlor
 ```
 
 Updates: bump happens on our side via the `version` field; refresh with
@@ -53,7 +53,7 @@ Updates: bump happens on our side via the `version` field; refresh with
 
 Update support requires the marketplace installation route (Option A):
 `/plugin marketplace add twjohnwu/tlor-orchestration` then
-`/plugin install tlor-orchestration@tlor`. Every release bumps
+`/plugin install tlor@tlor`. Every release bumps
 `.claude-plugin/plugin.json`'s `version` — per Claude Code's plugin docs,
 pushing commits alone does not surface an update; only a version bump does,
 and `/plugin marketplace update tlor` then pulls it. The `install.sh` plain-

@@ -109,10 +109,31 @@ skills (`stdd`, `stdd-explore`, `stdd-uiux`, `stdd-spec`, `stdd-plan`,
 `stdd-execute`, `stdd-lint`), the `erebor-ledger` retrospective cost-savings
 skill, and the install/hook layer (`--stdd-role`, `--install-hook`).
 
-## v0.1.1 — this patch
+## v0.1.1 — 2026-07-19 (7824419)
 
 Old-name (`tlor-agents`) residue cleanup, marketplace description sync, and
 this README split into a `docs/` tree (this file included) to keep both
 root READMEs short.
+
+## v0.1.2 — 2026-07-20
+
+Skill-body refinements from the first skill-creator evaluation round
+(18 scenario runs + adversarial grading, 71/72 assertions passed):
+
+- `stdd-execute`: RED phase now explicitly covers the import-error trap —
+  build a minimal `NotImplementedError` stub first so the failure is
+  behavioral, not an import error.
+- `erebor-ledger`: run the script once per report and quote that single
+  run's output verbatim; live transcripts grow between runs, so re-running
+  or hand-recomputing numbers makes the prose disagree with its own quoted
+  evidence.
+- `stdd-spec`: the conditional C1/C2 diagram lives in its own document
+  section (e.g. `## System context`), not as an `S-XX` scenario — a diagram
+  is not a testable behavior and would pollute coverage math.
+- `stdd` (dashboard): pinned the canonical `N/M` progress denominator to
+  ALL tasks (scenario + `[INFRA]`); scenario-only counts are secondary,
+  clearly labeled.
+- `tlor-init` / `tlor-restore`: added the missing `name:` frontmatter field
+  (skill-triggering reliability).
 
 Future releases append here.

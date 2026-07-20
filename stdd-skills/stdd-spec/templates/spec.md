@@ -8,6 +8,32 @@ language: en
 
 # Spec: Webhook Retry Queue
 
+## System context
+
+This capability's delivery worker communicates across a system boundary
+with third-party receiving endpoints. The following C1/C2 diagram (plain
+Mermaid `graph`/`flowchart` syntax only; banned constructs: single source of
+truth is `stdd-lint`'s `references/checklist.md` — not restated here)
+documents that boundary. It is descriptive context, not a testable
+behavior, so it carries no `S-XX` ID and no test mapping.
+
+```mermaid
+graph TD
+  subgraph C1[Context]
+    User[API Consumer]
+    Ext[Third-party Webhook Endpoint]
+  end
+  subgraph C2[Container: Delivery Worker]
+    Queue[Retry Queue]
+    Worker[Delivery Worker]
+  end
+  User -->|registers webhook| Worker
+  Worker -->|POST payload| Ext
+  Ext -->|5xx / timeout| Worker
+  Worker --> Queue
+  Queue --> Worker
+```
+
 ## Capability: Retry failed outbound webhook deliveries
 
 ### REQ-01: Retry a failed webhook delivery with backoff
@@ -40,39 +66,6 @@ times out.
 **Test mapping**: `tests/webhook/test_retry_scheduling.py::test_exhausted_retries_marks_failed`
 **Verification command**: `pytest tests/webhook/test_retry_scheduling.py::test_exhausted_retries_marks_failed -q`
 
-### REQ-02: Expose delivery status via the existing webhook API boundary
-
-#### S-03: Delivery worker talks to an external receiving endpoint
-
-- **GIVEN** the retry queue needs to model the system boundary between our
-  delivery worker and third-party receiving endpoints
-- **WHEN** the spec needs to communicate this boundary
-- **THEN** it includes the following C1/C2 diagram (plain Mermaid
-  `graph`/`flowchart` syntax only; banned constructs: single source of truth
-  is `stdd-lint`'s `references/checklist.md` — not restated here):
-
-```mermaid
-graph TD
-  subgraph C1[Context]
-    User[API Consumer]
-    Ext[Third-party Webhook Endpoint]
-  end
-  subgraph C2[Container: Delivery Worker]
-    Queue[Retry Queue]
-    Worker[Delivery Worker]
-  end
-  User -->|registers webhook| Worker
-  Worker -->|POST payload| Ext
-  Ext -->|5xx / timeout| Worker
-  Worker --> Queue
-  Queue --> Worker
-```
-
-**Test mapping**: manual — review this diagram against the actual delivery
-worker's dependency graph
-**Verification command**: manual review; no automated check for diagram
-accuracy
-
 ## Rejected options
 
 - Fixed-delay retry (no backoff): rejected — would hammer a struggling
@@ -84,11 +77,7 @@ accuracy
 
 - [x] Retry scheduling with exponential backoff (REQ-01)
 - [x] Exhaustion marks delivery failed (REQ-01)
-- [x] System-boundary diagram for the delivery worker (REQ-02)
 
 ## Adjudications
 
 - REQ-01: SURVIVED — no objection
-- REQ-02: REFUTED → revised to keep the API contract change out of this
-  spec's scope; boundary diagram only, contract lives in a later `stdd-plan`
-  `api.yml`

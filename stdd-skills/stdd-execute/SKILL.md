@@ -53,7 +53,12 @@ explicitly) with these exact instructions:
 4. Reference `REQ-XX / S-XX` in the test's docstring.
 5. Run the task's verification command and confirm the test **fails for
    the correct reason** (a real assertion failure against the intended
-   behavior — not an import error or syntax error).
+   behavior — not an import error or syntax error). If the first run fails
+   on import/collection (e.g. the target module or class doesn't exist
+   yet), first create a **minimal stub** — the class/function signatures
+   the test imports, each raising `NotImplementedError` — then re-run.
+   Stubbing is part of RED, not implementation: it exists only to convert
+   an import error into a behavioral failure.
 6. Quote the actual RED output, then **end the dispatch**. **Do not write
    any implementation code** in this dispatch.
 

@@ -1,4 +1,5 @@
 ---
+name: tlor-init
 description: Initialize tlor-orchestration orchestration framework — install agents, rules, CLAUDE.md/AGENTS.md routing, and optional hooks
 ---
 

@@ -11,7 +11,7 @@ name, so a manual step is required:
 ```
 /plugin uninstall tlor-agents@tlor        # remove the old install
 /plugin marketplace add twjohnwu/tlor-orchestration
-/plugin install tlor-orchestration@tlor   # re-add under the new name
+/plugin install tlor@tlor   # re-add under the new name
 ```
 
 If you installed via `install.sh` (plain copy), just re-run the new

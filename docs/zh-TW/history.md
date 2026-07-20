@@ -10,7 +10,7 @@
 ```
 /plugin uninstall tlor-agents@tlor        # 移除舊安裝
 /plugin marketplace add twjohnwu/tlor-orchestration
-/plugin install tlor-orchestration@tlor   # 以新名稱重新加入
+/plugin install tlor@tlor   # 以新名稱重新加入
 ```
 
 若你是用 `install.sh`（直接複製）安裝的，重新跑新版 `install.sh` 即可——

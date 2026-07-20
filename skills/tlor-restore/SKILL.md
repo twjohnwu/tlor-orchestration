@@ -1,4 +1,5 @@
 ---
+name: tlor-restore
 description: Restore tlor-orchestration installation from a backup created by /tlor-init
 ---
 

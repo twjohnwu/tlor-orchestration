@@ -96,12 +96,16 @@ Include:
 - Every scenario's expected test-path mapping field.
 - Every scenario's `Verification command` field (a precise, runnable test
   command).
-- **Conditional**: if the scenario touches a system boundary or external
+- **Conditional**: if the change touches a system boundary or external
   dependency, add a C1 (Context) / C2 (Container) diagram using Mermaid's
   plain `graph`/`flowchart` syntax (banned constructs: single source of
   truth is `stdd-lint`'s `references/checklist.md` — not restated here).
-  Omit this diagram when there's no boundary/external dependency involved.
-  See `templates/spec.md` for a worked C1/C2 example.
+  The diagram lives in its own document section (e.g. `## System context`),
+  NOT as an `S-XX` scenario — a diagram is descriptive context, not a
+  testable behavior, so giving it a scenario ID would force a fake "manual
+  verification" entry into the coverage math. Omit this diagram when
+  there's no boundary/external dependency involved. See `templates/spec.md`
+  for a worked C1/C2 example.
 - If `stdd-explore` handed off a rejected-options list (or wrote it directly
   if `spec.md` already existed at that time), write it verbatim now into a
   `## Rejected options` section. This section is non-gated: it does NOT
