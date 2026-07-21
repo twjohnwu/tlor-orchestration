@@ -21,6 +21,7 @@ coding session needs to delegate reliably.
 | `/tlor-init` | Install agents + rules + CLAUDE.md/AGENTS.md routing + optional hooks | First-time setup, or upgrading an existing installation |
 | `/tlor-restore` | Rollback to a previous installation from backup | An upgrade needs undoing |
 | `/erebor-ledger` | Retrospective token/cost-savings report for tlor role dispatching, split by Fable-5- vs Opus-orchestrator sessions | "usage report", "cost savings report", "token ledger" — not for live in-progress cost estimation |
+| `/westmarch-scribe` | Archive a filled compact-MADR decision to the project's decision log / instruction file / general decisions log | Advisory closing step of stdd-explore/uiux/spec/plan, or directly after a durable decision |
 
 ## Docs
 

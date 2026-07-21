@@ -21,13 +21,14 @@ install/upgrade, `version` stamped from `.claude-plugin/plugin.json`, no
 | `risk-tiers.md` | Classify actions by risk (T1 irreversible / T2 hard-to-undo / T3 reversible) |
 | `maintenance.md` | What sessions may change vs what needs human approval |
 
-**Optional** (5 files, living in `rules/customize/` — install with
+**Optional** (6 files, living in `rules/customize/` — install with
 `--with-optional` or choose in `/tlor-init`; once copied, never overwritten):
 
 | Rule | Purpose |
 |---|---|
 | `design-principles.md` | 7 fallback principles for uncovered cases (P1-P7) |
 | `user-decision-patterns.md` | 3 decision patterns for AI-assisted development (D1-D3) |
+| `judgment.md` | Compact-MADR candidate-comparison format + a "General decisions log" that accumulates cross-project decisions (base `judgment.md` §5 points here) |
 | `letter-to-future-sessions.md` | Blank template — fill in over time with project facts, decay countermeasures, honest limits |
 | `skill-triggers.md` | When to invoke a skill instead of following a blanket "always invoke" injection — fill in your installed plugins' namespace priority |
 | `lessons.md` | Append-only recurring-workflow-failure log, one section per base rule file |

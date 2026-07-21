@@ -19,13 +19,14 @@
 | `risk-tiers.md` | 行動風險分級（T1 不可逆 / T2 難復原 / T3 可逆）|
 | `maintenance.md` | session 可自行修改 vs 需人類核准的項目 |
 
-**選裝**（5 檔，位於 `rules/customize/`——`--with-optional` 或在
+**選裝**（6 檔，位於 `rules/customize/`——`--with-optional` 或在
 `/tlor-init` 中選擇；一旦複製過去就不會再被覆蓋）：
 
 | Rule | 用途 |
 |---|---|
 | `design-principles.md` | 7 個未覆蓋情境的備用原則（P1-P7）|
 | `user-decision-patterns.md` | 3 個 AI 輔助開發的決策模式（D1-D3）|
+| `judgment.md` | 精簡 MADR 候選比較格式＋累積跨專案決策的「General decisions log」（base `judgment.md` §5 指向此檔）|
 | `letter-to-future-sessions.md` | 空白模板——逐次填入專案事實、制度衰退對策、誠實的能力邊界 |
 | `skill-triggers.md` | 何時該呼叫 skill，而非照單全收「一律呼叫」的注入規則——需自行填入已裝 plugin 的 namespace 優先序 |
 | `lessons.md` | 附加式的反覆工作流失敗紀錄，每個 base rule 檔案各一個區塊 |
