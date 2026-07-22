@@ -24,6 +24,10 @@ release first — new sections go at the top.
   capture, and next-phase handoff actually ran (the only stdd skill that
   lacked a closing self-check; the others already gate via embedded
   checklists or stdd-lint).
+- erebor-ledger SKILL.md: made the multi-month report-assembly rule explicit
+  — reproduce every requested month's full per-role tables first, then the
+  cross-month comparison; the comparison table is additive and never replaces
+  or summarizes away the per-month detail.
 
 ## v0.1.4 — 2026-07-21
 

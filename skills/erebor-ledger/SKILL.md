@@ -192,6 +192,23 @@ passed, one per month; the rows are fixed:
 | Saved | $7.70 | $63.75 |
 | Saved % | 78.6% | 69.2% |
 
+### Report assembly (mandatory — the comparison table never replaces the per-month detail)
+
+The report you hand the user IS the single run's output, quoted in full and
+in order — not a digest of it. Prose may add observations, but never
+*replaces* a table:
+
+- **Single month / date range**: reproduce both the `Fable` and `Opus`
+  per-role tables (mandatory column order), their group summaries, and the
+  per-project subtotals.
+- **Comparison mode (`--month` passed more than once)**: reproduce EVERY
+  requested month's full per-role tables first — Month A Fable → Month A
+  Opus → Month B Fable → Month B Opus → … — and only THEN the
+  `## Cross-month comparison` table. The comparison table is an addition on
+  top of the per-month detail, never a substitute for it: a report that
+  shows only the comparison table, or folds the months into prose, has
+  dropped exactly the detail the user asked for.
+
 Each group report also carries:
 
 - **Group summary**: session count, orchestrator's cumulative tokens/cost for
@@ -231,12 +248,15 @@ dropped, and a comparison run pasted without its comparison table:
 - [ ] **One run only**: the whole report is the quoted output of a single
       script invocation (the run-once rule above); months were not stitched
       together by hand.
-- [ ] **Every requested month is present**: for each month or date range the
-      user asked for, both its `Fable (<month>)` and `Opus (<month>)`
-      per-role tables appear, each in the mandatory column order.
-- [ ] **Comparison mode → comparison table**: if you passed `--month` more
-      than once, the `## Cross-month comparison` table is present after the
-      per-month sections, with one column per requested month.
+- [ ] **Every requested month reproduced in full**: for each month or date
+      range the user asked for, both its `Fable (<month>)` and
+      `Opus (<month>)` per-role tables are quoted in full in the mandatory
+      column order — not summarized into prose, not replaced by the
+      comparison table.
+- [ ] **Comparison mode → comparison table too**: if you passed `--month`
+      more than once, the `## Cross-month comparison` table is present in
+      addition to (never instead of) the per-month tables, after them, one
+      column per requested month.
 - [ ] **Disclosures intact**: the counterfactual-estimate line, the 5-minute
       cache-tier line, and the `*` / `(upgrade)` / `(downgrade)` marker notes
       are all still in the output — never trimmed to save space.
