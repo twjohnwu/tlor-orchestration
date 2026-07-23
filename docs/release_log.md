@@ -6,6 +6,43 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.2.0 — 2026-07-24
+
+- `/stdd-plan` hardening (P1-P6): a fresh-context design verifier
+  (`eagle-sentinel`) now runs before the adversarial-panel approval gate,
+  backed by a new `references/design-review-checklist.md`; the file-survey
+  step dispatches to a named executor instead of running inline; generated
+  `tasks.md` entries carry `[NEW]`/`[MODIFY]` markers and the `api.yml`
+  skeleton carries `x-implementation-status`; six cross-artifact mechanical
+  checks are delegated to `/stdd-lint` rather than re-implemented in
+  stdd-plan; a `.progress.log` enables resuming an interrupted run; an
+  optional `context.md` input is now accepted.
+- `/stdd-lint`: Checks 9-13 (S-54–S-58) add cross-artifact xref validation
+  (spec ↔ design ↔ tasks ↔ api.yml consistency), plus a scope change so the
+  `api.yml` xref checks cover the new `x-implementation-status` field.
+- `/westmarch-scribe`: new Step 0 gate — STOPs with "tlor rules not
+  installed — run `/tlor-init` first" unless the installed rules layer has
+  `dispatch.md`/`judgment.md`; §4a now creates the `rules/customize/
+  judgment.md` seed from its shipped shape if the target project doesn't
+  have one yet; the skill's description is now keyword-triggered
+  (proactive), not invocation-only.
+- New skill `/minas-tirith-archivist`: read-only query counterpart to
+  `/westmarch-scribe` — searches the customize layer's general decisions
+  log plus project decision logs/ADR directories and answers with
+  citations; shares the same tlor-rules-installed gate; never writes or
+  edits the records it searches.
+- `rules/customize/judgment.md` seed: added a line naming
+  `/minas-tirith-archivist` as the query executor for the decision logs it
+  documents.
+- L1 CI layer: `.github/workflows/validate.yml` renamed to `ci.yml` and
+  extended with a `lint` job (agent frontmatter shape, dead doc-link check,
+  old-name residue guard — `scripts/lint_agents_frontmatter.py`,
+  `scripts/check_links.py`, `scripts/check_oldname.py`) and a
+  `banned-patterns` job that reads identity red-line patterns from the
+  `BANNED_PATTERNS` repo secret (never a literal in a public file; skips
+  with a warning on fork PRs, which don't receive secrets). Both README CI
+  badges updated to point at `ci.yml`.
+
 ## v0.1.5 — 2026-07-21
 
 - `/tlor-init` Step 5 now offers the `rules/customize/judgment.md` seed

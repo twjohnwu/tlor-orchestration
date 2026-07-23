@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install -g @anthropic-ai/claude-code
+      - name: Validate marketplace manifest
+        run: claude plugin validate . --strict
+      - name: Validate plugin.json (catches skill/agent frontmatter errors)
+        run: claude plugin validate .claude-plugin/plugin.json --strict
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Lint agent frontmatter
+        run: python3 scripts/lint_agents_frontmatter.py
+      - name: Check for dead doc links
+        run: python3 scripts/check_links.py
+      - name: Check for old-name residue
+        run: python3 scripts/check_oldname.py
+
+  banned-patterns:
+    runs-on: ubuntu-latest
+    env:
+      BANNED_PATTERNS: ${{ secrets.BANNED_PATTERNS }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Identity red-line scan
+        run: |
+          if [ -z "$BANNED_PATTERNS" ]; then
+            echo "::warning::BANNED_PATTERNS secret not available (fork PR?) — identity red-line check SKIPPED"
+            exit 0
+          fi
+          patterns_file="$RUNNER_TEMP/banned-patterns.txt"
+          printf '%s\n' "$BANNED_PATTERNS" > "$patterns_file"
+          set +e
+          hits=$(grep -rEIf "$patterns_file" --exclude-dir=.git -l .)
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "::error::banned pattern(s) found in the following files:"
+            echo "$hits"
+            exit 1
+          fi
+          echo "banned-patterns: OK"

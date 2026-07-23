@@ -1,6 +1,6 @@
 # TLOR Orchestration — 給 Claude Code 的中土遠征隊
 
-[![CI](https://github.com/twjohnwu/tlor-orchestration/actions/workflows/validate.yml/badge.svg)](https://github.com/twjohnwu/tlor-orchestration/actions/workflows/validate.yml)
+[![CI](https://github.com/twjohnwu/tlor-orchestration/actions/workflows/ci.yml/badge.svg)](https://github.com/twjohnwu/tlor-orchestration/actions/workflows/ci.yml)
 [![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftwjohnwu%2Ftlor-orchestration%2Fmain%2F.claude-plugin%2Fplugin.json&query=%24.version&label=version&color=blue)](https://github.com/twjohnwu/tlor-orchestration/blob/main/.claude-plugin/plugin.json)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -20,7 +20,8 @@ English version: [README.md](README.md).
 | `/tlor-init` | 安裝 agents + rules + CLAUDE.md 路由 + AGENTS.md + 選配 hooks | 首次設定，或升級既有安裝 |
 | `/tlor-restore` | 從備份還原到先前的安裝狀態 | 需要復原某次升級時 |
 | `/erebor-ledger` | 回溯性報表：tlor 角色派工省下多少 token/成本，依 Fable-5-orchestrator 與 Opus-orchestrator session 分開統計 | 「usage report」「cost savings report」「token ledger」——非單次進行中派工的即時估算 |
-| `/westmarch-scribe` | 將已填 Outcome 的精簡 MADR 決策歸檔至專案 decision log／instruction 檔／通用決策紀錄 | stdd-explore/uiux/spec/plan 的建議性收尾步驟，或做出耐久決策後直接呼叫 |
+| `/westmarch-scribe` | 將已填 Outcome 的精簡 MADR 決策歸檔至專案 decision log／instruction 檔／通用決策紀錄 | stdd-explore/uiux/spec/plan 的建議性收尾步驟、做出耐久決策後直接呼叫，或對話中出現決策關鍵詞時主動觸發（兩者都需先安裝 tlor rules 層，即先跑過 `/tlor-init`）|
+| `/minas-tirith-archivist` | `/westmarch-scribe` 的唯讀查詢對應版——搜尋已歸檔的決策紀錄（通用與專案層級）並附引用回答，絕不寫入或編輯 | 詢問過去的決策或某個慣例的緣由，或使用者直接呼叫（同樣需先安裝 tlor rules 層）|
 
 ## 文件
 
