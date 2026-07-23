@@ -15,6 +15,7 @@ paths:
     get:
       summary: List delivery attempts for a webhook
       operationId: listDeliveries
+      x-implementation-status: existing
       parameters:
         - name: id
           in: path
@@ -57,6 +58,12 @@ components:
 - `components` is optional under OpenAPI 3.1 (no `paths` object is required
   to reference it) — omit the section entirely for a contract with no
   reusable schemas, rather than leaving an empty stub.
+- **Optional `x-implementation-status`** (per-operation, as shown on
+  `listDeliveries` above): one of the lowercase values `existing` /
+  `need_modify` / `new`, set from the same file-survey result that drives
+  `tasks.md`'s `[NEW]`/`[MODIFY]` markers (step 3 / step 6 of `SKILL.md`). If
+  the file survey was skipped because no repo path was given, omit this
+  field entirely rather than guessing a value.
 - If no lint tool (e.g. `redocly`) is available in the environment, the
   degraded structural check (S-16) only verifies: YAML parses, `openapi`
   version field exists, `paths` exists with required fields, and

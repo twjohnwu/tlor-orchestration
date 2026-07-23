@@ -12,7 +12,7 @@ language: en
 
 ## Tasks
 
-- [x] `S-01` Retry scheduling on 5xx response
+- [x] `S-01` `[NEW]` Retry scheduling on 5xx response
   - RED: write `tests/webhook/test_retry_scheduling.py::test_5xx_schedules_retry`
     asserting a retry is enqueued with the correct backoff delay
   - Verify RED: `pytest tests/webhook/test_retry_scheduling.py::test_5xx_schedules_retry -q`
@@ -26,7 +26,10 @@ language: en
   - Spec re-check: re-read `spec.md` S-01, confirm the implementation still
     matches the GIVEN/WHEN/THEN
 
-- [ ] `S-02` Exhausted retries mark delivery failed
+- [ ] `S-02` `[MODIFY]` Exhausted retries mark delivery failed
+  - Existing target: `webhook/worker.py:schedule_retry` (the file survey
+    found this function already implements the retry path; this task adds
+    the exhaustion branch to it)
   - RED: write `tests/webhook/test_retry_scheduling.py::test_exhausted_retries_marks_failed`
   - Verify RED: `pytest tests/webhook/test_retry_scheduling.py::test_exhausted_retries_marks_failed -q`
     fails

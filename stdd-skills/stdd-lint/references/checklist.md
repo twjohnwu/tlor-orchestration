@@ -1,6 +1,6 @@
-# Reference: the 8 mechanical checks, at a glance
+# Reference: the 13 mechanical checks, at a glance
 
-Tabulates the 8 checks `stdd-lint` runs, per `STDD/specs/stdd-lint.md`. See
+Tabulates the 13 checks `stdd-lint` runs, per `STDD/specs/stdd-lint.md`. See
 `SKILL.md` for the full behavior of each check; this page is a
 quick-reference table only.
 
@@ -14,6 +14,11 @@ quick-reference table only.
 | INFRA/MANUAL reason lines + D5 deferred-ratio stats | S-40 | `tasks.md` exists | any `[INFRA]`/`[MANUAL]` task is missing its one-line reason (the D5 deferred-ratio number itself has no ceiling and never fails on its own — it's reported for human review) |
 | Not-installed STOP rule | S-31 | a caller (`stdd-spec`/`stdd-plan`/`stdd-execute`) needs `/stdd-lint` and it isn't installed | this rule governs the CALLER, not `stdd-lint` itself — the caller must STOP and report, never silently skip |
 | Banned Mermaid construct scan | S-53 | any change artifact (`spec.md`, `design-be.md`, `design-fe.md`, `design-ux.md`, etc.) contains a Mermaid code block | any block uses a construct listed in "Banned Mermaid constructs" below |
+| design-be/fe REQ/S ID cross-reference | S-54 | `design-be.md` and/or `design-fe.md` exists | either design file references a `REQ-XX`/`S-XX` ID not defined in `spec.md` |
+| `api.yml` operationId/path ↔ `design-be.md` | S-55 | `api.yml` exists | an `api.yml` operation has no mention in `design-be.md`; OR `design-be.md` references an endpoint with no matching entry in `api.yml` |
+| `api.yml` field names ↔ `design-be.md` table schema | S-56 | `api.yml` exists AND `design-be.md` has a "Table schema" section | an `api.yml` field has no snake_case↔camelCase counterpart column in the table schema (and isn't noted as computed/derived) |
+| `design-fe.md` referenced endpoints ↔ `api.yml` | S-57 | `design-fe.md` exists | `design-fe.md` references an endpoint with no matching `path`+method in `api.yml` |
+| `design-be.md` Mermaid DB-operation notes ↔ table schema | S-58 | `design-be.md` exists and has a "Table schema" section | a Mermaid DB-operation note names a column/table not present in the table schema |
 
 ## Banned Mermaid constructs (single source of truth — R7-1)
 

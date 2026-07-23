@@ -1,6 +1,6 @@
 ---
 name: stdd-lint
-description: 'STDD mechanical checker — narrative title "Eagle Vision 鷹之視野" (the eagle''s overlook, where no flaw hides). A pure rule-based (non-model-judgment) checker for a single STDD change: scans spec.md/tasks.md for placeholder text and prototype/ leakage, scenario-ID continuity/uniqueness, GWT completeness, Test-mapping/Verification-command completeness, spec-vs-tasks coverage, INFRA/MANUAL reason-line presence, D5-deferred-ratio stats, and the two-file approval fingerprint. Internal reusable checker — called from stdd-spec/stdd-plan/stdd-execute boundary checks, and also callable directly by the user. Triggers: "/stdd-lint", any caller needing the mechanical boundary check.'
+description: 'STDD mechanical checker — narrative title "Eagle Vision 鷹之視野" (the eagle''s overlook, where no flaw hides). A pure rule-based (non-model-judgment) checker for a single STDD change: scans spec.md/tasks.md for placeholder text and prototype/ leakage, scenario-ID continuity/uniqueness, GWT completeness, Test-mapping/Verification-command completeness, spec-vs-tasks coverage, INFRA/MANUAL reason-line presence, D5-deferred-ratio stats, the two-file approval fingerprint, and cross-artifact reference consistency (design-be/fe REQ/S IDs, api.yml operationId/path/fields, design-fe.md endpoints, Mermaid DB-operation notes) against spec.md/design-be.md/design-fe.md/api.yml. Internal reusable checker — called from stdd-spec/stdd-plan/stdd-execute boundary checks, and also callable directly by the user. Triggers: "/stdd-lint", any caller needing the mechanical boundary check.'
 ---
 
 # stdd-lint — Eagle Vision 鷹之視野
@@ -10,14 +10,18 @@ plugin's `skills/` directory). Internal reusable checker: called from the
 boundary-check steps of `stdd-spec`, `stdd-plan`, and `stdd-execute`, and also
 callable directly by the user. It is a **structural** checker for THIS
 framework's own spec/tasks placeholders, ID continuity, GWT completeness,
-coverage, and fingerprint state — do not confuse this with third-party
-OpenAPI contract linting (e.g. `redocly`), which is a separate concern
-referenced elsewhere and out of scope here.
+coverage, fingerprint state, and cross-artifact reference consistency
+(REQ/S IDs, `api.yml` operations/fields, Mermaid DB-operation notes) against
+`design-be.md`/`design-fe.md`/`api.yml`/`tasks.md` — do not confuse this
+with third-party OpenAPI syntax/schema validation (e.g. `redocly`), which
+remains a separate concern referenced elsewhere and out of scope here; this
+skill only cross-references `api.yml`'s already-valid content against the
+other artifacts, it does not validate `api.yml` itself.
 
 Run every applicable check below against the target change's
 `STDD/<name>/` directory and return ONE combined report — do not stop at the
 first failing check. See `references/checklist.md` for a one-table summary
-of all 8 checks (trigger condition + FAIL condition, one row each).
+of all 13 checks (trigger condition + FAIL condition, one row each).
 
 ## Check 1 — Placeholder text scan (S-26)
 
@@ -149,6 +153,87 @@ installed - mechanical check incomplete"** — it SHALL NOT silently skip the me
 continue (this would let placeholder/coverage/fingerprint problems slip
 through unnoticed). This is a single-source rule stated here for reference;
 enforcing it is each caller's own responsibility at its call site.
+
+## Checks 9-13 — cross-artifact consistency (design/api/tasks)
+
+These five checks implement items 1-5 of `stdd-plan`'s six delegated
+mechanical cross-checks (S-08 gate, `references/design-review-checklist.md`
+"Mechanical checks" list); item 6 of that list (`tasks.md` scenario ↔
+`spec.md` coverage) is already Check 4 above — not duplicated here.
+
+## Check 9 — design-be/fe REQ/S ID cross-reference (S-54)
+
+Given `design-be.md` and/or `design-fe.md` exists:
+
+- Extract every `REQ-XX`/`S-XX` ID referenced in `design-be.md` and
+  `design-fe.md` (e.g. "Implements `REQ-01`, `REQ-02`").
+- Extract every `REQ-XX`/`S-XX` ID defined in `spec.md`.
+- Any ID referenced in a design file that does not exist in `spec.md` →
+  **FAIL "unknown ID referenced: `<ID>`"**, with `file:line`.
+- This check only catches a design referencing an ID that doesn't exist; it
+  does not check the reverse (a spec ID with no design coverage at all) —
+  that's judgment item (a) delegated to the fresh-context verifier, not this
+  mechanical check.
+- SKIP if neither `design-be.md` nor `design-fe.md` exists, stating that
+  reason.
+
+## Check 10 — api.yml operationId/path ↔ design-be.md (S-55)
+
+Given `api.yml` exists:
+
+- Extract every `operationId` and `path`+method pair from `api.yml`.
+- Extract every endpoint (path and/or `operationId`) named in
+  `design-be.md`'s plan/sequence sections.
+- Any `api.yml` operation with no corresponding mention in `design-be.md` →
+  **FAIL "api.yml operation `<operationId>` (`<method> <path>`) not
+  referenced in design-be.md"**.
+- Any endpoint named in `design-be.md` with no matching entry in `api.yml`
+  → **FAIL "design-be.md references unknown endpoint `<path>`"**.
+- SKIP if `api.yml` does not exist (not every change adds or changes an
+  API), stating that reason.
+
+## Check 11 — api.yml field names ↔ design-be.md table schema (S-56)
+
+Given `api.yml` exists AND `design-be.md` contains a "Table schema" section:
+
+- Extract every request/response schema field name from `api.yml`.
+- Extract every column name from `design-be.md`'s "Table schema" table(s).
+- Apply the camelCase↔snake_case transform to each field/column name and
+  check a match exists on the other side (the comparison is symmetric).
+- Any `api.yml` field with no snake_case counterpart in the table schema,
+  and not explicitly noted as a computed/derived (non-persisted) field →
+  **FAIL "api.yml field `<field>` has no matching table-schema column"**.
+- SKIP if `api.yml` does not exist, or `design-be.md` has no "Table schema"
+  section (the change touches no persisted data) — state which precondition
+  is unmet.
+
+## Check 12 — design-fe.md referenced endpoints ↔ api.yml (S-57)
+
+Given `design-fe.md` exists:
+
+- Extract every endpoint reference in `design-fe.md` (e.g.
+  "`GET /api/subscriptions`").
+- Compare against `api.yml`'s `path`+method pairs.
+- Any endpoint referenced in `design-fe.md` with no matching `path`+method
+  in `api.yml` → **FAIL "design-fe.md references unknown endpoint
+  `<method> <path>`"**.
+- SKIP if `design-fe.md` does not exist, or `api.yml` does not exist — state
+  which precondition is unmet.
+
+## Check 13 — design-be.md Mermaid DB-operation notes ↔ table schema (S-58)
+
+Given `design-be.md` exists and contains a "Table schema" section:
+
+- Scan `design-be.md`'s Mermaid `sequenceDiagram`/`graph` blocks for
+  DB-operation notes (free-text edge labels naming a table operation, e.g.
+  "enqueue retry", "increment attempt").
+- For each such note that names a column or table explicitly, check that
+  column/table exists in the "Table schema" section.
+- Any note referencing a column/table not present in the table schema →
+  **FAIL "Mermaid note references unknown column/table: `<name>`"**, with
+  `file:line`.
+- SKIP if `design-be.md` has no "Table schema" section (nothing to
+  cross-check the notes against), stating that reason.
 
 ## Report format
 

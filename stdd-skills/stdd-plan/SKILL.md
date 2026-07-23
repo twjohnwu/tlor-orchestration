@@ -15,6 +15,17 @@ them. Worked examples: `templates/design-be.md`, `templates/tasks.md`.
 Distilled references: `references/openapi-skeleton.md`,
 `references/23-design-patterns.md`.
 
+## Resuming an interrupted run
+
+Each step below writes one line to `.progress.log` in the change directory
+(`STDD/<name>/.progress.log`) when it starts and again when it finishes:
+`START <step-name>` / `DONE <step-name>`. On re-entry into this skill for a
+change directory that already has a `.progress.log`, read it first, find the
+last `DONE` line, and resume from the step after it — do not re-run
+already-`DONE` steps from scratch. Delete `.progress.log` once the approval
+gate (step 7) completes; a leftover file after approval is a bug, not a
+valid resume point.
+
 ## 0. Gate check (precondition, spec S-06/S-08)
 
 Before doing anything else, read `STDD/<name>/spec.md` frontmatter (and
@@ -39,6 +50,13 @@ Before doing anything else, read `STDD/<name>/spec.md` frontmatter (and
 This same gate re-check happens again in step 6 before the tasks.md coverage
 gate (S-08) — re-read `spec.md` frontmatter at that point too, not just once
 at skill entry.
+
+- **Optional design constraints** (`STDD/<name>/context.md`, falling back to
+  `STDD/context.md`, checked in that order): if either file exists, read it
+  and treat its content as design constraints binding on every artifact this
+  skill produces — e.g. API style conventions, DB naming conventions,
+  architecture limits, and the target tech stack. If neither file exists,
+  behavior is unchanged; do not create one on the user's behalf.
 
 ## 1. Aspect detection
 
@@ -85,6 +103,13 @@ During the file survey that informs the design artifacts below, on an
 functionality already implemented, before finalizing `design-be.md` /
 `design-fe.md`:
 
+- **Executor for the file survey**: dispatch it, never run it inline — known
+  or small scope (a named directory or a handful of files) goes to
+  `rohirrim-outrider`; broad or unfamiliar scope (whole repo, unclear where
+  the functionality lives) goes to `ranger-pathfinder`. If the user gave no
+  repo path at all, skip the file survey entirely and mark the resulting
+  design "design-level only, not code-grounded" in the artifact itself and
+  in the approval summary (step 7).
 - Read `references/23-design-patterns.md` (this skill's bundled template, or
   the project's own canonical `wiki/coding_standard/` copy if a prior run
   already landed one — see step 8).
@@ -168,16 +193,50 @@ Produce `STDD/<name>/tasks.md`. Classify every task by scenario nature:
   dependency graph, produce a Mermaid `flowchart` (banned constructs: single
   source of truth is `stdd-lint`'s `references/checklist.md` — not restated
   here). See `templates/tasks.md` for a worked example.
+- **Implementation-target markers**: every TDD task also carries `[NEW]` or
+  `[MODIFY]` alongside its `S-XX` label. `[MODIFY]` must cite the existing
+  `file:function` it changes. Classification is data-driven from step 3's
+  file survey: functionality the survey found already implemented is
+  `[MODIFY]` (cite where); functionality the survey found nothing for is
+  `[NEW]`. If step 3's survey was skipped (no repo path given), omit both
+  markers on every task and note "no repo survey, markers omitted" instead
+  of guessing. See `templates/tasks.md` for the worked example.
+
+These `[NEW]`/`[MODIFY]` markers (and `[MODIFY]`'s `file:function` citation)
+feed directly into the builder dispatch prompts `stdd-execute` constructs
+from each task — they are the code-grounding signal the builder role uses
+to decide whether it is writing new code or editing existing code.
 
 Verification: every task in tasks.md carries an `S-XX` (TDD or `[MANUAL]`)
 or `[INFRA]` label; TDD tasks use one of the three status marks; every
-`[INFRA]`/`[MANUAL]` task has a reason line.
+`[INFRA]`/`[MANUAL]` task has a reason line; every TDD task carries `[NEW]`
+or `[MODIFY]` unless the survey was skipped, in which case the omission is
+noted.
 
 ## 7. Coverage gate before approval (S-08)
+
+### Design quality verification (fresh-context, before the gate)
+
+Before running the mechanical checks below, dispatch a fresh-context
+verifier — `eagle-sentinel` (routine runs use the `model: sonnet` override)
+— with the produced `design-be.md` / `design-fe.md` / `api.yml` / `tasks.md`
+plus `spec.md`'s scenario (`S-XX`) list. The verifier judges each item on
+`references/design-review-checklist.md`'s judgment list as CONFIRMED or
+REFUTED. Any REFUTED item goes back to the step that produced the artifact
+(design artifacts, step 4; tasks.md, step 6) for correction — it does not
+proceed to the mechanical checks or the approval gate until re-verified.
 
 Before presenting the plan for approval:
 
 - Re-read `spec.md`'s `status` frontmatter (same gate check as step 0).
+- Call `/stdd-lint` (see `STDD/specs/stdd-lint.md`) for these six mechanical
+  cross-checks, delegated because they're checkable without judgment:
+  1. design-be/fe REQ/S IDs ↔ spec.md
+  2. api.yml operationId/path ↔ design-be.md
+  3. api.yml field names ↔ design-be.md table schema snake_case↔camelCase mapping
+  4. design-fe.md referenced endpoints ↔ api.yml
+  5. design-be.md Mermaid DB-operation notes ↔ table schema
+  6. tasks.md scenario ↔ spec coverage
 - Call `/stdd-lint` (see `STDD/specs/stdd-lint.md`) to compare `S-XX`
   coverage between `spec.md` and `tasks.md`, split by manual vs
   automatable:
@@ -223,7 +282,10 @@ incomplete plan for approval.
 
 Once `design-be.md` / `design-fe.md` exist:
 
-- Attach a SOLID + DRY review checklist and go through it item by item.
+- Go through `references/design-review-checklist.md`'s judgment item (c)
+  (SOLID + DRY review, and GoF pattern-adoption reasonableness) item by
+  item — this is the same checklist the step 7 fresh-context verifier uses;
+  single source of truth, not restated here.
 - GoF design patterns (23 total) are used only when justified: a pattern is
   warranted only when there is a repeated structure or a predictable point
   of variation. Introducing a pattern without that justification is
@@ -265,12 +327,16 @@ This skill directory ships:
   structure, state/data flow, a reference back to `design-ux.md` decisions,
   and a Mermaid `flowchart` example.
 - `templates/tasks.md` — a complete English worked example with `[ ]` /
-  `[wip]` / `[x]` / `[INFRA]` / `[MANUAL]` tasks, S-07 reason lines, and an
-  optional task-dependency Mermaid `flowchart` example.
+  `[wip]` / `[x]` / `[INFRA]` / `[MANUAL]` tasks, `[NEW]`/`[MODIFY]`
+  implementation-target markers, S-07 reason lines, and an optional
+  task-dependency Mermaid `flowchart` example.
 - `references/openapi-skeleton.md` — an OpenAPI 3.1 skeleton fragment.
 - `references/23-design-patterns.md` — the S-43/S-52 distilled 23-patterns
   catalogue (unchanged from prior versions — see step 9/step 3 above for how
   it's consumed).
+- `references/design-review-checklist.md` — the S-08/S-43 mechanical vs.
+  judgment design-review checklist consumed by step 7's fresh-context
+  verifier and step 9's SOLID/DRY + pattern review.
 
 ## Notes / honest limits
 
