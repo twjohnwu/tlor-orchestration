@@ -2,11 +2,14 @@
 """
 Institution guard — an OPT-IN PreToolUse hook (silent unless TLOR_INSTITUTION_GUARD=1).
 
-Blocks the main session from directly editing institution files
-(.claude/rules/*, CLAUDE.md, AGENTS.md). These edits must be dispatched
-to a subagent per dispatch.md §1. Subagent calls (identified by agent_id)
-are allowed through. Fails open on any error — the guard must never
-break a session.
+Blocks the main session from directly editing institution files: everything
+under ~/.claude/institution/ (rules, agents, hooks — real paths), the
+~/.claude/rules/ and ~/.claude/agents/ symlink aliases, and CLAUDE.md /
+AGENTS.md router files anywhere. These edits must be dispatched to a
+subagent per dispatch.md §1. Subagent calls (identified by agent_id) are
+allowed through. Project-level .claude/rules|agents dirs outside the home
+~/.claude are intentionally NOT matched (installer default: home-level only).
+Fails open on any error — the guard must never break a session.
 """
 import json
 import os
@@ -15,22 +18,33 @@ import sys
 if os.environ.get("TLOR_INSTITUTION_GUARD") != "1":
     sys.exit(0)
 
-INSTITUTION_PATTERNS = (
-    "/.claude/rules/",
+HOME = os.path.expanduser("~")
+
+INSTITUTION_PREFIXES = (
+    HOME + "/.claude/institution/",  # real paths: rules/, agents/, hooks/, ...
+    HOME + "/.claude/rules/",        # symlink alias
+    HOME + "/.claude/agents/",       # symlink alias
+)
+
+ROUTER_FILE_PATTERNS = (
     "/CLAUDE.md",
     "/AGENTS.md",
 )
 
 
 def is_institution_file(path):
-    """Check if a file path matches institution file patterns."""
+    """Check if a file path is a guarded institution file."""
     if not path:
         return False
     # Exact filename match for root-level files
     if path == "CLAUDE.md" or path == "AGENTS.md":
         return True
-    # Path-based match
-    for pattern in INSTITUTION_PATTERNS:
+    # Home-anchored institution tree (real paths and symlink aliases)
+    for prefix in INSTITUTION_PREFIXES:
+        if path.startswith(prefix):
+            return True
+    # Router files, any location
+    for pattern in ROUTER_FILE_PATTERNS:
         if pattern in path:
             return True
     return False
@@ -64,9 +78,11 @@ def main():
                 "permissionDecision": "deny",
                 "permissionDecisionReason": (
                     "Institution file: the main session must not edit "
-                    "rules/CLAUDE.md/AGENTS.md inline. Author the full new "
-                    "text as a recipe and dispatch it to a subagent "
-                    "(dispatch.md §1). This does not block dispatched subagents."
+                    "~/.claude institution files (rules/agents/hooks) or "
+                    "CLAUDE.md/AGENTS.md inline. Author the full new text "
+                    "as a recipe and dispatch it to a subagent "
+                    "(dispatch.md §1). This does not block dispatched "
+                    "subagents."
                 ),
             }
         }, ensure_ascii=False))
