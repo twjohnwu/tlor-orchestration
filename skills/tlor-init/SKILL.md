@@ -1,6 +1,7 @@
 ---
 name: tlor-init
-description: Initialize tlor-orchestration orchestration framework — install agents, rules, CLAUDE.md/AGENTS.md routing, and optional hooks
+description: 'Installer ritual — sets up or upgrades the tlor-orchestration framework (agents, rules, CLAUDE.md/AGENTS.md routing, optional hooks). Run explicitly via `/tlor-init`.'
+disable-model-invocation: true
 ---
 
 # /tlor-init — Orchestration Framework Setup
@@ -30,6 +31,12 @@ bundled versions in the plugin. List any files with version differences:
 |------|-----------|---------|---------------|
 | (name) | (local ver) | (plugin ver) | update/skip |
 
+This version comparison is orientation only — a quick heads-up for what's
+likely to change. The authoritative per-file decision is Step 3's `cmp -s`
+byte comparison, not this version-string diff (a version bump with no
+content change, or a hand-edit with no version bump, both fall through to
+whatever Step 3 actually finds).
+
 ### Step 2: Choose installation level
 
 Ask the user which installation level to use:
@@ -58,8 +65,8 @@ relocated by hand. Apply this 3-branch check to each of
 (Project/repo level installs use plain directories — this institution layout
 is a `~/.claude/` concept only.)
 
-Then copy the 9 agent role definitions from the plugin's `agents/` directory
-to `<target>/agents/`:
+Then install the 11 agent role definitions from the plugin's `agents/`
+directory to `<target>/agents/`:
 
 - rohirrim-outrider.md
 - ranger-pathfinder.md
@@ -70,13 +77,27 @@ to `<target>/agents/`:
 - elf-archer.md
 - orc-saboteur.md
 - hobbit-gardener.md
+- mirror-of-galadriel.md
+- palantir-stone.md
 
-If files already exist and have a LOWER version number, ask the user:
-- **Overwrite**: backup to `.tlor-backup-YYYYMMDD/` then replace
-- **Skip**: keep the existing version
-- **View diff**: show the differences before deciding
+**Agent files use backup-and-overwrite, not a silent unconditional
+overwrite.** Agent frontmatter supports no import mechanism, so a user's
+local edit (the motivating case: extending a role's `tools:` line to add an
+MCP server) has nowhere to live except the installed file itself. An
+unconditional overwrite with no trace left behind (as base rules use, Step
+4) would destroy that edit with no way to recover it.
 
-If local version >= bundled version, skip automatically.
+`install.sh` is the single source of truth for the actual per-file algorithm
+(its agent-role loop: missing → install, `cmp -s` identical → unchanged,
+different → back up to `<file>.bak-YYYYMMDD-HHMMSS` next to itself, then
+overwrite) — don't re-derive or re-narrate it here; run `./install.sh
+--dry-run` to preview exactly what it will do for the current installation
+before applying it for real. The `.bak-YYYYMMDD-HHMMSS` copy is the user's
+source for re-applying any customization by hand afterward — tell them
+plainly which file was backed up and where.
+
+Report each file's outcome (installed / updated-with-backup / unchanged)
+for Step 11's summary.
 
 ### Step 4: Install required rules
 
@@ -86,6 +107,12 @@ overwrite** — no version-compare-and-ask here, the plugin is the single
 source of truth for these files. While copying, inject a `version: <plugin
 version>` line into each file's frontmatter (reading the version from the
 plugin's `.claude-plugin/plugin.json`, not from the shipped file itself).
+This is intentionally different from Step 3's agent-file handling: base
+rules have zero user-writable sections by design (`rules/customize/` is
+where user content goes instead, Step 5/7), so there is nothing to preserve
+and no conffile/merge machinery applies here — see docs/en/installation.md's
+"Ownership model" section, which documents this as a stated invariant, not
+an oversight.
 
 - dispatch.md — role dispatch table, delegation rules, escalation paths,
   plan mode dispatch table requirements
@@ -287,19 +314,29 @@ Print installation summary:
 
 ```
 tlor-orchestration initialization complete:
-  Agents:    N installed (M updated, K skipped)
+  Agents:    N installed (M updated-with-backup, K unchanged)
   Rules:     N installed (M updated, K skipped)
   Optional:  N installed (rules/customize/)
   STDD:      role=RD/PM/UIUX/ALL/skip (N skills installed)
   CLAUDE.md: created / updated / skipped
   AGENTS.md: created / updated / skipped
   Hooks:     institution_guard (enabled/skipped), verify_gate (enabled/skipped)
-  Backups:   .tlor-backup-YYYYMMDD/ (N files)
+  Backups:   N file(s) as <file>.bak-YYYYMMDD-HHMMSS (see per-file list above)
 ```
 
 ## Notes
 
 - This skill is idempotent — safe to run multiple times
-- Backups are stored in `.tlor-backup-YYYYMMDD/` at the target level
+- There is no separate backup directory — agent file backups are per-file
+  `<file>.bak-YYYYMMDD-HHMMSS` siblings next to the live file itself (Step
+  3); the timestamp means re-running the same day never overwrites an
+  earlier backup
 - Use `/tlor-restore` to rollback from a backup
 - All files use semantic versioning (X.Y.Z) in frontmatter for upgrade detection
+- Agent role files never lose local customization silently: a differing
+  file is always backed up to `<file>.bak-YYYYMMDD-HHMMSS` before being
+  overwritten (Step 3) — `install.sh` is the source of truth for this
+  behavior, and `/tlor-init` matches it exactly, no interactive merge
+  involved. Base rule files remain plugin-owned and are always overwritten
+  unconditionally, with no backup (Step 4); this asymmetry is intentional,
+  not an oversight.

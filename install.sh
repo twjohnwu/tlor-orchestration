@@ -64,6 +64,13 @@ esac
 # deferred message for RD/PM/UIUX instead of installing their subset. ALL's
 # list is discovered dynamically from stdd-skills/*/ rather than hardcoded,
 # so a future 8th skill needs no change here.
+#
+# NOTE for a future RD/PM/UIUX implementation: stdd-explore, stdd-uiux, and
+# stdd-plan reference shared files under stdd-spec/references/* — none of
+# the three profile subsets above include stdd-spec itself. Whoever
+# implements RD/PM/UIUX must either also install stdd-spec alongside the
+# listed skills, or relocate the shared references somewhere all profiles
+# can reach without depending on a skill outside their own subset.
 stdd_profile_skills() {
   case "$1" in
     RD)   echo "stdd-plan stdd-execute stdd stdd-lint" ;;
@@ -95,12 +102,35 @@ fi
 #   already a symlink        -> skip
 #   a real directory exists  -> move it under institution/<name>, then symlink
 #   missing                  -> create institution/<name>, then symlink
+# Resolve a directory symlink to its real target, portably (no GNU
+# readlink -f on macOS). This is only ever called on directory symlinks
+# (agents/rules/hooks/skills dest dirs), so the pure-shell `cd -P && pwd -P`
+# idiom is sufficient — no python3 dependency needed.
+resolve_symlink() {
+  local target="$1"
+  (cd -P "$target" 2>/dev/null && pwd -P) || true
+}
+
 ensure_institution_symlink() {
   local name="$1"
   local target="$HOME/.claude/$name"
   local real="$INSTITUTION/$name"
   if [ -L "$target" ]; then
-    echo "institution: $target already a symlink — skip"
+    # Existing symlinks get written through by later install steps (agents/
+    # rules/hooks land at $target/<file>), so a symlink pointing somewhere
+    # outside the institution tree must abort rather than silently write
+    # into an unrelated location.
+    local resolved
+    resolved="$(resolve_symlink "$target")"
+    case "$resolved" in
+      "$INSTITUTION"/*)
+        echo "institution: $target already a symlink -> $resolved — skip"
+        ;;
+      *)
+        echo "ABORT: $target is a symlink pointing outside $INSTITUTION (resolved: ${resolved:-<unresolved>}) — refusing to write through it." >&2
+        exit 1
+        ;;
+    esac
   elif [ -e "$target" ]; then
     if [ "$DRY" -eq 1 ]; then
       echo "would move $target -> $real and symlink"
@@ -121,6 +151,50 @@ ensure_institution_symlink() {
   fi
 }
 
+# Skills are NOT part of the institution tree (agents/rules/hooks) — they
+# stay a plain directory at ~/.claude/skills by design. But if the user (or
+# some other tool) turned it into a symlink, the constraint is narrower than
+# ensure_institution_symlink's: the target only needs to resolve somewhere
+# inside ~/.claude, not specifically under institution/. Anything outside
+# aborts rather than silently writing skill files through it.
+ensure_skills_dest_safe() {
+  local target="$SKILLS_DEST"
+  if [ -L "$target" ]; then
+    local resolved
+    resolved="$(resolve_symlink "$target")"
+    case "$resolved" in
+      "$HOME/.claude"/*|"$HOME/.claude")
+        echo "skills: $target already a symlink -> $resolved — ok"
+        ;;
+      *)
+        echo "ABORT: $target is a symlink pointing outside $HOME/.claude (resolved: ${resolved:-<unresolved>}) — refusing to write through it." >&2
+        exit 1
+        ;;
+    esac
+  fi
+}
+
+# Build a `<file>.bak-YYYYMMDD-HHMMSS` path for $1, guaranteed not to
+# already exist. Second-granularity timestamps collide when install.sh runs
+# twice within the same second (e.g. scripted back-to-back runs) — on
+# collision, append `-2`, `-3`, ... until the path is free, so an earlier
+# backup from the same second is never silently overwritten.
+unique_backup_path() {
+  local file="$1"
+  local stamp base n
+  stamp="$(date +%Y%m%d-%H%M%S)"
+  base="$file.bak-$stamp"
+  if [ ! -e "$base" ]; then
+    echo "$base"
+    return
+  fi
+  n=2
+  while [ -e "$base-$n" ]; do
+    n=$((n+1))
+  done
+  echo "$base-$n"
+}
+
 # Inject `version: X.Y.Z` (from plugin.json) into a rule file's frontmatter —
 # replaces an existing `version:` line if present, otherwise inserts one
 # before the closing `---`. This is the only place a base rule file's
@@ -136,51 +210,106 @@ inject_version() {
 }
 
 if [ "$UNINSTALL" -eq 1 ]; then
+  # Manifest entries name a single path component under a known dest dir
+  # (a filename or a skill-dir name) — never a nested path. Reject anything
+  # empty, anything that could escape the dest dir via `/` or `..`, and
+  # anything containing glob metacharacters (`*` `?` `[`) or whitespace —
+  # a manifest line is read with quoting discipline below, but a stray glob
+  # character in an entry could still surprise a caller that globs on it
+  # elsewhere, so reject it at the source rather than trusting call sites.
+  is_safe_manifest_entry() {
+    local e="$1"
+    if [ -z "$e" ]; then return 1; fi
+    case "$e" in
+      */*|*..*|*'*'*|*'?'*|*'['*|*' '*|*"$(printf '\t')"*|*"$(printf '\r')"*) return 1 ;;
+    esac
+    return 0
+  }
+
   # Remove what was actually installed (manifest), not what the current
   # checkout happens to contain; fall back to the checkout list if no
-  # manifest exists (pre-1.1.0 installs).
-  if [ -f "$MANIFEST" ]; then REMOVE=$(cat "$MANIFEST"); else REMOVE=$ROLES; fi
-  for f in $REMOVE; do
+  # manifest exists (pre-1.1.0 installs). Manifest lines are read with
+  # `while IFS= read -r` directly from the file — never `for x in
+  # $(cat ...)` — so a line containing a glob (`*`) or whitespace is never
+  # word-split or glob-expanded against the current working directory.
+  if [ -f "$MANIFEST" ]; then
+    remove_src="$MANIFEST"
+  else
+    remove_src=""
+  fi
+  while IFS= read -r f || [ -n "$f" ]; do
+    if ! is_safe_manifest_entry "$f"; then
+      echo "WARNING: skipping unsafe manifest entry '$f' in ${remove_src:-$MANIFEST (fallback list)}" >&2
+      continue
+    fi
     if [ -f "$DEST/$f" ]; then
+      # Preserve a customized agent file (differs from this checkout's
+      # bundled copy) as a .bak before removing it — uninstall should never
+      # discard a hand-edit the user never asked to lose.
+      if [ -f "$SRC/$f" ] && ! cmp -s "$SRC/$f" "$DEST/$f"; then
+        bak="$(unique_backup_path "$DEST/$f")"
+        if [ "$DRY" -eq 1 ]; then
+          echo "would preserve customized $DEST/$f -> $bak before removing"
+        else
+          cp "$DEST/$f" "$bak"
+          echo "preserved customized $DEST/$f -> $bak"
+        fi
+      fi
       [ "$DRY" -eq 1 ] && echo "would remove $DEST/$f" || { rm "$DEST/$f"; echo "removed $DEST/$f"; }
     fi
-  done
+  done < <(if [ -n "$remove_src" ]; then cat "$remove_src"; else printf '%s\n' $ROLES; fi)
   if [ "$DRY" -eq 0 ] && [ -f "$MANIFEST" ]; then rm "$MANIFEST"; fi
 
-  if [ -f "$SKILLS_MANIFEST" ]; then REMOVE_SKILLS=$(cat "$SKILLS_MANIFEST"); else REMOVE_SKILLS=$SKILLS; fi
-  for s in $REMOVE_SKILLS; do
+  if [ -f "$SKILLS_MANIFEST" ]; then remove_src="$SKILLS_MANIFEST"; else remove_src=""; fi
+  while IFS= read -r s || [ -n "$s" ]; do
+    if ! is_safe_manifest_entry "$s"; then
+      echo "WARNING: skipping unsafe manifest entry '$s' in ${remove_src:-$SKILLS_MANIFEST (fallback list)}" >&2
+      continue
+    fi
     if [ -d "$SKILLS_DEST/$s" ]; then
       [ "$DRY" -eq 1 ] && echo "would remove $SKILLS_DEST/$s" || { rm -rf "$SKILLS_DEST/$s"; echo "removed $SKILLS_DEST/$s"; }
     fi
-  done
+  done < <(if [ -n "$remove_src" ]; then cat "$remove_src"; else printf '%s\n' $SKILLS; fi)
   if [ "$DRY" -eq 0 ] && [ -f "$SKILLS_MANIFEST" ]; then rm "$SKILLS_MANIFEST"; fi
 
-  if [ -f "$RULES_MANIFEST" ]; then REMOVE_RULES=$(cat "$RULES_MANIFEST"); else REMOVE_RULES=$RULES; fi
-  for f in $REMOVE_RULES; do
+  if [ -f "$RULES_MANIFEST" ]; then remove_src="$RULES_MANIFEST"; else remove_src=""; fi
+  while IFS= read -r f || [ -n "$f" ]; do
+    if ! is_safe_manifest_entry "$f"; then
+      echo "WARNING: skipping unsafe manifest entry '$f' in ${remove_src:-$RULES_MANIFEST (fallback list)}" >&2
+      continue
+    fi
     if [ -f "$RULES_DEST/$f" ]; then
       [ "$DRY" -eq 1 ] && echo "would remove $RULES_DEST/$f" || { rm "$RULES_DEST/$f"; echo "removed $RULES_DEST/$f"; }
     fi
-  done
+  done < <(if [ -n "$remove_src" ]; then cat "$remove_src"; else printf '%s\n' $RULES; fi)
   # Clean up empty customize dir
   [ -d "$RULES_DEST/customize" ] && rmdir "$RULES_DEST/customize" 2>/dev/null || true
   if [ "$DRY" -eq 0 ] && [ -f "$RULES_MANIFEST" ]; then rm "$RULES_MANIFEST"; fi
 
-  if [ -f "$HOOKS_MANIFEST" ]; then REMOVE_HOOKS=$(cat "$HOOKS_MANIFEST"); else REMOVE_HOOKS=$HOOK_FILES; fi
-  for f in $REMOVE_HOOKS; do
+  if [ -f "$HOOKS_MANIFEST" ]; then remove_src="$HOOKS_MANIFEST"; else remove_src=""; fi
+  while IFS= read -r f || [ -n "$f" ]; do
+    if ! is_safe_manifest_entry "$f"; then
+      echo "WARNING: skipping unsafe manifest entry '$f' in ${remove_src:-$HOOKS_MANIFEST (fallback list)}" >&2
+      continue
+    fi
     if [ -f "$HOOKS_DEST/$f" ]; then
       [ "$DRY" -eq 1 ] && echo "would remove $HOOKS_DEST/$f" || { rm "$HOOKS_DEST/$f"; echo "removed $HOOKS_DEST/$f"; }
     fi
-  done
+  done < <(if [ -n "$remove_src" ]; then cat "$remove_src"; else printf '%s\n' $HOOK_FILES; fi)
   if [ "$DRY" -eq 0 ] && [ -f "$HOOKS_MANIFEST" ]; then rm "$HOOKS_MANIFEST"; fi
 
   # STDD skills: only remove what our own manifest recorded (never guesses
   # at a subset — the first line is `role=<...>`, the rest are skill dirs).
   if [ -f "$STDD_MANIFEST" ]; then
-    for s in $(tail -n +2 "$STDD_MANIFEST"); do
+    while IFS= read -r s || [ -n "$s" ]; do
+      if ! is_safe_manifest_entry "$s"; then
+        echo "WARNING: skipping unsafe manifest entry '$s' in $STDD_MANIFEST" >&2
+        continue
+      fi
       if [ -d "$SKILLS_DEST/$s" ]; then
         [ "$DRY" -eq 1 ] && echo "would remove STDD skill $SKILLS_DEST/$s" || { rm -rf "$SKILLS_DEST/$s"; echo "removed STDD skill $SKILLS_DEST/$s"; }
       fi
-    done
+    done < <(tail -n +2 "$STDD_MANIFEST")
     if [ "$DRY" -eq 0 ]; then rm "$STDD_MANIFEST"; fi
   fi
 
@@ -202,27 +331,49 @@ fi
 for n in agents rules hooks; do
   ensure_institution_symlink "$n"
 done
+ensure_skills_dest_safe
 
 mkdir -p "$DEST"
-conflicts=""
-for f in $ROLES; do
-  if [ -f "$DEST/$f" ] && ! cmp -s "$SRC/$f" "$DEST/$f"; then
-    conflicts="$conflicts $f"
-  fi
-done
+skill_conflicts=""
 for s in $SKILLS; do
   if [ -d "$SKILLS_DEST/$s" ] && ! diff -rq "$SKILLS_SRC/$s" "$SKILLS_DEST/$s" >/dev/null 2>&1; then
-    conflicts="$conflicts $s"
+    skill_conflicts="$skill_conflicts $s"
   fi
 done
-if [ -n "$conflicts" ] && [ "$FORCE" -ne 1 ]; then
-  echo "ABORT: these already exist at $DEST or $SKILLS_DEST with different content:$conflicts" >&2
+if [ -n "$skill_conflicts" ] && [ "$FORCE" -ne 1 ]; then
+  echo "ABORT: these skills already exist at $SKILLS_DEST with different content:$skill_conflicts" >&2
   echo "Re-run with --force to overwrite, or remove them first." >&2
   exit 1
 fi
 
+# Agent role files: cmp -> backup -> overwrite, not an unconditional
+# overwrite. Agent frontmatter has no import mechanism, so a user's hand-edit
+# (e.g. extending a role's `tools:` line for an MCP server) lives only in the
+# installed file — clobbering it silently would destroy that. No merge base
+# is kept: if the live file differs at all from the bundled copy, it is
+# backed up to `<file>.bak-YYYYMMDD-HHMMSS` next to itself and then
+# overwritten — the timestamp (not just the date) means a same-day re-run
+# never clobbers an earlier backup. The .bak is the user's source for
+# re-applying any customization by hand.
+# This is the default behavior (no --force needed); --force is not used for
+# agent files at all.
 for f in $ROLES; do
-  [ "$DRY" -eq 1 ] && echo "would install $DEST/$f" || { cp "$SRC/$f" "$DEST/$f"; echo "installed $DEST/$f"; }
+  live="$DEST/$f"
+  if [ "$DRY" -eq 1 ]; then
+    echo "would check/install $live (backup-and-overwrite if it differs from bundled)"
+    continue
+  fi
+  if [ ! -f "$live" ]; then
+    cp "$SRC/$f" "$live"
+    echo "installed $live"
+  elif cmp -s "$SRC/$f" "$live"; then
+    echo "unchanged $live"
+  else
+    bak="$(unique_backup_path "$live")"
+    cp "$live" "$bak"
+    cp "$SRC/$f" "$live"
+    echo "updated $live — your previous version saved to $bak; re-apply any customizations from it"
+  fi
 done
 
 mkdir -p "$SKILLS_DEST"

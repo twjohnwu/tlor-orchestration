@@ -4,7 +4,7 @@
 
 ## Two ways to use this
 
-- **Lightweight** — just install the plugin. The nine roles become available
+- **Lightweight** — just install the plugin. The eleven roles become available
   in any NEW session after install (in an already-running session, run
   `/reload-plugins` first). Invoke them explicitly by name, or add the
   CLAUDE.md snippet in [roles.md](roles.md) for consistent dispatch — in
@@ -21,6 +21,18 @@
   required rule files unconditionally and stamps them with the plugin's
   `version` (the single source of truth — not a value baked into the shipped
   file). Don't hand-edit these; edits are lost on the next install.
+- **Agent role files use backup-and-overwrite, never a silent clobber.**
+  Agent frontmatter has no import mechanism, so a local edit (e.g. extending
+  a role's `tools:` line to add an MCP server) lives only in the installed
+  file. Both `/tlor-init` and `install.sh` apply the same rule per file:
+  missing → install it; identical to the bundled copy (`cmp -s`) → leave it
+  alone; different (whether a hand-edit or an old version) → back it up to
+  `<file>.bak-YYYYMMDD-HHMMSS` next to itself, then overwrite it with the
+  bundled copy. The timestamp (not just the date) means re-running install
+  twice on the same day never clobbers the earlier backup. There is no
+  pristine merge-base copy and no interactive Overwrite/Keep/Merge prompt —
+  the `.bak-YYYYMMDD-HHMMSS` file is the user's source for re-applying any
+  customization by hand afterward.
 - **`rules/customize/` is yours.** The installer creates it, may seed it with
   optional starter files on first install, and never overwrites anything
   already there afterward — this is the only place persistent local

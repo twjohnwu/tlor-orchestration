@@ -4,7 +4,7 @@
 
 ## 兩種使用方式
 
-- **輕量**——只裝 plugin。安裝後，任何一個新開的 session 都能使用九個角色
+- **輕量**——只裝 plugin。安裝後，任何一個新開的 session 都能使用十一個角色
   （若是在已開啟的 session 中安裝，須先執行 `/reload-plugins`）。請直接
   以名稱明確呼叫角色，或加上 [roles.md](roles.md) 的 CLAUDE.md snippet
   以取得穩定的派工——我們的 headless 測試顯示，僅靠 description 並不能
@@ -18,6 +18,15 @@
 - **Base rules 由 plugin 擁有。** 每次安裝／升級都無條件覆蓋必裝 rule
   檔案，並蓋上 plugin 的 `version`（唯一真相來源——不是寫死在檔案裡的值）。
   別手改這些檔案，下次安裝就會被蓋掉。
+- **Agent role 檔案採「先備份再覆蓋」，絕不靜默覆蓋。** Agent
+  frontmatter 沒有 import 機制，所以本地編輯（例如替某角色的 `tools:`
+  這行加一個 MCP server）只能活在已安裝的檔案裡。`/tlor-init` 與
+  `install.sh` 對每個檔案套用同一條規則：檔案不存在 → 直接安裝；與
+  bundled 副本逐位元相同（`cmp -s`）→ 不動；有差異（不論是手動客製化
+  或只是舊版本）→ 先備份到旁邊的 `<file>.bak-YYYYMMDD-HHMMSS`，再用 bundled
+  版本覆蓋。時間戳（不只日期）確保同一天重跑安裝兩次也不會蓋掉前一份備份。
+  沒有原廠合併 base、也沒有互動式 Overwrite/Keep/Merge 選單——
+  `.bak-YYYYMMDD-HHMMSS` 檔案就是使用者事後手動重新套用客製化內容的來源。
 - **`rules/customize/` 是你的。** installer 會建立這個目錄，首次安裝可能
   幫你種入選配的起始檔案，之後**永遠不覆蓋**裡面已存在的任何東西——這是
   唯一該放持久本地客製化內容的地方。
