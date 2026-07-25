@@ -296,8 +296,10 @@ Present available hooks with clear descriptions:
 Let the user choose per-hook: install or skip. Do NOT install any hook without
 explicit consent.
 
-For hooks chosen: copy `hooks/institution_guard.py` and `hooks/verify_gate.py`
-from the plugin bundle to `~/.claude/institution/hooks/` (this lands at
+For hooks chosen: copy `hooks/institution_guard.py`, `hooks/institution_guard.sh`
+(bash fallback used when Python 3 is unavailable), `hooks/pre_tool_use.sh`
+(dispatcher entry point), and `hooks/verify_gate.py` from the plugin bundle
+to `~/.claude/institution/hooks/` (this lands at
 `~/.claude/hooks/` through the Step 3 symlink). Then explain that activation
 is still via environment variables. Tell the user to add the relevant env
 var to their shell profile:

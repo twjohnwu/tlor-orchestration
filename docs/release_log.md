@@ -6,6 +6,13 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.3.2 — 2026-07-25
+
+- Manual install now copies `institution_guard.sh` and `pre_tool_use.sh`
+  (the bash-fallback dispatch chain) in addition to the Python hooks —
+  previously these two files were only placed via the plugin path. The
+  manifest and uninstall path follow automatically via `HOOK_FILES`.
+
 ## v0.3.1 — 2026-07-25
 
 - Tests and CI only, no runtime change: added a pytest test layer for the
