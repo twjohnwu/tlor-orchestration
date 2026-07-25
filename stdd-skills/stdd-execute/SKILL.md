@@ -1,6 +1,6 @@
 ---
 name: stdd-execute
-description: 'STDD execute phase — narrative title "Forge 鑄造" (RED/GREEN forged into a finished tool; echoes gondor-builder/eagle-sentinel). Runs the per-task RED → GREEN → REFACTOR TDD loop against an approved STDD tasks.md, using a two-dispatch model (builder-RED, builder-GREEN+REFACTOR) with an independent verifier and a test-file fingerprint passed through the dispatch prompt. Triggers: "stdd-execute", "run the TDD loop task by task", "run RED GREEN REFACTOR", or any request to implement STDD tasks one at a time. Requires an approved spec.md and an existing tasks.md; refuses otherwise.'
+description: 'STDD execute phase. Runs the per-task RED → GREEN → REFACTOR TDD loop against an approved STDD tasks.md, using a two-dispatch model (builder-RED, builder-GREEN+REFACTOR) with an independent verifier and a test-file fingerprint passed through the dispatch prompt. Triggers: "stdd-execute", "run the TDD loop task by task", "run RED GREEN REFACTOR", or any request to implement STDD tasks one at a time. Requires an approved spec.md and an existing tasks.md; refuses otherwise.'
 ---
 
 # stdd-execute — Forge 鑄造
@@ -35,7 +35,7 @@ recovering an interruption — see step 3). Route it:
 - `S-XX` scenario task → full two-dispatch RED/GREEN/REFACTOR loop (steps
   2–5 below).
 - `[INFRA]` task, or an obviously small single-file change → the fast path
-  (step 6).
+  (step 7).
 - `[MANUAL]` entries are never executed here — they live in the "Manual
   verification checklist" and are confirmed one by one at the completion gate (step 5).
 
@@ -166,7 +166,7 @@ S-19):
     plus `stdd-lint`'s post-hoc comparison guard them (see
     `STDD/specs/stdd-spec.md` S-05, `STDD/spec.md` REQ-09). Do not imply
     this skill closes that gap; it doesn't, by design.
-- The `[INFRA]` fast path (step 6) still always runs the verifier — it only
+- The `[INFRA]` fast path (step 7) still always runs the verifier — it only
   skips the multi-round RED/GREEN dispatch split, not verification.
 
 ## 5. Task-boundary spec re-check (S-13)
@@ -178,7 +178,7 @@ Once a task's RED → GREEN → REFACTOR is done:
    judgment.md §4 — do not patch around it).
 2. Check whether this task's implementation has drifted from
    `design-be.md` / `design-fe.md` / `api.yml` (plan-drift check). Drift
-   found → trigger the plan-change protocol (step 7 / S-17) before
+   found → trigger the plan-change protocol (step 6 / S-17) before
    proceeding further.
 3. Call `/stdd-lint` to re-compare `S-XX` coverage between `spec.md` and
    `tasks.md`, and to re-verify both fingerprints: `spec.md`'s body against
@@ -242,9 +242,7 @@ For a task marked `[INFRA]`, or an obviously small single-file change:
 
 ## Notes / honest limits
 
-- This skill assumes `/stdd-lint` is installed for every mechanical
-  checkpoint above; if it is not, the correct behavior is to STOP loudly,
-  not to proceed without the check.
+- Lint-STOP rule: see step 5's boundary check (single source: `stdd-lint`'s S-31).
 - The test-file fingerprint firewall's mechanical hook is optional and off
   by default — without it, protection is detection-after-the-fact via
   `/stdd-lint`, not prevention. Say this plainly in any report, don't imply
@@ -253,3 +251,15 @@ For a task marked `[INFRA]`, or an obviously small single-file change:
   `design_ux_fingerprint`) are never protected by a mechanical hook under
   any configuration — this is a deliberate framework decision (REQ-09), not
   a gap this skill can close.
+
+## Closing — external-ticket writeback (advisory)
+
+If this change's requirement originated from an external ticket, the Maia
+MAY dispatch `palantir-stone` (this framework's external-system write role)
+to write completion status or estimates back to that ticket — enumerated
+mutations only, per that role's rules. Before any such dispatch, ask the
+user with AskUserQuestion — explicit options (e.g. (a) write completion
+status back, (b) write an estimate back, (c) don't write back), never an
+open-ended question; the user not choosing a write-back option means no
+dispatch. This is advisory, not a step: never invoke it automatically, and
+never make it a gate on completion.

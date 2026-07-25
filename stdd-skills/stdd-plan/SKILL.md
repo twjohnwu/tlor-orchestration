@@ -1,6 +1,6 @@
 ---
 name: stdd-plan
-description: 'Map 行軍圖 — generate condition-based design artifacts (design-be.md / design-fe.md / api.yml) and a scenario-covered tasks.md from an approved STDD spec.md. Triggers: "stdd-plan", "generate design and task list", "produce a plan from spec", or any request to turn an approved GWT spec into a design + task list. Requires spec.md status: approved; refuses to run otherwise.'
+description: 'Generate condition-based design artifacts (design-be.md / design-fe.md / api.yml) and a scenario-covered tasks.md from an approved STDD spec.md. Triggers: "stdd-plan", "generate design and task list", "produce a plan from spec", or any request to turn an approved GWT spec into a design + task list. Requires spec.md status: approved; refuses to run otherwise.'
 ---
 
 # stdd-plan — Map（行軍圖）
@@ -47,7 +47,7 @@ Before doing anything else, read `STDD/<name>/spec.md` frontmatter (and
   point the user at the `stdd-uiux` back-fill flow. Never skip this check
   because a file is absent.
 
-This same gate re-check happens again in step 6 before the tasks.md coverage
+This same gate re-check happens again in step 7 before the tasks.md coverage
 gate (S-08) — re-read `spec.md` frontmatter at that point too, not just once
 at skill entry.
 
@@ -67,7 +67,7 @@ inapplicable sections `N/A` rather than omitting them silently.
 
 ## 2. Requirements checklist (S-51)
 
-Before producing any design artifact (step 3), derive a requirements
+Before producing any design artifact (step 4), derive a requirements
 checklist from the approved `spec.md` (and `design-ux.md` if present) and
 write it into a non-gated appendix section — either its own subsection in
 `tasks.md` or in `design-be.md`'s appendix, e.g.:
@@ -79,7 +79,7 @@ write it into a non-gated appendix section — either its own subsection in
 - [ ] Requirement B
 ```
 
-This checklist is re-checked item by item at the end of step 6's coverage
+This checklist is re-checked item by item at the end of step 7's coverage
 gate, right before the approval summary is presented. Any unmet item MUST be
 listed explicitly there — never silently treated as satisfied.
 
@@ -112,7 +112,7 @@ functionality already implemented, before finalizing `design-be.md` /
   in the approval summary (step 7).
 - Read `references/23-design-patterns.md` (this skill's bundled template, or
   the project's own canonical `wiki/coding_standard/` copy if a prior run
-  already landed one — see step 8).
+  already landed one — see step 9).
 - Produce a suggestion list: for each candidate pattern, one line naming the
   pattern, one line of rationale, and the specific point in the existing
   implementation where it would apply.
@@ -122,7 +122,7 @@ functionality already implemented, before finalizing `design-be.md` /
 - If the user skips the suggestions, produce the design as originally
   planned — do not force any pattern in.
 - If no similar existing implementation is found, or the target is a
-  brand-new project, skip this flow entirely and fall back to step 8's
+  brand-new project, skip this flow entirely and fall back to step 9's
   ordinary "repeated structure or predictable variation point" bar for
   introducing a pattern.
 
@@ -354,14 +354,7 @@ This skill directory ships:
 
 ## Closing — decision capture (advisory)
 
-Before closing this phase, check whether it produced a decision that
-passes the durability test (any of: changes a contract, schema,
-architecture, or convention with future consequences; encodes a
-non-obvious transferable lesson; guards against a plausible future
-re-litigation of the same argument). If yes, ask the user with
-AskUserQuestion — explicit options, never an open-ended question:
-(a) archive to the project's decision log, (b) archive as a general
-(cross-project) decision, (c) don't archive. If they pick an archive
-option, invoke `/westmarch-scribe` with this phase's filled MADR /
-decision material. This is a suggestion gate — never invoke the scribe
-without the user choosing it.
+See `stdd-spec`'s `references/decision-capture-closing.md` for the full
+advisory (durability test, `AskUserQuestion` options, when to invoke
+`/westmarch-scribe`) — byte-identical across every stdd phase skill, not
+restated here.

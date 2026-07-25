@@ -1,6 +1,6 @@
 ---
 name: stdd-lint
-description: 'STDD mechanical checker — narrative title "Eagle Vision 鷹之視野" (the eagle''s overlook, where no flaw hides). A pure rule-based (non-model-judgment) checker for a single STDD change: scans spec.md/tasks.md for placeholder text and prototype/ leakage, scenario-ID continuity/uniqueness, GWT completeness, Test-mapping/Verification-command completeness, spec-vs-tasks coverage, INFRA/MANUAL reason-line presence, D5-deferred-ratio stats, the two-file approval fingerprint, and cross-artifact reference consistency (design-be/fe REQ/S IDs, api.yml operationId/path/fields, design-fe.md endpoints, Mermaid DB-operation notes) against spec.md/design-be.md/design-fe.md/api.yml. Internal reusable checker — called from stdd-spec/stdd-plan/stdd-execute boundary checks, and also callable directly by the user. Triggers: "/stdd-lint", any caller needing the mechanical boundary check.'
+description: 'STDD mechanical checker. A pure rule-based (non-model-judgment) checker that runs the 13 checks catalogued in references/checklist.md (placeholder/coverage/fingerprint/cross-artifact checks) against a single STDD change. Triggers: "/stdd-lint", or any stdd-* skill''s boundary/coverage call.'
 ---
 
 # stdd-lint — Eagle Vision 鷹之視野

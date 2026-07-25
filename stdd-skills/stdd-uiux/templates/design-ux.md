@@ -90,6 +90,18 @@ flowchart TD
 - **Loading**: skeleton cards matching the `SubscriptionCard` layout, not a
   generic spinner.
 
+## Design-as-code files
+
+Only present when Class 1 (design-as-code, `pencil.dev`) was used — see
+Step 3. Lists the chosen `.pen` file(s)' repo-relative path(s); the files
+themselves are accompanying artifacts reviewed via git diff, this
+`design-ux.md` remains the canonical spec record.
+
+| Path | Status |
+|---|---|
+| `design/user-dashboard.pen` | chosen candidate, reviewed |
+| `design/user-dashboard-mobile.pen` | modifying an existing design, single candidate |
+
 ## Override — Subscription list page (REQ-01)
 
 Only the deltas from MASTER for this specific page; anything not listed here

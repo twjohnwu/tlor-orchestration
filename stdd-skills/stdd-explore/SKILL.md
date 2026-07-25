@@ -1,6 +1,6 @@
 ---
 name: stdd-explore
-description: 'STDD explore phase — narrative title "Lore 智者探詢" (seeking counsel from the wise, gathering intelligence). A thinking-partner mode that clarifies a vague feature idea BEFORE any spec gets written: challenges assumptions with a six-phase first-principles method, asks batched confirm-then-ask questions, proposes 2-3 tradeoff options, and hands off to stdd-uiux or stdd-spec. Writes no code or files except a rejected-options note. Triggers: "/stdd-explore", starting a new STDD change from a rough idea.'
+description: 'STDD explore phase. A thinking-partner mode that clarifies a vague feature idea BEFORE any spec gets written: challenges assumptions with a six-phase first-principles method, asks batched confirm-then-ask questions, proposes 2-3 tradeoff options, and hands off to stdd-uiux or stdd-spec. Writes no code or files except a rejected-options note. Triggers: "/stdd-explore", starting a new STDD change from a rough idea.'
 ---
 
 # stdd-explore — Lore 智者探詢
@@ -40,6 +40,12 @@ repository-search subagent) or a web-search tool is available, use it to
 gather background context relevant to the idea. If neither is available,
 degrade gracefully and continue on conversation alone — never stall or
 error just because a lookup tool is missing.
+
+**External-ticket sourcing**: see `stdd-spec`'s
+`references/external-ticket-sourcing.md` for the full rule (when to dispatch
+`mirror-of-galadriel`, and how to degrade gracefully if it can't launch).
+This phase folds any returned content into its understanding of the idea
+(Step 1).
 
 ## Step 2 — Detect multi-subsystem scope
 
@@ -122,8 +128,9 @@ asks you to, with exactly one standing exception:
   value — do not ask again. If this would be the very first artifact for
   this change, ask the user once (soft default `en`) and record the answer
   in this file's own `language:` frontmatter field for later artifacts in
-  the same change to reuse (single source of truth: `STDD/spec.md`'s
-  artifact-language rule). GWT keywords, `REQ-XX`/`S-XX` IDs, commands, and
+  the same change to reuse (single source of truth: `stdd-spec`'s own
+  Step 3 artifact-language rule — a per-change `spec.md` may not exist yet
+  when explore runs). GWT keywords, `REQ-XX`/`S-XX` IDs, commands, and
   filenames are always English regardless of this field.
 - At the end of explore, write the options you considered and rejected
   (each with a one-line reason) into a lightweight, non-gated section —
@@ -177,14 +184,7 @@ explore's phases actually ran):
 
 ## Closing — decision capture (advisory)
 
-Before closing this phase, check whether it produced a decision that
-passes the durability test (any of: changes a contract, schema,
-architecture, or convention with future consequences; encodes a
-non-obvious transferable lesson; guards against a plausible future
-re-litigation of the same argument). If yes, ask the user with
-AskUserQuestion — explicit options, never an open-ended question:
-(a) archive to the project's decision log, (b) archive as a general
-(cross-project) decision, (c) don't archive. If they pick an archive
-option, invoke `/westmarch-scribe` with this phase's filled MADR /
-decision material. This is a suggestion gate — never invoke the scribe
-without the user choosing it.
+See `stdd-spec`'s `references/decision-capture-closing.md` for the full
+advisory (durability test, `AskUserQuestion` options, when to invoke
+`/westmarch-scribe`) — byte-identical across every stdd phase skill, not
+restated here.

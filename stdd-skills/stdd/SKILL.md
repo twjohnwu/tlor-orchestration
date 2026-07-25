@@ -1,6 +1,6 @@
 ---
 name: stdd
-description: 'STDD status phase — narrative title "Palantír 真知晶石" (the seeing-stone that overlooks the whole expedition). A read-only status dashboard for an STDD change: reads existing artifacts (spec.md, design-ux.md, tasks.md), reports which stage the change is in, re-verifies the two-file fingerprint on a read-only basis, and suggests the next command. Never invokes any other stdd-* skill and never writes to any file. Triggers: "/stdd", "what stage is this change in", checking STDD progress.'
+description: 'STDD status phase. A read-only status dashboard for an STDD change: reads existing artifacts (spec.md, design-ux.md, tasks.md), reports which stage the change is in, re-verifies the two-file fingerprint on a read-only basis, and suggests the next command. Never invokes any other stdd-* skill and never writes to any file. Triggers: "/stdd", "what stage is this change in", checking STDD progress.'
 ---
 
 # stdd — Palantír 真知晶石

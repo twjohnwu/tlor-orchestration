@@ -1,6 +1,6 @@
 ---
 name: stdd-uiux
-description: 'STDD UI/UX design phase — narrative title "Lórien 精靈美學" (the design eye of Lothlórien). Conditional stage inserted between stdd-explore and stdd-spec only when a change has a user-facing UI surface: gathers design references, generates design-ux.md (MASTER + per-page/flow override structure), runs a mechanical anti-pattern self-review, and owns the reflow protocol when a later stage finds a UX defect or conflict. Triggers: "/stdd-uiux", any STDD change with a screen/interaction surface.'
+description: 'STDD UI/UX design phase. Conditional stage inserted between stdd-explore and stdd-spec only when a change has a user-facing UI surface: gathers design references, generates design-ux.md (MASTER + per-page/flow override structure), runs a mechanical anti-pattern self-review, and owns the reflow protocol when a later stage finds a UX defect or conflict. Triggers: "/stdd-uiux", any STDD change with a screen/interaction surface.'
 ---
 
 # stdd-uiux — Lórien 精靈美學
@@ -35,24 +35,71 @@ upstream artifact (e.g. `stdd-explore`'s handoff summary) — and record it:
   one and explicitly list any item that is NOT met — never silently treat an
   unmet item as passed.
 
-## Step 3 — Batched design-reference gathering (with Figma MCP graceful degrade)
+## Step 3 — Design-source class detection, then batched reference gathering
 
-Once confirmed the change has a UI surface, gather design references in
-batches, soft target **at most 6 questions**, asking about: Figma links,
-screenshots, brand-guideline documents, preferred reference examples — ask
-rather than guess.
+Once confirmed the change has a UI surface, first detect which design-source
+class this project/session is in, then gather remaining references
+accordingly. **Design-as-code is the default supported class (reference
+tool: pencil.dev — free, files live in the repo); SaaS design tools are
+supported read-only.** Check in this priority order, top-down, stop at the
+first match:
 
+1. **Class 1 — design-as-code (DEFAULT; reference tool `pencil.dev`)**: the
+   repo contains `.pen` files, OR the session exposes pencil MCP tools →
+   full agent-driven mode: this phase may generate and modify `.pen` design
+   files via the pencil MCP.
+   - **New design** (no prior `.pen` file covers this surface): by default
+     produce **up to 3 parallel `.pen` candidates**, each via a separate
+     generic subagent dispatch (a subagent with this session's inherited
+     tools, so it carries the pencil MCP connection — this framework's
+     pinned roles don't carry pencil MCP tools — with `model` stated
+     explicitly per this framework's dispatch rules), each given an
+     independent design direction. **Candidate naming**: each dispatch
+     writes to its own `design/<name>.candidate-N.pen` path (N = 1, 2, 3,
+     assigned in the dispatch prompt) so parallel subagents never collide
+     on the same file. Present all candidates to the user to pick the final
+     one (optionally after a judge-agent pre-screen). The chosen design is
+     then recorded in `design-ux.md` (Step 5).
+   - **Disposition after the user picks**: rename/save the chosen candidate
+     to the canonical `design/<name>.pen` path recorded in `design-ux.md`,
+     and delete the non-chosen candidate files — no orphan
+     `.candidate-N.pen` files left in the repo before commit.
+   - **Modifying an existing design** (a prior `.pen` file already covers
+     this surface): single candidate, direct edit — no parallel dispatch.
+   - **Guardrail**: without the pencil MCP tools actually available in the
+     session, NEVER hand-edit `.pen` JSON directly — there is no render
+     feedback, so a hand edit is easy to corrupt silently. If `.pen` files
+     exist but the MCP tools aren't connected, degrade to Class 2/3 below
+     instead of touching the files.
+2. **Class 2 — SaaS design tools (e.g. Figma)**: the user supplies a link to
+   a SaaS design tool. Same detect-then-degrade pattern as any optional
+   tool, read-only:
+   - Available → read the referenced design content to help produce
+     `design-ux.md`.
+   - Not available → gracefully degrade: record the link as a manual
+     reference and note the degrade reason. Never stall or error just
+     because the MCP tool is missing.
+   - **Out-of-sync reporting**: this skill never edits a SaaS design — if a
+     spec change later implies the SaaS design itself must change, output an
+     explicit out-of-sync report plus a human TODO (e.g. "design file X
+     diverges from spec vN — needs designer update") instead of attempting
+     an edit.
+3. **Class 3 — none**: no design-as-code repo/MCP and no SaaS design
+   reference → the existing text-only fallback below, unchanged.
+
+Regardless of class, gather remaining design references in batches, soft
+target **at most 6 questions**, asking about: design tool links (pencil.dev
+project / Figma / other), screenshots, brand-guideline documents, preferred
+reference examples — ask rather than guess.
+
+- **External-ticket sourcing**: see `stdd-spec`'s
+  `references/external-ticket-sourcing.md` for the full rule (when to
+  dispatch `mirror-of-galadriel`, and how to degrade gracefully if it can't
+  launch). This phase folds any returned content into the design-reference
+  gathering above and the later `design-ux.md` draft.
 - If the user provides nothing for a given item, explicitly record "no
   reference provided, using default judgment" — never pretend a reference
   was supplied when it wasn't.
-- **Figma MCP detection**: if the user supplies a Figma link, check whether
-  a Figma MCP tool is available (same detect-then-degrade pattern as any
-  optional tool):
-  - Available → read the referenced design content to help produce
-    `design-ux.md`.
-  - Not available → gracefully degrade: record the link as a manual
-    reference and note the degrade reason. Never stall or error just
-    because the MCP tool is missing.
 
 ## Step 4 — Design-guideline detection (do this before generating design-ux.md)
 
@@ -93,8 +140,9 @@ straight to freeform prose.
     decision into this file's `language:` field so later artifacts in the
     same change (`spec.md`, `plan.md`) can reuse it.
   - GIVEN/WHEN/THEN, `REQ-XX`/`S-XX`, commands, and filenames stay English
-    regardless of this setting (see `STDD/spec.md`'s artifact-language
-    section — single source of truth, not restated here).
+    regardless of this setting (see `stdd-spec`'s own Step 3
+    artifact-language rule — single source of truth, not restated here; a
+    per-change `spec.md` may not exist yet when this phase runs).
 - **Body structure**: MASTER (global) section + per-page/per-flow override
   sections. Mark any section that doesn't apply as `N/A` rather than
   omitting it silently. Sections to include:
@@ -108,6 +156,12 @@ straight to freeform prose.
 - If a project canonical design guideline was found in Step 4, the MASTER
   section here is "cite guideline + delta only" per that step — don't repeat
   it.
+- **Design-as-code files** (Class 1 only, Step 3): if `.pen` candidate(s)
+  were generated or edited for this change, list the chosen file's
+  repo-relative path(s) in a `## Design-as-code files` section. `.pen` files
+  are accompanying artifacts reviewed via git diff — `design-ux.md` remains
+  the canonical spec record and the fingerprint-gate target, unchanged by
+  this class of design source.
 - **Few-shot corpus discipline**: if you need an external few-shot design-doc
   example to help produce this file, load **at most 1-2 examples per
   session** — never load an entire example corpus into context.
@@ -193,9 +247,9 @@ this skill (`stdd-uiux`) is the one that handles it:
    the affected delta, read the change's `spec.md` rejected-options section
    (written by `stdd-explore`) so you don't re-propose something already
    rejected. That section's heading text follows `spec.md`'s own
-   `language:` value per the artifact-language rule (`STDD/spec.md`,
-   artifact-language section) — locate the section by its purpose (the
-   rejected-options list), not by assuming a fixed literal heading string.
+   `language:` value per the artifact-language rule (`stdd-spec`'s own
+   Step 3) — locate the section by its purpose (the rejected-options
+   list), not by assuming a fixed literal heading string.
 4. Update only the affected delta in `design-ux.md` (no need to rerun the
    full Steps 1-7 from scratch).
 5. **Hard cap, 3rd trigger on the same region**: if this reflow protocol
@@ -258,14 +312,7 @@ this skill (`stdd-uiux`) is the one that handles it:
 
 ## Closing — decision capture (advisory)
 
-Before closing this phase, check whether it produced a decision that
-passes the durability test (any of: changes a contract, schema,
-architecture, or convention with future consequences; encodes a
-non-obvious transferable lesson; guards against a plausible future
-re-litigation of the same argument). If yes, ask the user with
-AskUserQuestion — explicit options, never an open-ended question:
-(a) archive to the project's decision log, (b) archive as a general
-(cross-project) decision, (c) don't archive. If they pick an archive
-option, invoke `/westmarch-scribe` with this phase's filled MADR /
-decision material. This is a suggestion gate — never invoke the scribe
-without the user choosing it.
+See `stdd-spec`'s `references/decision-capture-closing.md` for the full
+advisory (durability test, `AskUserQuestion` options, when to invoke
+`/westmarch-scribe`) — byte-identical across every stdd phase skill, not
+restated here.

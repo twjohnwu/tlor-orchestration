@@ -1,6 +1,6 @@
 ---
 name: stdd-spec
-description: 'STDD spec phase — narrative title "Oath 遠征誓約" (swearing an acceptable oath). Writes a GWT-format spec.md with stable REQ/S IDs, test-mapping and verification-command fields per scenario, runs a mechanical /stdd-lint self-review plus an adversarial-panel approval gate, and is the hard gate that blocks stdd-plan/stdd-execute until the spec (and design-ux.md, if any) are approved and their content fingerprints match. Triggers: "/stdd-spec", writing or approving a spec for an STDD change.'
+description: 'STDD spec phase. Writes a GWT-format spec.md with stable REQ/S IDs, test-mapping and verification-command fields per scenario, runs a mechanical /stdd-lint self-review plus an adversarial-panel approval gate, and is the hard gate that blocks stdd-plan/stdd-execute until the spec (and design-ux.md, if any) are approved and their content fingerprints match. Triggers: "/stdd-spec", writing or approving a spec for an STDD change.'
 ---
 
 # stdd-spec — Oath 遠征誓約
@@ -27,6 +27,11 @@ this check and generate `spec.md` anyway. If none match, continue to Step 1.
 If the target project already has prior STDD change directories (or a
 `wiki/`), before drafting this change's `spec.md`:
 
+- **External-ticket sourcing**: see `references/external-ticket-sourcing.md`
+  for the full rule (when to dispatch `mirror-of-galadriel`, and how to
+  degrade gracefully if it can't launch) — canonical copy, shared with
+  `stdd-explore`/`stdd-uiux`. This phase folds any returned content into the
+  requirements checklist (Step 2) and the later `spec.md` draft.
 - Dispatch a broad-search subagent (e.g. this framework's `ranger-pathfinder`
   role, if available) to scan existing changes' `spec.md` files and `wiki/`
   (prioritize the `standard/` and `cases/` buckets) for conflicts with this
@@ -69,10 +74,11 @@ check whether this change directory already has an existing artifact with a
 if this is the change's first artifact, ask the user once for the language
 (soft default `en`, any language code is acceptable), and write the decision
 into this file's own `language:` field for later artifacts in the same
-change to reuse (single source of truth: `STDD/spec.md`'s cross-cutting
-"Artifact language rule" — referenced here, not restated). Regardless of the
-chosen language, GIVEN/WHEN/THEN, `REQ-XX`/`S-XX`, commands, and filenames
-always stay in English.
+change to reuse (this paragraph is the single source of truth for the
+artifact-language rule — other stdd-* skills cite `stdd-spec`'s own Step 3
+here, not a per-change `spec.md`, which may not exist yet when they run).
+Regardless of the chosen language, GIVEN/WHEN/THEN, `REQ-XX`/`S-XX`,
+commands, and filenames always stay in English.
 
 Include:
 
@@ -256,14 +262,7 @@ This skill directory ships:
 
 ## Closing — decision capture (advisory)
 
-Before closing this phase, check whether it produced a decision that
-passes the durability test (any of: changes a contract, schema,
-architecture, or convention with future consequences; encodes a
-non-obvious transferable lesson; guards against a plausible future
-re-litigation of the same argument). If yes, ask the user with
-AskUserQuestion — explicit options, never an open-ended question:
-(a) archive to the project's decision log, (b) archive as a general
-(cross-project) decision, (c) don't archive. If they pick an archive
-option, invoke `/westmarch-scribe` with this phase's filled MADR /
-decision material. This is a suggestion gate — never invoke the scribe
-without the user choosing it.
+See `references/decision-capture-closing.md` for the full advisory
+(durability test, `AskUserQuestion` options, when to invoke
+`/westmarch-scribe`) — canonical copy, byte-identical across every stdd
+phase skill.
