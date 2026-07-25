@@ -1,5 +1,5 @@
 ---
-description: Role dispatch and delegation rules for the nine pinned tlor-orchestration roles
+description: Role dispatch and delegation rules for the eleven pinned tlor-orchestration roles
 managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
 audience: all
 ---
@@ -88,6 +88,8 @@ and then ALWAYS pass `model` explicitly.
 | Implement against a clear spec (local judgment OK) | `gondor-builder` (sonnet/medium) | generic subagent + mid-tier model |
 | Routine read-back verification | `eagle-sentinel` + `model: sonnet` override | generic subagent + mid-tier model |
 | High-risk verification | `eagle-sentinel` (opus/medium); panel: `elf-archer`/`orc-saboteur`/`hobbit-gardener` | generic subagent + top-tier model |
+| External-system READ via session MCP tools (task trackers, docs stores) | `mirror-of-galadriel` (haiku/low) | none — needs MCP tools, no safe generic substitute |
+| External-system WRITE via session MCP tools | `palantir-stone` (sonnet/medium) — **T1 note**: outward-facing writes; the dispatch MUST enumerate every mutation (target gid+title, expected-before, literal value), max 10 per dispatch; per risk-tiers T1, the Maia MUST obtain the user's explicit confirmation of the exact mutation enumeration BEFORE dispatching | none — needs MCP tools, no safe generic substitute |
 | Design decisions, ambiguous debugging, writing plans | stays with the Maia, or generic subagent + top-tier model | — |
 
 - A per-call `model` parameter OVERRIDES a role's pinned frontmatter — use it
@@ -108,9 +110,13 @@ Judge four inputs: breadth (one symbol vs a subsystem), ambiguity (exact
 name vs concept only), cost of a miss (curiosity vs a wrong plan), nature
 (lookup vs reasoning). Mostly-low → outrider (haiku); broad/ambiguous or
 costly miss → pathfinder (sonnet); reasoning-heavy or feeding a high-cost
-decision → opus. A contradictory or inconclusive result IS an escalation
-signal — treat it like a failure (§4), don't average it. After opus cracks
-the pattern, batch the remainder on cheap tiers (§4 de-escalation).
+decision → opus. A fifth input applies once the data lives outside the repo:
+if the lookup requires a session MCP tool against an external system rather
+than repo code/web docs, route to `mirror-of-galadriel` (read) regardless of
+breadth — its cheap tier is for volume MCP lookups, not for judgment. A
+contradictory or inconclusive result IS an escalation signal — treat it like
+a failure (§4), don't average it. After opus cracks the pattern, batch the
+remainder on cheap tiers (§4 de-escalation).
 
 ## 4. Escalation / de-escalation paths
 
