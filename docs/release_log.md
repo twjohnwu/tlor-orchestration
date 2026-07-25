@@ -6,6 +6,13 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.3.1 — 2026-07-25
+
+- Tests and CI only, no runtime change: added a pytest test layer for the
+  hooks (`tests/`, 43 cases, including an `institution_guard` symlink-gap
+  regression test); CI's lint job now also runs pytest; no installer- or
+  runtime-behavior changes.
+
 ## v0.3.0 — 2026-07-24
 
 - Skill-quality pass across all twelve skills (writing-great-skills audit):
