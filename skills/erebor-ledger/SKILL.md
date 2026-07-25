@@ -1,6 +1,6 @@
 ---
 name: erebor-ledger
-description: 'Token/cost-savings ledger for tlor-orchestration dispatching — reports how much dispatching to tlor roles saved versus running the same work inline on the orchestrator model, split by Fable-5-orchestrator sessions vs Opus-orchestrator sessions. Triggers: "usage report", "cost savings report", "token ledger", "省了多少 token/成本", "how much token/cost saved", "dispatch savings". Not for live cost estimation of a single in-progress dispatch — this is a retrospective report over existing Claude Code transcripts.'
+description: 'Token/cost-savings ledger for tlor-orchestration dispatching — reports how much dispatching to tlor roles saved versus running the same work inline on the orchestrator model, split by Fable-5-orchestrator sessions vs Opus-orchestrator sessions. Triggers: "usage report", "省了多少 token/成本", "dispatch savings". Not for live cost estimation of a single in-progress dispatch — this is a retrospective report over existing Claude Code transcripts.'
 ---
 
 # Erebor Ledger (寶庫清點 — dispatch token/cost savings report)
@@ -144,9 +144,10 @@ run on `sonnet-5` shows `sonnet-5 (downgrade)` because the role pins
 marker. `Effort` is a recorded per-dispatch value if one exists, else
 the role's pinned frontmatter marked with a trailing `*`, else `—`.
 
-The nine tlor roles (`rohirrim-outrider`, `ranger-pathfinder`,
+The eleven tlor roles (`rohirrim-outrider`, `ranger-pathfinder`,
 `noldor-loremaster`, `dwarf-smith`, `gondor-builder`, `eagle-sentinel`,
-`elf-archer`, `orc-saboteur`, `hobbit-gardener`) each get their own row(s)
+`elf-archer`, `orc-saboteur`, `hobbit-gardener`, `mirror-of-galadriel`,
+`palantir-stone`) each get their own row(s)
 when they appear in the data; anything else (built-in Explore, a generic
 subagent) is merged into a single `(other subagents)` row by default —
 its `Model`/`Effort` cells show `mixed` unless every merged dispatch shares
@@ -170,6 +171,8 @@ Fable group per-role example:
 | elf-archer | opus-4-8 | medium* | 1 | 1,200 | 900 | 600/100 | $0.10 | $0.55 | $0.45 | 81.8% |
 | orc-saboteur | opus-4-8 | medium* | 1 | 1,300 | 950 | 700/100 | $0.11 | $0.58 | $0.47 | 81.0% |
 | hobbit-gardener | opus-4-8 | medium* | 1 | 1,100 | 800 | 500/100 | $0.09 | $0.50 | $0.41 | 82.0% |
+| mirror-of-galadriel | haiku-4-5 | low* | 12 | 8,400 | 2,100 | 15,000/3,200 | $0.42 | $3.10 | $2.68 | 86.5% |
+| palantir-stone | sonnet-5 | low* | 3 | 4,100 | 3,000 | 5,600/900 | $0.35 | $1.85 | $1.50 | 81.1% |
 | (other subagents) | mixed | mixed | 2 | 2,000 | 1,000 | 1,000/200 | $0.15 | $0.70 | $0.55 | 78.6% |
 | **Total saved** | — | — | **37** | — | — | — | **$3.56** | **$18.33** | **$14.77** | **80.6%** |
 

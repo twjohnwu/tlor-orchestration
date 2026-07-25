@@ -1,6 +1,6 @@
 ---
 name: westmarch-scribe
-description: 'Use when a decision just got finalized or reversed in conversation and needs to be archived — the user says "就這樣定了", "決定用 X", "把這個決策存起來", "記錄這個決策", "archive this decision", "record this decision", "we''ve decided", explicit `/westmarch-scribe`, or a stdd phase skill''s closing advisory suggests archiving. Archives a DECIDED compact-MADR comparison (Decision / Decision Drivers / Considered Options / Pros and Cons / Decision Outcome) to the right durable location — the rules customize layer for a cross-project decision, or a project decision log / instruction file for a project-scoped one.'
+description: 'Archives a DECIDED compact-MADR record (Decision / Decision Drivers / Considered Options / Pros and Cons / Decision Outcome) to the right durable location — the rules customize layer for a cross-project decision, or a project decision log / instruction file for a project-scoped one. Use when a decision just got finalized or reversed in conversation and needs to be archived — the user says "就這樣定了", "決定用 X", "把這個決策存起來", "記錄這個決策", "archive this decision", "record this decision", "we''ve decided", explicit `/westmarch-scribe`, or a stdd phase skill''s closing advisory suggests archiving.'
 ---
 
 # Westmarch Scribe (西境紅皮書執筆者)
@@ -23,8 +23,15 @@ has already reached a decided outcome, and files it durably in the right
 place — either this machine's rules customize layer (cross-project
 decisions) or the deciding project's own decision log or instruction file
 (project-scoped decisions). It never invents the archiving location by
-guessing; every ambiguous branch below is resolved by an `AskUserQuestion`
-with explicit options, never an open-ended prompt.
+guessing.
+
+## Standing rule — every question is a closed question
+
+Every question or suggestion this skill raises with the user goes through
+`AskUserQuestion` with explicit, enumerated options — never an open-ended
+"what would you like to do?" prompt. This applies to every branch below:
+missing metadata, the durability-test fork, the scope-routing fork, the
+create-a-log fork, and the log-language question.
 
 ## Step 0 — Gate: tlor rules installed?
 
@@ -158,14 +165,6 @@ needs no ceremony beyond the normal commit-hygiene rules already in force.
 **Never commit** the rules customize-layer file (Step 4a) or any `.local`
 file (Step 4b "No" branch) — those are personal/machine-layer, not part of
 the project's git history.
-
-## Rule: every question is a closed question
-
-Every question or suggestion this skill raises with the user goes through
-`AskUserQuestion` with explicit, enumerated options — never an open-ended
-"what would you like to do?" prompt. This applies to every branch above:
-missing metadata, the durability-test fork, the scope-routing fork, the
-create-a-log fork, and the log-language question.
 
 ## Non-goals
 

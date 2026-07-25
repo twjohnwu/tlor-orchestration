@@ -1,6 +1,6 @@
 ---
 name: minas-tirith-archivist
-description: 'Use when the user asks about past decisions, why a convention exists, "為什麼當初這樣做", "以前是怎麼決定的", "這題以前決過嗎", "查決策記錄", "search decision records", "past decisions", or explicit `/minas-tirith-archivist`. Read-only query counterpart to `/westmarch-scribe` — searches archived decision records (general and project-scoped) and answers with citations, never writes or edits them.'
+description: 'Read-only search over archived decision records (general and project-scoped) — use when the user asks about past decisions, why a convention exists, "為什麼當初這樣做", "以前是怎麼決定的", "這題以前決過嗎", "查決策記錄", "search decision records", "past decisions", or explicit `/minas-tirith-archivist`. Read-only query counterpart to `/westmarch-scribe`; answers with citations, never writes or edits records.'
 ---
 
 # Minas Tirith Archivist (米那斯提力斯檔案守護者)

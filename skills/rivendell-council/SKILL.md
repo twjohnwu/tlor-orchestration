@@ -68,7 +68,7 @@ lenses, whose default stance is to overturn it.
 ## Never
 
 - Skip a lens to save time.
-- Merge the three lenses into one agent — independence is the premise.
+- Merge the three lenses into one agent (see step 2).
 - Swallow a REFUTED reason silently; report it or fix it.
 
 ---

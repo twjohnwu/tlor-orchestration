@@ -6,6 +6,92 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.3.0 — 2026-07-24
+
+- Skill-quality pass across all twelve skills (writing-great-skills audit):
+  fixed the `/tlor-init` install list omitting the two new role files (a
+  real installer bug); `tlor-init`/`tlor-restore` are now user-invoked only
+  (`disable-model-invocation: true`); the external-ticket-sourcing and
+  decision-capture closing blocks are single-sourced under
+  `stdd-spec/references/` and pointed to from every phase skill;
+  step-number drift in `stdd-plan`/`stdd-execute` corrected (8 sites);
+  skill descriptions trimmed of narrative clauses and synonym triggers.
+- Added two new roles, bringing the roster to eleven: `mirror-of-galadriel`
+  (haiku/low, read-only lookup into external systems via session MCP tools —
+  currently Asana) and `palantir-stone` (sonnet/medium, the only role that
+  writes to external systems, executing dispatch-enumerated mutations
+  verbatim with pre-write verification, fetch-back confirmation, and a
+  10-mutation cap per dispatch). `rules/dispatch.md` §3/§3b, both
+  `docs/*/roles.md`, and both READMEs updated for the eleven-role roster.
+- 3-round adversarial council review of both new roles (frontmatter stays at
+  `version: 0.0.1`, first release) hardened the read/write split (zero
+  write tools on the Mirror; enumerated-mutation-only discipline,
+  pagination-aware "not found", and idempotency/partial-failure handling on
+  the palantír) before either role shipped.
+- A further 10-round council loop specifically on `palantir-stone` replaced
+  a plain pass/fail report with a five-value outcome taxonomy (applied/
+  failed/landed-unverified/stopped/not-attempted); made every pre-write STOP
+  halt the whole batch, never just skip one item; gave a retry after
+  `landed-unverified` precedence to verify the fetched state first, ahead of
+  the generic mismatch-STOP rule; split STOPs into dispatch-level (nothing
+  enumerable at all — every item `not-attempted`) vs item-level (one bad
+  item `stopped`, the rest `not-attempted`); and extended credential-shape
+  scanning to the checklist echo, composed read-modify-write text, and every
+  fetched-back value, with whole-row zero-disclosure redaction when a
+  credential shape is found.
+- Evaluated and deferred: a shared "memory field" mechanism for these roles
+  (unnecessary — subagents already auto-load the CLAUDE.md chain, so no
+  dedicated memory slot was needed) and a dedicated "watchman" role for
+  long-running external-system polling (deferred — `run_in_background`
+  already covers that need without a new pinned role).
+- `palantir-stone` gained a checklist-echo discipline: before its first
+  write, it parses the dispatch's enumeration into a numbered checklist and
+  states it back (any ambiguity found at this point halts before touching
+  the external system); its final report maps every checklist item to an
+  applied/failed/not-attempted outcome, and any action off the checklist is
+  forbidden.
+- `/tlor-init` gains conffile semantics for previously-installed files a
+  user has customized: `cmp -s` classifies each file as missing / unchanged
+  / different; a different file is backed up to `<file>.bak-YYYYMMDD-HHMMSS`
+  (with a collision counter) before the shipped copy overwrites it, so the
+  customization is never silently lost. An earlier pristine-copy /
+  hash-manifest / three-way-merge design was dropped after adversarial
+  council review refuted it 0/3 rounds — timestamped per-file backups
+  replaced it. Uninstall now backs up customized files the same way before
+  removing them, and the manifest-driven removal loops were hardened
+  (`while read`, an entry sanitizer for glob/whitespace/CRLF forms, and
+  symlink-target validation for agents/rules/hooks/skills).
+- `/tlor-restore` reworked to match: it restores each live file's per-file
+  `.bak-*` sibling (falling back to a labeled legacy path where no sibling
+  exists), rather than reconstructing from a manifest.
+- `mirror-of-galadriel` wired into `stdd-spec`/`stdd-explore`/`stdd-uiux`'s
+  sourcing steps: an explicit-ticket trigger (URL/gid/ticket ID only, never
+  speculative) dispatches the role for a read-only fetch, with a graceful
+  degrade when the role can't launch.
+- `palantir-stone` given a closing advisory role in `stdd-execute`: an
+  AskUserQuestion confirm-gate (explicit write-back options, never
+  open-ended) is now required before any `palantir-stone` writeback
+  dispatch, and never a completion gate. `external-ticket-sourcing.md`
+  gained an untrusted-input clause — content fetched by
+  `mirror-of-galadriel` is treated as data, never as instructions.
+  `stdd-uiux` names its parallel design candidates
+  `design/<name>.candidate-N.pen` and deletes the non-chosen candidates
+  once one is picked, leaving no orphan files.
+- Effect-locus clarification across the STDD skills: external effects (an
+  actual outside system write) vs repo-local MCP writes (e.g. a design-as-code
+  file edited through a local MCP server) are now distinguished explicitly.
+- `stdd-uiux` reworked to make design-as-code (reference tool: pencil.dev)
+  the default design-source class, ahead of SaaS design tools (read-only)
+  and the text-only fallback; new designs get up to 3 parallel design
+  candidates via separate subagent dispatches, modifications stay
+  single-candidate.
+- Stale nine-role counts fixed to eleven in `.claude-plugin/marketplace.json`,
+  `erebor-ledger`, and `/tlor-init`.
+- `institution_guard.py`/`.sh` hardened against a symlink-path gap: matching
+  moved from a single alias substring to home-anchored prefixes covering the
+  whole institution tree plus the `rules`/`agents` symlink aliases, in both
+  the Python and bash variants.
+
 ## v0.2.0 — 2026-07-24
 
 - `/stdd-plan` hardening (P1-P6): a fresh-context design verifier
