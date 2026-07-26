@@ -6,6 +6,75 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.4.0 — 2026-07-27
+
+- New `rules/customize/output-calibration.md` seed: deliverable length
+  guidance plus the five things brevity never trims.
+- `rules/maintenance.md`: whole-corpus compaction budget and a rules-file
+  retirement protocol.
+- `docs/*/installation.md`: session-start context cost disclosure.
+- `docs/*/maintenance.md`: cross-linked the CLAUDE.md + AGENTS.md note to
+  installation.md's session-start cost section, clarifying that auto-load
+  isn't exclusive to CLAUDE.md.
+- Loading-mechanism wording corrected across `install.sh`,
+  `docs/*/installation.md`, `docs/*/rules-and-hooks.md`, and
+  `skills/tlor-init/SKILL.md`: native `.claude/rules/` auto-load is what
+  actually loads rules; routing files are not load-bearing.
+- `docs/*/skills.md`: clarified what `disable-model-invocation: true`
+  implies.
+- `rules/customize/design-principles.md`: two additions (P6 honest limit,
+  P7 first-response instinct).
+- `rules/customize/letter-to-future-sessions.md`: added guidance to move
+  closed-out handoff items out of the open-items section once it runs past
+  roughly 20 lines.
+- Archivist skills: opt-in bounded cross-repo decision sweep, plus a
+  one-decision-one-layer invariant added to both skills.
+- `erebor-ledger` bug fix: token usage was counted once per JSONL content-block
+  line, but Claude Code repeats one message's full `usage` snapshot on every
+  content block, inflating all token and cost figures roughly 2.1x. Records
+  are now deduplicated on `(message.id, requestId)` across the whole scanned
+  set, which also covers records re-emitted by resumed or forked sessions.
+- `erebor-ledger` bug fix: the canonical usage value per message is now the
+  per-field maximum across occurrences. Taking the earliest occurrence read a
+  partial mid-stream snapshot and lost about 47% of output tokens.
+  Attribution still credits the earliest occurrence, so resumed sessions do
+  not steal credit from the original.
+- `erebor-ledger` bug fix: cache writes are now priced by their actual
+  5-minute versus 1-hour tier from `usage.cache_creation`, instead of
+  assuming the 5-minute rate. The old assumption happened to be right for
+  subagent records but under-priced every orchestrator's own cost.
+- `erebor-ledger`: added `claude-opus-5`, `claude-sonnet-4-6` and a dateless
+  `claude-opus-4` entry to the price table; removed a phantom
+  `claude-opus-4-2` entry that does not exist on the pricing page.
+  Provenance dates refreshed.
+- `erebor-ledger`: report lists roles that exist but received zero
+  dispatches, with the role set discovered from the installed manifest or
+  the bundled role directory rather than a hardcoded list.
+- `erebor-ledger`: non-framework agent types appear as their own rows split
+  by model by default; `--detail-others` is kept as a documented no-op.
+- `erebor-ledger`: a heuristic retry count per row, distinguishing
+  sequential re-dispatch from a single-message parallel fan-out. Labelled a
+  heuristic, with its over-count disclosed.
+- `erebor-ledger`: `--cycle` reports over the weekly quota window, with a
+  time-aware boundary rather than date-only filtering. The boundary is an
+  observed value and overridable.
+- `erebor-ledger` changed: savings framing reworked for flat-fee
+  subscriptions. Dollar figures are now labelled API-list-price equivalents
+  rather than money saved, since marginal cash saving under a subscription
+  is zero; what is conserved is quota headroom. Adds a
+  subscription-worth-it ratio, and an optional user-calibrated quota-share
+  figure that is omitted entirely when no calibration point is configured.
+- `erebor-ledger` changed: the former relative-multiple figure is
+  relabelled a context-offload ratio, because a token count cannot express
+  a saving that comes from using a cheaper model. It makes no savings
+  claim.
+- `erebor-ledger`: first test coverage for this tool under `tests/`,
+  including a guard test pinned to the partial-snapshot defect.
+- `erebor-ledger` docs: `SKILL.md` and the design spec record the
+  content-block duplication fact, the dedup and attribution rules, the
+  cache-tier basis, a monotonicity detector for future record-format
+  changes, and the fast-mode premium as a stated limitation.
+
 ## v0.3.2 — 2026-07-25
 
 - Manual install now copies `institution_guard.sh` and `pre_tool_use.sh`

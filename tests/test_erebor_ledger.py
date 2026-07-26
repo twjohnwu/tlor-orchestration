@@ -1,0 +1,451 @@
+# -*- coding: utf-8 -*-
+"""Black-box tests for skills/erebor-ledger/scripts/erebor_ledger.py.
+
+Same style as the hook tests: the script is invoked as a subprocess exactly
+as a user would invoke it, and only its stdout report is asserted against —
+no internals are imported. Every fixture transcript is SYNTHETIC and written
+under pytest's tmp_path, handed to the script via `--root`; the real
+`~/.claude/projects/` is never read.
+"""
+import json
+import subprocess
+import sys
+
+from conftest import REPO_ROOT
+
+SCRIPT = REPO_ROOT / "skills" / "erebor-ledger" / "scripts" / "erebor_ledger.py"
+
+FABLE = "claude-fable-5"
+SONNET = "claude-sonnet-5"
+
+
+# --------------------------------------------------------------------------
+# Fixture builders
+# --------------------------------------------------------------------------
+
+def usage(inp=0, out=0, cache_write=0, cache_read=0, tier_5m=None, tier_1h=None):
+    """One `.message.usage` blob. `tier_5m`/`tier_1h` add the explicit
+    `cache_creation` tier breakdown; leaving both None omits it (the
+    5-minute-fallback path)."""
+    u = {
+        "input_tokens": inp,
+        "output_tokens": out,
+        "cache_creation_input_tokens": cache_write,
+        "cache_read_input_tokens": cache_read,
+    }
+    if tier_5m is not None or tier_1h is not None:
+        u["cache_creation"] = {
+            "ephemeral_5m_input_tokens": tier_5m or 0,
+            "ephemeral_1h_input_tokens": tier_1h or 0,
+        }
+    return u
+
+
+def assistant(ts, msg_id, request_id, model, usage_blob, content=None):
+    """One `"type":"assistant"` transcript line."""
+    return {
+        "type": "assistant",
+        "timestamp": ts,
+        "requestId": request_id,
+        "message": {
+            "id": msg_id,
+            "model": model,
+            "usage": usage_blob,
+            "content": content or [{"type": "text", "text": "x"}],
+        },
+    }
+
+
+def agent_block(tool_id, subagent_type):
+    return {
+        "type": "tool_use",
+        "id": tool_id,
+        "name": "Agent",
+        "input": {"subagent_type": subagent_type},
+    }
+
+
+def write_jsonl(path, records):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        for rec in records:
+            f.write(json.dumps(rec) + "\n")
+
+
+def make_session(root, project, session_id, main_records, dispatches=()):
+    """Write one main-session transcript plus its subagent transcripts.
+
+    `dispatches` is a sequence of (agent_name, agent_type, records) triples;
+    each gets `<session_id>/subagents/agent-<agent_name>.jsonl` and a
+    matching `.meta.json` whose `toolUseId` is `tu-<agent_name>`.
+    """
+    proj = root / project
+    write_jsonl(proj / f"{session_id}.jsonl", main_records)
+    for agent_name, agent_type, records in dispatches:
+        base = proj / session_id / "subagents" / f"agent-{agent_name}"
+        write_jsonl(base.with_suffix(".jsonl"), records)
+        base.with_suffix(".meta.json").write_text(
+            json.dumps({"agentType": agent_type, "toolUseId": f"tu-{agent_name}"}),
+            encoding="utf-8",
+        )
+
+
+def orchestrator_line(ts, n, dispatch_names=()):
+    """A main-session assistant record that issues `dispatch_names` as Agent
+    tool_use blocks in ONE assistant message (a parallel fan-out)."""
+    content = [agent_block(f"tu-{name}", name) for name in dispatch_names]
+    if not content:
+        content = [{"type": "text", "text": "coordinating"}]
+    return assistant(
+        ts, f"msg-orch-{n}", f"req-orch-{n}", FABLE, usage(inp=100, out=100), content
+    )
+
+
+def run_report(root, *extra_args):
+    # `--config` points at a path that does not exist, so the report never
+    # depends on whatever `~/.claude/erebor-ledger.json` the running machine
+    # happens to have (figures 3/4 are simply skipped).
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--root",
+            str(root),
+            "--config",
+            str(root / "no-such-config.json"),
+            *extra_args,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    return proc.stdout
+
+
+# --------------------------------------------------------------------------
+# Report parsing
+# --------------------------------------------------------------------------
+
+def row_cells(report, role, group="Fable"):
+    """The 12 cells of `role`'s row inside the `## {group} group per-role
+    table` section. Fails the test if the role has no row there."""
+    section = report.split(f"## {group} group per-role table", 1)[1]
+    section = section.split("## ", 1)[0]
+    for line in section.splitlines():
+        if line.startswith(f"| {role} |"):
+            return [c.strip() for c in line.strip().strip("|").split("|")]
+    raise AssertionError(f"no {role} row in the {group} table:\n{section}")
+
+
+COL = {
+    "role": 0,
+    "model": 1,
+    "effort": 2,
+    "dispatches": 3,
+    "retries": 4,
+    "input": 5,
+    "output": 6,
+    "cache": 7,
+    "actual_cost": 8,
+    "inline_cost": 9,
+    "headroom": 10,
+    "headroom_pct": 11,
+}
+
+
+def cell(report, role, name, group="Fable"):
+    return row_cells(report, role, group)[COL[name]]
+
+
+# --------------------------------------------------------------------------
+# 1. The guard test for the earliest-value defect
+# --------------------------------------------------------------------------
+
+def test_progressive_usage_snapshots_account_the_maximum(tmp_path):
+    """Claude Code emits PROGRESSIVE usage snapshots for one response: the
+    earliest line for a message is a partial mid-stream reading. The
+    accounted value must be the COMPLETED one (3305), not the earliest (3)."""
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s1",
+        [orchestrator_line("2026-07-20T10:00:00.000Z", 1, ["gondor-builder"])],
+        dispatches=[
+            (
+                "gondor-builder",
+                "gondor-builder",
+                [
+                    assistant(
+                        "2026-07-20T10:00:01.739Z", "msg-p", "req-p", SONNET, usage(out=3)
+                    ),
+                    assistant(
+                        "2026-07-20T10:00:35.760Z", "msg-p", "req-p", SONNET, usage(out=3305)
+                    ),
+                ],
+            )
+        ],
+    )
+    report = run_report(tmp_path)
+    assert cell(report, "gondor-builder", "output") == "3,305"
+
+
+# --------------------------------------------------------------------------
+# 2. Content-block inflation
+# --------------------------------------------------------------------------
+
+def test_content_block_lines_with_identical_usage_counted_once(tmp_path):
+    """One response split across three content-block lines, each repeating
+    the SAME usage snapshot, is one billing event — counted once, not three
+    times."""
+    line = lambda ts: assistant(ts, "msg-cb", "req-cb", SONNET, usage(inp=40, out=100))
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s1",
+        [orchestrator_line("2026-07-20T10:00:00.000Z", 1, ["dwarf-smith"])],
+        dispatches=[
+            (
+                "dwarf-smith",
+                "dwarf-smith",
+                [
+                    line("2026-07-20T10:00:01.000Z"),
+                    line("2026-07-20T10:00:01.500Z"),
+                    line("2026-07-20T10:00:02.000Z"),
+                ],
+            )
+        ],
+    )
+    report = run_report(tmp_path)
+    assert cell(report, "dwarf-smith", "output") == "100"
+    assert cell(report, "dwarf-smith", "input") == "40"
+
+
+# --------------------------------------------------------------------------
+# 3. Cross-file duplication
+# --------------------------------------------------------------------------
+
+def test_cross_session_duplicate_attributed_to_earlier_session(tmp_path):
+    """The same (message.id, requestId) echoed into a second session file is
+    counted once; the ATTRIBUTION goes to the earliest occurrence's owner
+    (here: the role dispatched in the earlier session)."""
+    dup_early = assistant("2026-07-20T10:00:00.000Z", "msg-x", "req-x", SONNET, usage(out=700))
+    dup_late = assistant("2026-07-20T12:00:00.000Z", "msg-x", "req-x", SONNET, usage(out=700))
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s-early",
+        [orchestrator_line("2026-07-20T09:59:00.000Z", 1, ["ranger-pathfinder"])],
+        dispatches=[("ranger-pathfinder", "ranger-pathfinder", [dup_early])],
+    )
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s-late",
+        [orchestrator_line("2026-07-20T11:59:00.000Z", 2, ["rohirrim-outrider"])],
+        dispatches=[("rohirrim-outrider", "rohirrim-outrider", [dup_late])],
+    )
+    report = run_report(tmp_path)
+    assert cell(report, "ranger-pathfinder", "output") == "700"
+    assert cell(report, "rohirrim-outrider", "output") == "0"
+
+
+# --------------------------------------------------------------------------
+# 4. Monotonicity detector
+# --------------------------------------------------------------------------
+
+def _monotonicity_warnings(report):
+    """The monotonicity WARNING lines only — never the standing disclosure
+    paragraph in the header, which mentions the word too."""
+    if "## Warnings" not in report:
+        return []
+    body = report.split("## Warnings", 1)[1]
+    return [
+        line for line in body.splitlines() if "monotonicity violation" in line.lower()
+    ]
+
+
+def test_decreasing_field_across_occurrences_emits_warning(tmp_path):
+    """Usage counters for one response are cumulative and non-decreasing. A
+    latest occurrence BELOW the maximum seen violates that assumption and
+    must be named (key + field) in the report's warnings."""
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s1",
+        [orchestrator_line("2026-07-20T10:00:00.000Z", 1, ["gondor-builder"])],
+        dispatches=[
+            (
+                "gondor-builder",
+                "gondor-builder",
+                [
+                    assistant(
+                        "2026-07-20T10:00:01.000Z", "msg-mono", "req-mono", SONNET, usage(out=500)
+                    ),
+                    assistant(
+                        "2026-07-20T10:00:02.000Z", "msg-mono", "req-mono", SONNET, usage(out=200)
+                    ),
+                ],
+            )
+        ],
+    )
+    offending = _monotonicity_warnings(run_report(tmp_path))
+    assert offending, "no monotonicity warning emitted"
+    assert any("msg-mono" in w and "req-mono" in w and "output" in w for w in offending), offending
+
+
+def test_non_decreasing_occurrences_emit_no_monotonicity_warning(tmp_path):
+    """The detector must not fire on the normal progressive shape."""
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s1",
+        [orchestrator_line("2026-07-20T10:00:00.000Z", 1, ["gondor-builder"])],
+        dispatches=[
+            (
+                "gondor-builder",
+                "gondor-builder",
+                [
+                    assistant(
+                        "2026-07-20T10:00:01.000Z", "msg-ok", "req-ok", SONNET, usage(out=3)
+                    ),
+                    assistant(
+                        "2026-07-20T10:00:02.000Z", "msg-ok", "req-ok", SONNET, usage(out=3305)
+                    ),
+                ],
+            )
+        ],
+    )
+    assert _monotonicity_warnings(run_report(tmp_path)) == []
+
+
+# --------------------------------------------------------------------------
+# 5. Cycle window is half-open
+# --------------------------------------------------------------------------
+
+def test_cycle_window_boundary_is_half_open(tmp_path):
+    """The reset boundary belongs to the NEWER cycle. These fixtures sit
+    EXACTLY ON the comparator, not merely near it (a prior version of this
+    test used ±1ms offsets, which stayed green even if the boundary flipped
+    from exclusive to inclusive — see the mutation proof in the release
+    notes for this fix).
+
+    - A record exactly ON the SHARED boundary (2026-07-23T05:00:00.000Z —
+      cycle 1's `until` == cycle 0's `since`) must land in cycle 0 only.
+    - A record exactly ON cycle 1's OWN `since` bound
+      (2026-07-16T05:00:00.000Z) must land in cycle 1.
+
+    Mutating `_record_in_window`'s `ts_dt >= until_dt` to `ts_dt > until_dt`
+    (making the upper bound inclusive) makes the shared-boundary record leak
+    into cycle 1 too, which this test catches."""
+    on_lower_bound = assistant(
+        "2026-07-16T05:00:00.000Z", "msg-lower", "req-lower", SONNET, usage(out=111)
+    )
+    on_shared_bound = assistant(
+        "2026-07-23T05:00:00.000Z", "msg-shared", "req-shared", SONNET, usage(out=222)
+    )
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s1",
+        [
+            orchestrator_line("2026-07-23T04:00:00.000Z", 1, ["gondor-builder"]),
+            orchestrator_line("2026-07-23T06:00:00.000Z", 2, []),
+        ],
+        dispatches=[("gondor-builder", "gondor-builder", [on_lower_bound, on_shared_bound])],
+    )
+    ref = ["--cycle-reference", "2026-07-26T00:00:00Z"]
+    completed = run_report(tmp_path, "--cycle", "1", *ref)
+    current = run_report(tmp_path, "--cycle", "0", *ref)
+    # cycle 1 = [2026-07-16T05:00:00Z, 2026-07-23T05:00:00Z): includes the
+    # lower-bound record, excludes the shared upper-bound record.
+    assert cell(completed, "gondor-builder", "output") == "111"
+    # cycle 0 = [2026-07-23T05:00:00Z, 2026-07-30T05:00:00Z): includes the
+    # shared-boundary record.
+    assert cell(current, "gondor-builder", "output") == "222"
+
+
+# --------------------------------------------------------------------------
+# 6. Cache-tier pricing
+# --------------------------------------------------------------------------
+
+def _cache_tier_report(tmp_path, tier_5m, tier_1h):
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s1",
+        [orchestrator_line("2026-07-20T10:00:00.000Z", 1, ["gondor-builder"])],
+        dispatches=[
+            (
+                "gondor-builder",
+                "gondor-builder",
+                [
+                    assistant(
+                        "2026-07-20T10:00:01.000Z",
+                        "msg-c",
+                        "req-c",
+                        SONNET,
+                        usage(cache_write=1_000_000, tier_5m=tier_5m, tier_1h=tier_1h),
+                    )
+                ],
+            )
+        ],
+    )
+    return run_report(tmp_path)
+
+
+def test_cache_write_tiers_price_differently(tmp_path):
+    """A 1-hour-only cache_creation breakdown prices at the 1h rate and a
+    5-minute-only one at the 5m rate — the two must not be equal."""
+    r5 = _cache_tier_report(tmp_path / "five", 1_000_000, 0)
+    r1 = _cache_tier_report(tmp_path / "hour", 0, 1_000_000)
+    cost_5m = cell(r5, "gondor-builder", "actual_cost")
+    cost_1h = cell(r1, "gondor-builder", "actual_cost")
+    assert cost_5m != cost_1h, (cost_5m, cost_1h)
+    to_f = lambda s: float(s.lstrip("$").replace(",", ""))
+    assert to_f(cost_1h) > to_f(cost_5m)
+
+
+# --------------------------------------------------------------------------
+# 7. Dispatch counts are unaffected by dedup
+# --------------------------------------------------------------------------
+
+def test_dispatch_counts_unaffected_by_dedup(tmp_path):
+    """Structural, not coincidental: a dispatch whose every record is a
+    deduped LOSER (all tokens zeroed) still counts as one dispatch, and a
+    dispatch whose records collapse from three lines to one still counts as
+    one — dispatch counting keys off record presence, never token values."""
+    dup = lambda ts: assistant(ts, "msg-d", "req-d", SONNET, usage(out=900))
+    triple = lambda ts: assistant(ts, "msg-t", "req-t", SONNET, usage(out=50))
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s-early",
+        [orchestrator_line("2026-07-20T09:00:00.000Z", 1, ["ranger-pathfinder"])],
+        dispatches=[("ranger-pathfinder", "ranger-pathfinder", [dup("2026-07-20T09:00:01.000Z")])],
+    )
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s-late",
+        [orchestrator_line("2026-07-20T11:00:00.000Z", 2, ["rohirrim-outrider", "dwarf-smith"])],
+        dispatches=[
+            ("rohirrim-outrider", "rohirrim-outrider", [dup("2026-07-20T11:00:01.000Z")]),
+            (
+                "dwarf-smith",
+                "dwarf-smith",
+                [
+                    triple("2026-07-20T11:00:02.000Z"),
+                    triple("2026-07-20T11:00:02.500Z"),
+                    triple("2026-07-20T11:00:03.000Z"),
+                ],
+            ),
+        ],
+    )
+    report = run_report(tmp_path)
+    # rohirrim-outrider's only record lost the dedup (its tokens are zeroed)…
+    assert cell(report, "rohirrim-outrider", "output") == "0"
+    # …yet it is still one dispatch, and so is the three-line one.
+    assert cell(report, "rohirrim-outrider", "dispatches") == "1"
+    assert cell(report, "dwarf-smith", "dispatches") == "1"
+    assert cell(report, "ranger-pathfinder", "dispatches") == "1"
+    assert cell(report, "dwarf-smith", "output") == "50"

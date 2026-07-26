@@ -10,8 +10,10 @@
   以取得穩定的派工——我們的 headless 測試顯示，僅靠 description 並不能
   穩定觸發自動派工，因此 snippet 是建議的輕量做法。
 - **完整**——再加跑 `/tlor-init`。這會落地 rules 檔案、`~/.claude/institution/`
-  layout（見下）、以及 CLAUDE.md/AGENTS.md 路由，讓派工紀律自動強制執行，
-  不必仰賴模型自己記得用這些角色。
+  layout（見下）、以及 CLAUDE.md/AGENTS.md 路由。Rules 檔案本身一旦存在就會
+  自行載入——`.claude/rules/` 是原生 auto-load 位置，不需要路由；路由提供
+  的是最先讀到的派工紀律提醒、給不讀 `.claude/rules/` 的工具用的 AGENTS.md
+  介面，以及宣告本框架的角色是你的主要派工對象。
 
 ## 所有權模型
 
@@ -39,6 +41,48 @@
   `institution/` 底下再建 symlink（不遺失任何東西）；不存在 → 直接新建。
   這層間接讓 plugin 對 base rules/hooks 的覆蓋式安裝，永遠不會跟你手動
   搬過的目錄打架。
+
+## Session 啟動成本
+
+裝好之後，rules corpus 不是靠 routing 控制載不載入——大部分內容會在**每個
+session 開始時整包載入**。`~/.claude/rules/`（連同它的 `customize/` 子目錄）
+是 Claude Code 原生的 auto-load 位置：底下每個沒有 `paths:` frontmatter 的
+`.md` 檔都會在啟動時遞迴載入進 context，不需要 `@import`。若某個 rule
+檔案帶有 `paths:` frontmatter，就是官方支援的延後載入方式——它不在啟動時
+載入，只在 Claude 讀到符合該 pattern 的檔案時才觸發載入。
+
+用 `wc -l -c` 對這個 repo 實測（自我量測指令見下方——請自行重跑，這只是
+某一次的快照，不是保證值）：
+
+```
+$ wc -l -c rules/*.md
+     795   44155 total
+$ wc -l -c rules/customize/*.md
+     350   15795 total
+$ cat rules/*.md rules/customize/*.md | wc -l -c
+    1145   59950
+```
+
+也就是說：六個 base rule 檔案共 **795 行／約 44.2 KB**，種入的
+`rules/customize/` 起始檔案共 **350 行／約 15.8 KB**，兩者合計的每 session
+下限是 **1,145 行／約 60.0 KB**——這還不含你之後自己加的任何一條 lesson。
+這是每個 session 都要付的固定稅，不管那個 session 有沒有派出任何 subagent。
+base 數字適用於每一種安裝方式；合計數字則只在你同時裝了選配的
+`rules/customize/` 種子檔（`install.sh --with-optional`）時才成立——只裝
+base 的安裝只需付 base 那個數字。
+
+這個機制有兩個誠實提醒。**版本下限**：`.claude/rules/` 的 auto-load 需要
+Claude Code 2.0.64 以上——舊版根本不讀這個目錄，所以「不需要路由」在舊版上
+會變成一條 rule 都沒載入，而不是你以為的輕量 fallback。**它是可以被關掉
+的**：任何 settings 層的 `claudeMdExcludes` 都能抑制載入；另外——僅限
+project 層 rules——當 `--setting-sources` 排除了 project settings 時，
+project 層的 rules 也會被跳過，這一半不適用於使用者層安裝。別假設這包
+corpus 是無條件生效的。
+
+這個成本對 context window 較小的模型影響會成比例地更大——而這正是這個
+framework 的目標讀者（派工這整套機制的前提就是把 field work 從有限 context
+卸載出去）。如果你在意每個 session 的 budget，把這一點跟上面輕量的
+plugin-only 路徑放在一起權衡。
 
 ## 安裝
 

@@ -8,6 +8,10 @@
   `CLAUDE.md` (with an `@AGENTS.md` import) plus an `AGENTS.md` carrying the
   routing table. AGENTS.md is also readable by other AI coding tools
   (Cursor, Codex, etc.), so the routing table isn't locked to Claude Code.
+  Auto-loading itself is not exclusive to CLAUDE.md, though — files under
+  `.claude/rules/` load the same way in Claude Code, with a real per-session
+  cost; see [installation.md](installation.md)'s Session-start cost section
+  for the measured figures.
 - **Serena tools are optional.** The two search roles list
   [Serena](https://github.com/oraios/serena) semantic tools in `tools`; if you
   don't have the plugin, the roles fall back to Grep/Glob (instructions say so).

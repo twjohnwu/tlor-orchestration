@@ -104,6 +104,11 @@ durability test passed outright.
 
 ## Step 4 — Scope routing
 
+One invariant governs this step: a decision belongs to exactly one layer —
+a cross-project decision gets archived only to the general customize
+decisions log (4a), a project-specific one only to that project's own
+decisions log (4b); never file the same decision into both.
+
 If it's unclear whether this is a general or project-scoped decision, ask
 via `AskUserQuestion` with explicit options: **general (cross-project)** /
 **project-scoped**.

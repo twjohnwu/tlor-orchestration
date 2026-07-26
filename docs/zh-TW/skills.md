@@ -20,6 +20,15 @@
 相較於直接在 orchestrator 模型上跑同樣工作省下多少成本。僅回溯性報表，
 不是單次進行中派工的即時估算工具。
 
+### `disable-model-invocation: true` 這個旗標實際的效果
+
+`tlor-init` 與 `tlor-restore` 的 frontmatter 都設了
+`disable-model-invocation: true`。設了這個旗標的 skill，模型完全看不到，所以在
+CLAUDE.md、AGENTS.md 或任何 rules 檔裡寫指示都無法啟用它：讀那些指示的模型，
+手上根本沒有這個 skill 可以呼叫。只有兩條路徑能啟動它，一是使用者自己打
+`/skill-name`，二是該 plugin 自己的 SessionStart hook。規劃時要據此安排：需要
+用到這兩個 skill 的設定步驟，是使用者親自執行的步驟，agent 無法代跑。
+
 ## 選配：STDD 工作流程 skills
 
 透過 `install.sh --stdd-role=ALL` 或 `/tlor-init` 的 STDD 步驟安裝。

@@ -61,6 +61,48 @@ without session context would misread.
 - A `## {rule name}` section in `rules/customize/lessons.md` > 20 entries →
   propose folding the stable ones into a `proposed:` rule change (per "Where
   lessons go" above) and delete the entries once landed.
+- **Whole-corpus budget**: `rules/` + `rules/customize/` combined
+  (`wc -l -c` over both directories) > 1,800 lines or 100 KB, whichever
+  comes first → the action is **archive-review, never deletion**. Per-file
+  caps above miss this: many files can each sit far under the 400-line
+  single-file cap and still sum past a sane per-session budget (a fresh
+  install already accounts for a large share of it on its own — see the
+  framework's installation documentation for the session-start cost
+  breakdown — which is why this threshold isn't set lower). The base layer
+  (the plugin-owned files
+  covered by this rule's own frontmatter) is not a user-modifiable surface —
+  every install/upgrade overwrites it unconditionally, so it is never the
+  review target; the actual review target is `rules/customize/` and the
+  closed/historical entries inside each of its files. Review candidates in
+  this fixed order, never skip ahead:
+  1. already-closed historical entries in append-only logs (a `lessons.md`
+     entry whose fix has landed and been verified);
+  2. rules that have been superseded by a later entry or a landed rule
+     change;
+  3. content that already exists in full elsewhere (a duplicate copy, not
+     a pointer to it).
+  Rules still in force are considered last, and only once an equivalent
+  statement exists somewhere else that the corpus can reference instead of
+  restating.
+
+## Retiring a rules file
+
+Archive-review above (or any other decision to retire a rules file) uses
+this procedure — never a bare delete:
+
+1. `cp` the file into `institution/archive/`, keeping its name.
+2. Verify the copy before touching the original: `shasum -a 256` both the
+   source and the archived copy and confirm the hashes match.
+3. Only once the hashes match, remove the original.
+4. Give the archived copy a dated header naming what superseded it (e.g.
+   "archived YYYY-MM-DD, superseded by `<path/section>`").
+5. Fix every inbound reference to the old path — routing tables, other
+   rules files, README links — so nothing points at a location that no
+   longer exists.
+6. Confirm the environment's backup/sync mechanism mirrors
+   `institution/archive/` the same way it mirrors the live rules tree — an
+   archive step that silently falls outside backup scope has only moved
+   the loss, not prevented it.
 
 ## Invariants (never break during maintenance)
 

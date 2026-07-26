@@ -26,6 +26,17 @@ much dispatching to tlor roles saved versus running the same work inline on
 the orchestrator model. Retrospective only; not a live estimator for a
 single in-progress dispatch.
 
+### `disable-model-invocation: true` — what the flag actually does
+
+`tlor-init` and `tlor-restore` both set `disable-model-invocation: true` in
+their frontmatter. The model never sees a skill carrying this flag, so no
+instruction placed in a CLAUDE.md, AGENTS.md, or rules file can make it run:
+the model reading those instructions has no such skill in its list to invoke.
+Only two routes activate one — the user typing `/skill-name`, or the owning
+plugin's own SessionStart hook. Plan accordingly: a setup step that needs one
+of these skills is a step the user runs, not one an agent can perform on their
+behalf.
+
 ## Opt-in: STDD workflow skills
 
 Installed via `install.sh --stdd-role=ALL` or `/tlor-init`'s STDD step.

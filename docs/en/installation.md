@@ -12,8 +12,11 @@
   delegation, so the snippet is the recommended lightweight setup.
 - **Full** — additionally run `/tlor-init`. This lays down the rules files,
   the `~/.claude/institution/` layout (see below), and CLAUDE.md/AGENTS.md
-  routing so dispatch discipline is enforced automatically rather than
-  relying on the model to remember to use the roles.
+  routing. The rules load on their own once present — `.claude/rules/` is a
+  native auto-load location, no routing required — while the routing adds a
+  dispatch-discipline reminder up front, an AGENTS.md interface for tools
+  that don't read `.claude/rules/`, and the declaration that this
+  framework's roles are your primary dispatch targets.
 
 ## Ownership model
 
@@ -48,6 +51,51 @@
   and symlinked (nothing is lost); missing → created fresh. The indirection
   means the plugin's overwrite-on-install semantics for base rules/hooks
   never fight with a directory you relocated or are backing up by hand.
+
+## Session-start cost
+
+Once installed, the rules corpus is not something routing controls — most of
+it loads **in full at the start of every session**. `~/.claude/rules/` (and
+its `customize/` subdirectory) is a native Claude Code auto-load location:
+every `.md` file under it without `paths:` frontmatter enters context at
+launch, recursively, with no `@import` needed. A rule file that carries
+`paths:` frontmatter is the documented way to defer it — it loads only when
+Claude reads a file matching that pattern, instead of at every session start.
+
+Measured against this shipped repo with `wc -l -c` (self-measure command
+below — re-run it yourself, these are one snapshot, not a promise):
+
+```
+$ wc -l -c rules/*.md
+     795   44155 total
+$ wc -l -c rules/customize/*.md
+     350   15795 total
+$ cat rules/*.md rules/customize/*.md | wc -l -c
+    1145   59950
+```
+
+So: the six base rule files run **795 lines / ~44.2 KB**, the seeded
+`rules/customize/` starter files run **350 lines / ~15.8 KB**, and the
+combined per-session floor is **1,145 lines / ~60.0 KB** — before you add a
+single lesson of your own. This is a fixed tax paid every session,
+regardless of whether that session ever dispatches a subagent. The base
+figure applies to every install; the combined figure only holds if you also
+took the optional `rules/customize/` seeds (`install.sh --with-optional`) —
+a base-only install pays just the base figure.
+
+Two caveats on this mechanism. **Version floor**: `.claude/rules/` auto-load
+requires Claude Code 2.0.64 or newer — on an older version the directory is
+not read at all, so "routing not required" would leave you with zero rules
+loaded, not the lightweight fallback you'd expect. **It can be turned off**:
+loading is suppressed by `claudeMdExcludes` in any settings layer, and — for
+project-scope rules only — rules are also skipped when project settings are
+excluded from `--setting-sources`; don't assume this corpus is unconditional.
+
+This cost hits models with smaller context windows proportionally harder —
+and those are exactly this framework's target readers (the whole premise of
+dispatch is offloading field work from a constrained context). Weigh this
+against the lightweight, plugin-only path above if a per-session budget
+matters to you.
 
 ## Install
 

@@ -21,3 +21,6 @@ specs, novel architecture, ...) and what to do when you hit that ceiling.*
 
 *Fill in: append one entry per session that leaves work unfinished — what's
 done, what's pending, and where to pick up.*
+*Once this section runs past roughly 20 lines, move closed-out entries out
+(a dated archive file, or fold the durable takeaway into a rule) so the log
+doesn't become the file's bulk.*

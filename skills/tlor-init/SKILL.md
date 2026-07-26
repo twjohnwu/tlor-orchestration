@@ -148,6 +148,11 @@ plugin bundle:
   can't be filled in generically at build time.
 - **customize/lessons.md** — the append-only log for recurring workflow
   lessons, one `##` section per base rule file; ships with empty sections.
+- **customize/output-calibration.md** — the two output rules that live
+  nowhere else: how long a written deliverable on disk should be, and the
+  five things brevity must never trim (skipped/unverified work, quoted
+  verification output, `file:line` evidence, assumptions acted on, and T1
+  actions).
 
 These provide design philosophy guidance. The framework works without them.
 If installed, copy them to `<target>/rules/customize/`. Per the ownership
@@ -205,10 +210,12 @@ Ensure `<target>/rules/customize/` exists at the install destination:
 This is the landing zone for the user's own project- or team-specific rules,
 and the only place user content lives — **the installer never overwrites
 anything already in `customize/`**, no matter how it got there (Step 5
-optional copy, or the user's own files). Explain to the user: any `.md` file
-placed in `rules/customize/` is picked up automatically by the routing
-table's catch-all row (Step 8) — no further wiring needed, just drop the
-file in.
+optional copy, or the user's own files). Explain to the user: a `.claude/rules/`
+directory (and `~/.claude/rules/` at user level) is a native Claude Code
+auto-load location — any `.md` file placed there, `customize/` included,
+loads automatically at session start, no routing wiring needed, just drop the
+file in. The routing table's catch-all row (Step 8) documents this for
+readers of AGENTS.md; it is not what makes the file load.
 
 ### Step 8: Set up CLAUDE.md + AGENTS.md routing
 
@@ -259,8 +266,10 @@ Handle CLAUDE.md and AGENTS.md as two SEPARATE existing-file checks:
   be added and ask whether to:
   - **Append**: add the generated content to the existing file
   - **Replace**: overwrite with the generated content (backup first)
-  - **Skip**: leave the file unchanged (warn that routing won't auto-load
-    for that file)
+  - **Skip**: leave the file unchanged (warn that the rules themselves still
+    auto-load either way — Skip only forgoes the router content for that
+    file: the dispatch-discipline reminder, the cross-tool interface, and
+    the PRIMARY-roles declaration)
 
 ### Step 9: Detect agent collisions
 

@@ -45,6 +45,41 @@ Mirror `/westmarch-scribe`'s write destinations:
 
 A missing source is noted, not treated as an error — not every repo has a
 decision log, and not every machine has archived a general decision yet.
+When answering (Step 3), state which of these scopes were actually
+searched — a sweep of OTHER projects only ever runs on explicit request
+(Step 1a below), never as part of this default.
+
+## Step 1a — Cross-repo sweep (opt-in, explicit request only)
+
+This branch never runs by default — only when the user explicitly asks a
+question shaped like "did another project already decide this", "search
+every project", or an equivalent explicit cross-repo request. Absent that
+request, stop at Step 1's default scope; a machine-wide sweep as the
+default would make every lookup pay scan cost for a vague scope.
+
+1. **Enumerate candidates.** List the harness's own per-project registry
+   directory (one entry per project path it has tracked), sorted
+   newest-first by modification time — that ordering IS the definition of
+   "active" for this sweep. Skip entries that are scratch/temp session
+   paths rather than real projects.
+2. **Never reverse-engineer a real path from a registry entry's name.**
+   That encoding is lossy and irreversible: path separators and literal
+   dots both collapse to the same placeholder character, so two different
+   real paths (or a project name that itself contains that character) can
+   encode identically — decoding one back to a path is a guess, not a
+   fact. The only sound direction is forward: take a candidate real path
+   you already know (e.g. from the registry listing itself, or from asking
+   the user), apply the same encoding, and look THAT up in the registry —
+   never invert the encoding to invent a path.
+3. **Check both location kinds per matching project**: the conventional
+   shapes from Step 1 (a decisions log at the documented path, a decisions
+   directory, an ADR directory) AND any path that project's own
+   instruction file (`CLAUDE.md` / `AGENTS.md`) registers in its own
+   routing table — a project may keep its log somewhere non-standard
+   without ever needing this skill updated.
+4. **Ceiling before scanning.** If more than 12 active projects match,
+   stop, report the count, and ask the user before scanning any of them —
+   never silently truncate to the first 12.
 
 ## Step 2 — Search
 
@@ -81,3 +116,8 @@ entries phrased as "改用 X 的原因" or "decided against Y").
   later archived), not something this skill resolves.
 - Does not do web research or consult external sources — that is the
   research role's job (e.g. `noldor-loremaster`), not this skill's.
+- A decision belongs to exactly one layer — cross-project decisions live
+  in the general customize decisions log, project-specific ones live in
+  that project's own decisions log. This skill reports whichever single
+  layer actually holds the record; it never expects (or reconciles) a
+  duplicate copy of the same decision sitting in both.

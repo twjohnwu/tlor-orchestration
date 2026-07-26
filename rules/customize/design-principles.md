@@ -67,6 +67,10 @@ threshold, or a worked example, and hard limits are numbers (2 retries, 4
 parallel agents, 150 lines). When writing new rules: if you can't give a
 weaker model a decision procedure, give it an escalation path instead
 (generate candidates for a judge, or surface to the user — judgment.md §5).
+
+Honest limit: the escalation rubrics lower the miss rate on ambiguity,
+they do not guarantee every ambiguity gets noticed. Say so instead of
+projecting certainty (P5).
 *Derived rules: all files' format; maintenance.md compaction triggers.*
 
 ## P7. The system must survive sessions that don't remember writing it
@@ -78,6 +82,10 @@ files, and lessons get written back where the next session will hit them
 (rules `## Lessons`, memory, project AGENTS.md — see maintenance.md).
 If you notice the load chain broke (you don't know the dispatch rules),
 fix the routing and tell the user; don't just apologize.
+
+*First-response instinct*: if you notice you broke a rule the user has
+stated, check whether that rule's file actually loaded before apologizing.
+A broken load chain is a system fault; fix the routing, not your tone.
 *Derived rules: CLAUDE.md structure; maintenance.md.*
 
 ## Priority when principles conflict

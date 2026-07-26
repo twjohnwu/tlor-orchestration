@@ -2,90 +2,103 @@
   "_meta": {
     "description": "config-driven model pricing table for erebor-ledger. Keys other than '_meta' are model-id PREFIXES matched via longest-prefix-match against the '.message.model' string found in Claude Code transcripts — not required to be an exact model id. A model id with no matching prefix SHALL be reported as unpriced (N/A) by the script; this file SHALL NOT be extended with a guessed/invented price to make an unmatched model 'go away'.",
     "unit": "USD per 1,000,000 (MTok) tokens",
-    "fields": "input, output, cache_write, cache_read — each priced separately per spec §4",
-    "cache_write_tier_assumption": "Claude Code transcripts do not record whether a cache write used the 5-minute or 1-hour cache tier. Every cache_write price below is priced at the 5-minute tier. This is a disclosed assumption, not an observed fact — erebor_ledger.py repeats this disclosure in its output.",
-    "counterfactual_assumption": "Counterfactual assumes inline execution would consume the same token volume; this is an estimate, not a measurement."
+    "fields": "input, output, cache_write_5m, cache_write_1h, cache_read — each priced separately per spec §4",
+    "cache_write_tier_assumption": "Claude Code transcripts carry an explicit usage.cache_creation.{ephemeral_5m_input_tokens,ephemeral_1h_input_tokens} breakdown (verified present on every non-zero cache-write record examined on this machine, 2026-07-27), so erebor_ledger.py prices the two tiers exactly from that breakdown rather than assuming one. A record missing that breakdown (e.g. an older/different transcript schema) falls back to pricing its whole cache-write amount at the 5-minute tier — the prior conservative assumption — and the script warns explicitly when this fallback fires.",
+    "counterfactual_assumption": "Counterfactual assumes inline execution would consume the same token volume; this is an estimate, not a measurement.",
+    "long_context_note": "Models 4.6 and later include the full 1M-token context window at the standard pricing below, so a model id carrying a '[1m]' / long-context marker needs no separate rate here and SHALL NOT be given a premium entry. (Earlier long-context betas did carry a premium; that is why this is stated rather than assumed.)",
+    "cache_tier_sum_divergence": "On a small number of records the cache_creation tier fields do not sum to cache_creation_input_tokens (3 unique (message.id, requestId) keys on this framework's reference machine as of 2026-07-27, appearing across 11 content-block lines). Where they diverge, erebor_ledger.py's COST uses the per-tier breakdown and the report's cache(r/w) write VOLUME cell uses the total; every such key is named in the report's warnings.",
+    "fast_mode_limitation": "Fast mode (a separate premium tier: $10 input / $50 output per MTok for Opus 5 and Opus 4.8, applying across the full context window) is NOT modeled by this table or the resolver. Claude Code transcripts may not reveal whether fast mode was active for a given record, so erebor_ledger.py always prices Opus records at standard-tier rates below; a session run under fast mode will be under-priced by this report. This is a disclosed, undetected limitation, not a bug."
   },
   "claude-fable-5": {
-    "input": 10, "output": 50, "cache_write": 12.50, "cache_read": 1,
+    "input": 10, "output": 50, "cache_write_5m": 12.50, "cache_write_1h": 20, "cache_read": 1,
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "queried_on": "2026-07-19"
+    "queried_on": "2026-07-27"
   },
   "claude-mythos-5": {
-    "input": 10, "output": 50, "cache_write": 12.50, "cache_read": 1,
+    "input": 10, "output": 50, "cache_write_5m": 12.50, "cache_write_1h": 20, "cache_read": 1,
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "queried_on": "2026-07-19",
+    "queried_on": "2026-07-27",
     "note": "priced identically to claude-fable-5 per official pricing page"
   },
-  "claude-opus-4-8": {
-    "input": 5, "output": 25, "cache_write": 6.25, "cache_read": 0.50,
+  "claude-opus-5": {
+    "input": 5, "output": 25, "cache_write_5m": 6.25, "cache_write_1h": 10, "cache_read": 0.50,
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "queried_on": "2026-07-19"
+    "queried_on": "2026-07-27"
+  },
+  "claude-opus-4-8": {
+    "input": 5, "output": 25, "cache_write_5m": 6.25, "cache_write_1h": 10, "cache_read": 0.50,
+    "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "queried_on": "2026-07-27"
   },
   "claude-opus-4-7": {
-    "input": 5, "output": 25, "cache_write": 6.25, "cache_read": 0.50,
+    "input": 5, "output": 25, "cache_write_5m": 6.25, "cache_write_1h": 10, "cache_read": 0.50,
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "queried_on": "2026-07-19",
+    "queried_on": "2026-07-27",
     "note": "same published pricing as Opus 4.5/4.8"
   },
   "claude-opus-4-6": {
-    "input": 5, "output": 25, "cache_write": 6.25, "cache_read": 0.50,
+    "input": 5, "output": 25, "cache_write_5m": 6.25, "cache_write_1h": 10, "cache_read": 0.50,
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "queried_on": "2026-07-19",
+    "queried_on": "2026-07-27",
     "note": "same published pricing as Opus 4.5/4.8"
   },
   "claude-opus-4-5": {
-    "input": 5, "output": 25, "cache_write": 6.25, "cache_read": 0.50,
+    "input": 5, "output": 25, "cache_write_5m": 6.25, "cache_write_1h": 10, "cache_read": 0.50,
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "queried_on": "2026-07-19"
+    "queried_on": "2026-07-27"
   },
   "claude-opus-4-1": {
-    "input": 15, "output": 75, "cache_write": 18.75, "cache_read": 1.50,
+    "input": 15, "output": 75, "cache_write_5m": 18.75, "cache_write_1h": 30, "cache_read": 1.50,
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "queried_on": "2026-07-19",
+    "queried_on": "2026-07-27",
     "note": "legacy Opus tier"
   },
   "claude-opus-4-0": {
-    "input": 15, "output": 75, "cache_write": 18.75, "cache_read": 1.50,
+    "input": 15, "output": 75, "cache_write_5m": 18.75, "cache_write_1h": 30, "cache_read": 1.50,
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "queried_on": "2026-07-19",
-    "note": "legacy Opus tier (covers the original dateless claude-opus-4 id)"
+    "queried_on": "2026-07-27",
+    "note": "legacy Opus tier. Does NOT cover the dateless 'claude-opus-4' id — this key is not a prefix of it; that id has its own 'claude-opus-4' entry below."
   },
-  "claude-opus-4-2": {
-    "input": 15, "output": 75, "cache_write": 18.75, "cache_read": 1.50,
+  "claude-opus-4": {
+    "input": 15, "output": 75, "cache_write_5m": 18.75, "cache_write_1h": 30, "cache_read": 1.50,
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "queried_on": "2026-07-19",
-    "note": "legacy Opus tier (covers dated claude-opus-4-2xxxxxxx snapshot ids)"
+    "queried_on": "2026-07-27",
+    "note": "legacy Opus tier; covers the original dateless 'claude-opus-4' id, which no longer/dated key is a prefix of. Longest-prefix matching keeps the dated variants (claude-opus-4-0/4-1/4-5/4-6/4-7/4-8) on their own longer keys, so this entry only ever catches the dateless id and any future claude-opus-4-* variant with no dedicated key."
   },
   "claude-sonnet-5": {
-    "input": 2, "output": 10, "cache_write": 2.50, "cache_read": 0.20,
+    "input": 2, "output": 10, "cache_write_5m": 2.50, "cache_write_1h": 4, "cache_read": 0.20,
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "queried_on": "2026-07-19",
+    "queried_on": "2026-07-27",
     "note": "INTRO pricing, valid through 2026-08-31 (inclusive)",
     "next_tier": {
       "effective_from": "2026-09-01",
-      "input": 3, "output": 15, "cache_write": 3.75, "cache_read": 0.30,
+      "input": 3, "output": 15, "cache_write_5m": 3.75, "cache_write_1h": 6, "cache_read": 0.30,
       "note": "standard pricing takes over from this date — erebor_ledger.py switches automatically based on today's date"
     }
   },
-  "claude-sonnet-4-5": {
-    "input": 3, "output": 15, "cache_write": 3.75, "cache_read": 0.30,
+  "claude-sonnet-4-6": {
+    "input": 3, "output": 15, "cache_write_5m": 3.75, "cache_write_1h": 6, "cache_read": 0.30,
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "queried_on": "2026-07-19"
+    "queried_on": "2026-07-27"
+  },
+  "claude-sonnet-4-5": {
+    "input": 3, "output": 15, "cache_write_5m": 3.75, "cache_write_1h": 6, "cache_read": 0.30,
+    "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "queried_on": "2026-07-27"
   },
   "claude-sonnet-4": {
-    "input": 3, "output": 15, "cache_write": 3.75, "cache_read": 0.30,
+    "input": 3, "output": 15, "cache_write_5m": 3.75, "cache_write_1h": 6, "cache_read": 0.30,
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "queried_on": "2026-07-19"
+    "queried_on": "2026-07-27"
   },
   "claude-haiku-4-5": {
-    "input": 1, "output": 5, "cache_write": 1.25, "cache_read": 0.10,
+    "input": 1, "output": 5, "cache_write_5m": 1.25, "cache_write_1h": 2, "cache_read": 0.10,
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "queried_on": "2026-07-19"
+    "queried_on": "2026-07-27"
   },
   "claude-haiku-3-5": {
-    "input": 0.80, "output": 4, "cache_write": 1, "cache_read": 0.08,
+    "input": 0.80, "output": 4, "cache_write_5m": 1, "cache_write_1h": 1.60, "cache_read": 0.08,
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "queried_on": "2026-07-19"
+    "queried_on": "2026-07-27"
   }
 }

@@ -7,8 +7,10 @@
 - **CLAUDE.md + AGENTS.md 雙檔架構**：`/tlor-init` 會產生一個精簡的
   CLAUDE.md（只含幾條最高優先級規則＋`@AGENTS.md` import，交由 harness
   自動內聯）以及一份含完整路由表的 AGENTS.md。這樣拆的理由是 AGENTS.md
-  也能被其他 AI coding 工具（Cursor、Codex 等）讀取，CLAUDE.md 則專屬
-  Claude Code 的自動載入保證。
+  也能被其他 AI coding 工具（Cursor、Codex 等）讀取，CLAUDE.md 則是
+  Claude Code 專屬的檔案，不供其他工具讀取。（自動載入本身並非 CLAUDE.md
+  獨有——`.claude/rules/` 底下的檔案在 Claude Code 中同樣會自動載入；見
+  [installation.md](installation.md) 的 Session 啟動成本一節。）
 - **Serena 為選配**：兩個搜尋角色的 tools 列了
   [Serena](https://github.com/oraios/serena) 語意工具；沒裝該 plugin 時
   角色會 fallback 到 Grep/Glob（指令內已註明）。

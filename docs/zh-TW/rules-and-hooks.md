@@ -32,7 +32,10 @@
 | `lessons.md` | 附加式的反覆工作流失敗紀錄，每個 base rule 檔案各一個區塊 |
 
 你也可以把自己團隊的規則檔（`.md`）直接放進 `rules/customize/`——安裝時
-會一併複製，且會透過 CLAUDE.md 的路由表自動載入，installer 永遠不會動它。
+會一併複製，且會原生自動載入（跟這裡其他檔案一樣走 `.claude/rules/`
+機制，不需要路由表），installer 永遠不會動它。`/tlor-init` 產生的路由表
+只是幫不懂 `.claude/rules/`、只讀 AGENTS.md 的工具記錄這個目錄——不是它讓
+檔案載入的。
 
 ## Hooks（選配）
 
