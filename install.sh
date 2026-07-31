@@ -95,7 +95,7 @@ VERSION=$(grep -m1 '"version"' "$PLUGIN_JSON" | sed -E 's/.*"version": *"([^"]+)
 ROLES=$(cd "$SRC" && ls ./*.md | sed 's|^\./||')
 SKILLS=$(cd "$SKILLS_SRC" && ls -d */ | sed 's|/$||')
 RULES=$(cd "$RULES_SRC" && ls ./*.md | sed 's|^\./||')
-HOOK_FILES="institution_guard.py institution_guard.sh pre_tool_use.sh verify_gate.py"
+HOOK_FILES="institution_guard.py institution_guard.sh pre_tool_use.sh verify_gate.py dispatch_guard.py"
 WORKFLOWS=$(cd "$WORKFLOWS_SRC" && ls ./*.js | sed 's|^\./||')
 # Only the runtime dependency (the custody-check script `workflows/stdd-execute.js`
 # relays to at runtime, REQ-07/REQ-10) is installed — the rest of scripts/
@@ -629,9 +629,9 @@ echo "install done: $got roles in $DEST (manifest: $MANIFEST), $got_skills skill
 echo "NOTE: open a NEW Claude Code session to load the roles and skills (both are read at session start)."
 
 echo ""
-echo "HOOKS: institution_guard.py, institution_guard.sh, pre_tool_use.sh, and verify_gate.py are now copied to $HOOKS_DEST."
+echo "HOOKS: institution_guard.py, institution_guard.sh, pre_tool_use.sh, verify_gate.py, and dispatch_guard.py are now copied to $HOOKS_DEST."
 echo "  They still need wiring into a hooks.json (PreToolUse/Stop) and the"
-echo "  TLOR_INSTITUTION_GUARD / TLOR_VERIFY_GATE env vars to activate — the"
+echo "  TLOR_INSTITUTION_GUARD / TLOR_VERIFY_GATE / TLOR_DISPATCH_GUARD env vars to activate — the"
 echo "  plugin route (claude plugin add twjohnwu/tlor-orchestration) wires this"
 echo "  automatically; install.sh only places the files."
 
