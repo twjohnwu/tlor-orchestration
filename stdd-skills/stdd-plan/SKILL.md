@@ -10,8 +10,9 @@ stdd-spec → stdd-plan → stdd-execute`). Turns an approved `spec.md` into
 condition-based design artifacts and a scenario-covered `tasks.md`. Canonical
 spec: `STDD/specs/stdd-plan.md` (REQ-03); cross-cutting mechanisms (frontmatter
 status fields, dual-fingerprint rule, wiki/ taxonomy, Lint-STOP rule) are
-canonical in `STDD/spec.md` — this skill references them, it does not restate
-them. Worked examples: `templates/design-be.md`, `templates/tasks.md`.
+canonical in `stdd-skills/stdd-spec/SKILL.md` Step 6 — this skill references
+them, it does not restate them. Worked examples: `templates/design-be.md`,
+`templates/tasks.md`.
 Distilled references: `references/openapi-skeleton.md`,
 `references/23-design-patterns.md`.
 
@@ -40,8 +41,9 @@ Before doing anything else, read `STDD/<name>/spec.md` frontmatter (and
   against `spec.md`'s `design_ux_fingerprint`. Any mismatch → treat as
   `draft`, refuse, and report "spec (or design-ux) changed after approval,
   needs re-approval."
-- Design-ux consistency check (single source of truth in `STDD/spec.md`
-  "design-ux consistency check"): `design_ux_fingerprint` non-null but
+- Design-ux consistency check (single source of truth in
+  `stdd-skills/stdd-spec/SKILL.md` Step 6 "design-ux consistency check"):
+  `design_ux_fingerprint` non-null but
   `design-ux.md` missing → FAIL "design-ux.md missing"; fingerprint null but
   `design-ux.md` exists → FAIL "design-ux.md not covered by approval" and
   point the user at the `stdd-uiux` back-fill flow. Never skip this check
@@ -249,8 +251,8 @@ Before presenting the plan for approval:
   installed, cannot complete the mechanical check" — do not silently skip
   the coverage check (this is the single-source Lint-STOP rule in
   `STDD/spec.md`; do not restate it elsewhere).
-- `[INFRA]` tasks and any `prototype/` content are excluded from the
-  coverage denominator.
+- `[INFRA]` tasks and any content under the `prototype` directory are
+  excluded from the coverage denominator.
 - **Requirements checklist close-out** (S-51): go through step 2's checklist
   item by item. Any item still unmet MUST be listed explicitly in the
   approval summary below — never silently treated as satisfied.

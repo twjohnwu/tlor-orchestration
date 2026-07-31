@@ -77,8 +77,8 @@ Given both `spec.md` and `tasks.md` exist:
 - Split into two tracks: manual vs. automatable scenarios.
 - Compare each track against `tasks.md` (including any "manual verification
   checklist" section it contains).
-- `[INFRA]` tasks and `prototype/` content do NOT count toward the
-  denominator of either track.
+- `[INFRA]` tasks and content under the `prototype` directory do NOT count
+  toward the denominator of either track.
 - Report each track's coverage; if either track is below 100%, list which
   scenario IDs are uncovered.
 

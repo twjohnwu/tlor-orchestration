@@ -7,6 +7,7 @@ addressed via the RESOLVED real path (~/.claude/institution/rules/...,
 reached through the ~/.claude/rules symlink) evaded it entirely.
 """
 import os
+import re
 
 import pytest
 
@@ -112,3 +113,69 @@ def test_malformed_stdin_fails_open(run_hook, tmp_home):
     )
     assert result.returncode == 0
     assert result.decision is None
+
+
+# M16 — constants-parity check. Each of these hooks independently defines the
+# "which tool_name values count as a write" set; they are deliberately NOT
+# extracted into a shared module (do-not-do: keep each hook a single-file,
+# stdlib-only script), so a future divergence must fail loudly here instead.
+_TOOL_TOKEN_RE = re.compile(r'"(Edit|Write|NotebookEdit|MultiEdit)"')
+
+_STDD_TEST_GUARD = HOOKS_DIR / "stdd_test_guard.py"
+_VERIFY_GATE = HOOKS_DIR / "verify_gate.py"
+_INSTITUTION_GUARD_SH = HOOKS_DIR / "institution_guard.sh"
+_REGISTER_STDD_HOOK = HOOKS_DIR.parent / "hooks" / "register_stdd_hook.py"
+
+EXPECTED_TOOL_SET = frozenset({"Edit", "Write", "NotebookEdit"})
+
+
+def _tool_set_from_python_tuple_or_set_line(text, anchor):
+    """Extract the quoted tool-name tokens from the single line/statement
+    containing `anchor` (a substring that uniquely marks the tool-list
+    literal in that file)."""
+    idx = text.index(anchor)
+    # Grab a small window after the anchor — enough to cover the whole
+    # tuple/set literal but not the rest of the file.
+    window = text[idx:idx + 200]
+    tokens = _TOOL_TOKEN_RE.findall(window)
+    assert tokens, f"could not find quoted tool-name tokens near {anchor!r}"
+    return frozenset(tokens)
+
+
+def test_write_tool_set_is_consistent_across_hooks():
+    """M16: institution_guard.py, stdd_test_guard.py, verify_gate.py,
+    institution_guard.sh, and register_stdd_hook.py's registered matcher
+    must all agree on the exact set of tool_name values treated as a write
+    (currently {Edit, Write, NotebookEdit} — MultiEdit intentionally absent
+    from all of them, consistent-by-design)."""
+    guard_py_text = SCRIPT.read_text(encoding="utf-8")
+    stdd_text = _STDD_TEST_GUARD.read_text(encoding="utf-8")
+    verify_text = _VERIFY_GATE.read_text(encoding="utf-8")
+    sh_text = _INSTITUTION_GUARD_SH.read_text(encoding="utf-8")
+    register_text = _REGISTER_STDD_HOOK.read_text(encoding="utf-8")
+
+    guard_py_set = _tool_set_from_python_tuple_or_set_line(
+        guard_py_text, 'tool_name not in ("Edit"'
+    )
+    stdd_set = _tool_set_from_python_tuple_or_set_line(
+        stdd_text, 'tool_name not in ("Edit"'
+    )
+    verify_set = frozenset(_TOOL_TOKEN_RE.findall(verify_text))
+    sh_set = frozenset(re.findall(r"(Edit|Write|NotebookEdit|MultiEdit)", sh_text.split("case \"$tool_name\"")[1].split("esac")[0]))
+    matcher_match = re.search(r'"matcher":\s*"([^"]+)"', register_text)
+    assert matcher_match, "could not find the registered matcher string"
+    register_set = frozenset(matcher_match.group(1).split("|"))
+
+    sets_by_source = {
+        "institution_guard.py": guard_py_set,
+        "stdd_test_guard.py": stdd_set,
+        "verify_gate.py": verify_set,
+        "institution_guard.sh": sh_set,
+        "register_stdd_hook.py (matcher)": register_set,
+    }
+
+    for name, found in sets_by_source.items():
+        assert found == EXPECTED_TOOL_SET, (
+            f"{name} tool set {sorted(found)} does not match the expected "
+            f"agreed set {sorted(EXPECTED_TOOL_SET)}"
+        )

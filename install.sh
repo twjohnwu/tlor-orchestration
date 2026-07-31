@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# install.sh — copy TLOR agent roles, skills, rules, and hooks into ~/.claude/
+# install.sh — copy TLOR agent roles, skills, rules, hooks, workflows, and
+# scripts into ~/.claude/
 # (no plugin system needed).
 # Usage: ./install.sh [--dry-run] [--force] [--uninstall] [--with-optional]
 #                      [--stdd-role=RD|PM|UIUX|ALL] [--install-hook]
@@ -24,6 +25,8 @@ SRC="$ROOT/agents"
 SKILLS_SRC="$ROOT/skills"
 RULES_SRC="$ROOT/rules"
 HOOKS_SRC="$ROOT/hooks"
+WORKFLOWS_SRC="$ROOT/workflows"
+SCRIPTS_SRC="$ROOT/scripts"
 STDD_SKILLS_SRC="$ROOT/stdd-skills"
 PLUGIN_JSON="$ROOT/.claude-plugin/plugin.json"
 
@@ -32,11 +35,15 @@ DEST="$HOME/.claude/agents"
 SKILLS_DEST="$HOME/.claude/skills"
 RULES_DEST="$HOME/.claude/rules"
 HOOKS_DEST="$HOME/.claude/hooks"
+WORKFLOWS_DEST="$HOME/.claude/workflows"
+SCRIPTS_DEST="$HOME/.claude/scripts"
 SETTINGS_JSON="$HOME/.claude/settings.json"
 MANIFEST="$DEST/.tlor-manifest"
 SKILLS_MANIFEST="$SKILLS_DEST/.tlor-manifest"
 RULES_MANIFEST="$RULES_DEST/.tlor-manifest"
 HOOKS_MANIFEST="$HOOKS_DEST/.tlor-manifest"
+WORKFLOWS_MANIFEST="$WORKFLOWS_DEST/.tlor-manifest"
+SCRIPTS_MANIFEST="$SCRIPTS_DEST/.tlor-manifest"
 STDD_MANIFEST="$SKILLS_DEST/.tlor-stdd-manifest"
 
 DRY=0; FORCE=0; UNINSTALL=0; WITH_OPTIONAL=0; STDD_ROLE=""; INSTALL_HOOK=0
@@ -89,6 +96,12 @@ ROLES=$(cd "$SRC" && ls ./*.md | sed 's|^\./||')
 SKILLS=$(cd "$SKILLS_SRC" && ls -d */ | sed 's|/$||')
 RULES=$(cd "$RULES_SRC" && ls ./*.md | sed 's|^\./||')
 HOOK_FILES="institution_guard.py institution_guard.sh pre_tool_use.sh verify_gate.py"
+WORKFLOWS=$(cd "$WORKFLOWS_SRC" && ls ./*.js | sed 's|^\./||')
+# Only the runtime dependency (the custody-check script `workflows/stdd-execute.js`
+# relays to at runtime, REQ-07/REQ-10) is installed — the rest of scripts/
+# (check_links.py, check_oldname.py, lint_agents_frontmatter.py) is this
+# repo's own CI tooling, not something an installed plugin needs.
+SCRIPTS="stdd_custody_check.py"
 CUSTOMIZE_SRC="$RULES_SRC/customize"
 CUSTOMIZE_FILES=""
 if [ "$WITH_OPTIONAL" -eq 1 ]; then
@@ -210,6 +223,47 @@ inject_version() {
 }
 
 if [ "$UNINSTALL" -eq 1 ]; then
+  # Per-asset-type uninstall policy (REQ-10/S-15) — the eight loops below
+  # (agents, skills, rules, hooks, workflows, scripts, STDD skills, the
+  # stdd_test_guard hook) intentionally do NOT all behave the same way; this
+  # is a stated decision, not accidental drift:
+  #   agents            -> .bak backup of customized files, then `rm` (this
+  #                        is the only asset type the user commonly hand-
+  #                        edits per-role, so a silent hand-edit loss would
+  #                        be the most costly of the eight)
+  #   skills            -> `rm -rf`, no backup (skill dirs are bundled
+  #                        wholesale from this checkout; users are not
+  #                        expected to hand-edit inside $SKILLS_DEST)
+  #   rules             -> `rm`, no backup, plus an `rmdir` of the now-empty
+  #                        `customize/` dir (rules/customize/ is the user's
+  #                        own content by convention — see rules/customize/*
+  #                        — so it is never touched by the remove loop itself;
+  #                        the rmdir only clears the directory shell it leaves
+  #                        behind, never a file in it)
+  #   hooks             -> `rm`, no backup (plugin-owned scripts, unconditional
+  #                        overwrite already documented at install time near
+  #                        `HOOK_FILES`; nothing here is meant to be hand-edited)
+  #   workflows         -> `rm`, no backup (plugin-owned, code-enforced STDD
+  #                        phase scripts; same unconditional-overwrite
+  #                        treatment as hooks — nothing here is meant to be
+  #                        hand-edited)
+  #   scripts           -> `rm`, no backup (same rationale as workflows — the
+  #                        one file installed, `stdd_custody_check.py`, is a
+  #                        plugin-owned runtime dependency of workflows/
+  #                        stdd-execute.js, not user-editable content)
+  #   STDD skills       -> `rm -rf`, no backup, but scoped strictly to what
+  #                        our own $STDD_MANIFEST recorded (never a guessed
+  #                        subset) — same "bundled, not hand-edited" rationale
+  #                        as skills, with an extra custody constraint because
+  #                        this is an opt-in install
+  #   stdd_test_guard.py -> `rm`, no backup; its settings.json registration is
+  #                        deliberately left in place (rewriting someone else's
+  #                        settings.json unprompted is a T2 action this script
+  #                        does not take — see the loop's own comment below)
+  # In short: `.bak` is reserved for the one asset type (agents) where a
+  # customization surviving uninstall actually matters to the user; the rest
+  # are treated as disposable, re-installable bundle content.
+  #
   # Manifest entries name a single path component under a known dest dir
   # (a filename or a skill-dir name) — never a nested path. Reject anything
   # empty, anything that could escape the dest dir via `/` or `..`, and
@@ -232,71 +286,74 @@ if [ "$UNINSTALL" -eq 1 ]; then
   # `while IFS= read -r` directly from the file — never `for x in
   # $(cat ...)` — so a line containing a glob (`*`) or whitespace is never
   # word-split or glob-expanded against the current working directory.
-  if [ -f "$MANIFEST" ]; then
-    remove_src="$MANIFEST"
-  else
-    remove_src=""
-  fi
-  while IFS= read -r f || [ -n "$f" ]; do
-    if ! is_safe_manifest_entry "$f"; then
-      echo "WARNING: skipping unsafe manifest entry '$f' in ${remove_src:-$MANIFEST (fallback list)}" >&2
-      continue
-    fi
-    if [ -f "$DEST/$f" ]; then
-      # Preserve a customized agent file (differs from this checkout's
-      # bundled copy) as a .bak before removing it — uninstall should never
-      # discard a hand-edit the user never asked to lose.
-      if [ -f "$SRC/$f" ] && ! cmp -s "$SRC/$f" "$DEST/$f"; then
-        bak="$(unique_backup_path "$DEST/$f")"
-        if [ "$DRY" -eq 1 ]; then
-          echo "would preserve customized $DEST/$f -> $bak before removing"
-        else
-          cp "$DEST/$f" "$bak"
-          echo "preserved customized $DEST/$f -> $bak"
-        fi
+  #
+  # uninstall_asset MODE argument encodes the one behavior axis that
+  # genuinely differs per asset type (see the policy comment block above):
+  #   file_backup -> agents only: .bak-preserve a locally-customized file
+  #                  (differs from $SRC's bundled copy) before `rm`
+  #   dir_rm      -> skills only: `rm -rf`, no backup
+  #   file_plain  -> rules/hooks/workflows/scripts: `rm`, no backup
+  # Everything else (manifest-vs-fallback selection, unsafe-entry skip,
+  # dry-run echo, final manifest removal) is identical across all six and
+  # lives in this one function — a 7th plain file-type asset costs one call.
+  # Parallel-array note: this repo targets macOS's bundled bash 3.2, which
+  # has no associative arrays, so each asset is just five positional args to
+  # one function rather than a lookup table.
+  uninstall_asset() {
+    local label="$1" dest="$2" manifest="$3" mode="$4"; shift 4
+    local fallback="$*"
+    local remove_src
+    if [ -f "$manifest" ]; then remove_src="$manifest"; else remove_src=""; fi
+    local f bak
+    while IFS= read -r f || [ -n "$f" ]; do
+      if ! is_safe_manifest_entry "$f"; then
+        echo "WARNING: skipping unsafe manifest entry '$f' in ${remove_src:-$manifest (fallback list)}" >&2
+        continue
       fi
-      [ "$DRY" -eq 1 ] && echo "would remove $DEST/$f" || { rm "$DEST/$f"; echo "removed $DEST/$f"; }
+      case "$mode" in
+        file_backup)
+          if [ -f "$dest/$f" ]; then
+            # Preserve a customized agent file (differs from this checkout's
+            # bundled copy) as a .bak before removing it — uninstall should
+            # never discard a hand-edit the user never asked to lose.
+            if [ -f "$SRC/$f" ] && ! cmp -s "$SRC/$f" "$dest/$f"; then
+              bak="$(unique_backup_path "$dest/$f")"
+              if [ "$DRY" -eq 1 ]; then
+                echo "would preserve customized $dest/$f -> $bak before removing"
+              else
+                cp "$dest/$f" "$bak"
+                echo "preserved customized $dest/$f -> $bak"
+              fi
+            fi
+            [ "$DRY" -eq 1 ] && echo "would remove $dest/$f" || { rm "$dest/$f"; echo "removed $dest/$f"; }
+          fi
+          ;;
+        dir_rm)
+          if [ -d "$dest/$f" ]; then
+            [ "$DRY" -eq 1 ] && echo "would remove $dest/$f" || { rm -rf "$dest/$f"; echo "removed $dest/$f"; }
+          fi
+          ;;
+        file_plain)
+          if [ -f "$dest/$f" ]; then
+            [ "$DRY" -eq 1 ] && echo "would remove $dest/$f" || { rm "$dest/$f"; echo "removed $dest/$f"; }
+          fi
+          ;;
+      esac
+    done < <(if [ -n "$remove_src" ]; then cat "$remove_src"; else printf '%s\n' $fallback; fi)
+    if [ "$label" = "rules" ]; then
+      # rules/customize/ is the user's own landing zone (never removed by
+      # the loop above) — only the now-empty directory shell is cleared.
+      [ -d "$dest/customize" ] && rmdir "$dest/customize" 2>/dev/null || true
     fi
-  done < <(if [ -n "$remove_src" ]; then cat "$remove_src"; else printf '%s\n' $ROLES; fi)
-  if [ "$DRY" -eq 0 ] && [ -f "$MANIFEST" ]; then rm "$MANIFEST"; fi
+    if [ "$DRY" -eq 0 ] && [ -f "$manifest" ]; then rm "$manifest"; fi
+  }
 
-  if [ -f "$SKILLS_MANIFEST" ]; then remove_src="$SKILLS_MANIFEST"; else remove_src=""; fi
-  while IFS= read -r s || [ -n "$s" ]; do
-    if ! is_safe_manifest_entry "$s"; then
-      echo "WARNING: skipping unsafe manifest entry '$s' in ${remove_src:-$SKILLS_MANIFEST (fallback list)}" >&2
-      continue
-    fi
-    if [ -d "$SKILLS_DEST/$s" ]; then
-      [ "$DRY" -eq 1 ] && echo "would remove $SKILLS_DEST/$s" || { rm -rf "$SKILLS_DEST/$s"; echo "removed $SKILLS_DEST/$s"; }
-    fi
-  done < <(if [ -n "$remove_src" ]; then cat "$remove_src"; else printf '%s\n' $SKILLS; fi)
-  if [ "$DRY" -eq 0 ] && [ -f "$SKILLS_MANIFEST" ]; then rm "$SKILLS_MANIFEST"; fi
-
-  if [ -f "$RULES_MANIFEST" ]; then remove_src="$RULES_MANIFEST"; else remove_src=""; fi
-  while IFS= read -r f || [ -n "$f" ]; do
-    if ! is_safe_manifest_entry "$f"; then
-      echo "WARNING: skipping unsafe manifest entry '$f' in ${remove_src:-$RULES_MANIFEST (fallback list)}" >&2
-      continue
-    fi
-    if [ -f "$RULES_DEST/$f" ]; then
-      [ "$DRY" -eq 1 ] && echo "would remove $RULES_DEST/$f" || { rm "$RULES_DEST/$f"; echo "removed $RULES_DEST/$f"; }
-    fi
-  done < <(if [ -n "$remove_src" ]; then cat "$remove_src"; else printf '%s\n' $RULES; fi)
-  # Clean up empty customize dir
-  [ -d "$RULES_DEST/customize" ] && rmdir "$RULES_DEST/customize" 2>/dev/null || true
-  if [ "$DRY" -eq 0 ] && [ -f "$RULES_MANIFEST" ]; then rm "$RULES_MANIFEST"; fi
-
-  if [ -f "$HOOKS_MANIFEST" ]; then remove_src="$HOOKS_MANIFEST"; else remove_src=""; fi
-  while IFS= read -r f || [ -n "$f" ]; do
-    if ! is_safe_manifest_entry "$f"; then
-      echo "WARNING: skipping unsafe manifest entry '$f' in ${remove_src:-$HOOKS_MANIFEST (fallback list)}" >&2
-      continue
-    fi
-    if [ -f "$HOOKS_DEST/$f" ]; then
-      [ "$DRY" -eq 1 ] && echo "would remove $HOOKS_DEST/$f" || { rm "$HOOKS_DEST/$f"; echo "removed $HOOKS_DEST/$f"; }
-    fi
-  done < <(if [ -n "$remove_src" ]; then cat "$remove_src"; else printf '%s\n' $HOOK_FILES; fi)
-  if [ "$DRY" -eq 0 ] && [ -f "$HOOKS_MANIFEST" ]; then rm "$HOOKS_MANIFEST"; fi
+  uninstall_asset agents    "$DEST"           "$MANIFEST"           file_backup $ROLES
+  uninstall_asset skills    "$SKILLS_DEST"    "$SKILLS_MANIFEST"    dir_rm      $SKILLS
+  uninstall_asset rules     "$RULES_DEST"     "$RULES_MANIFEST"     file_plain  $RULES
+  uninstall_asset hooks     "$HOOKS_DEST"     "$HOOKS_MANIFEST"     file_plain  $HOOK_FILES
+  uninstall_asset workflows "$WORKFLOWS_DEST" "$WORKFLOWS_MANIFEST" file_plain  $WORKFLOWS
+  uninstall_asset scripts   "$SCRIPTS_DEST"   "$SCRIPTS_MANIFEST"   file_plain  $SCRIPTS
 
   # STDD skills: only remove what our own manifest recorded (never guesses
   # at a subset — the first line is `role=<...>`, the rest are skill dirs).
@@ -313,12 +370,34 @@ if [ "$UNINSTALL" -eq 1 ]; then
     if [ "$DRY" -eq 0 ]; then rm "$STDD_MANIFEST"; fi
   fi
 
-  # STDD test-file guard hook: remove the copied script only. Un-registering
-  # the settings.json entry is left to the user (rewriting someone else's
-  # settings.json on uninstall without an explicit ask is a T2 action this
-  # script does not take unprompted — see hooks/register_stdd_hook.py note).
-  if [ -f "$HOOKS_DEST/stdd_test_guard.py" ]; then
-    [ "$DRY" -eq 1 ] && echo "would remove $HOOKS_DEST/stdd_test_guard.py" || { rm "$HOOKS_DEST/stdd_test_guard.py"; echo "removed $HOOKS_DEST/stdd_test_guard.py (settings.json entry left in place — remove it by hand)"; }
+  # STDD test-file guard hook: remove the copied script AND its settings.json
+  # registration. A dangling registration is worse than the T2 cost of
+  # editing settings.json: once the script is gone, `python3 <deleted path>`
+  # exits 2, which Claude Code reads as a blocking PreToolUse deny — every
+  # Edit/Write is refused until hand-fixed. Unregister is attempted
+  # UNCONDITIONALLY (not gated on the script still being present) and BEFORE
+  # the `rm`, because the exact state this guards against is "script already
+  # gone, registration still there" — a gate on the script's existence would
+  # skip the fix in precisely that state. register_stdd_hook.py --remove
+  # matches any hooks entry that MENTIONS stdd_test_guard.py (not just the
+  # exact string this installer wrote), so a hand-edited/differently-quoted
+  # entry is still caught, and it exits non-zero only when a matching entry
+  # survives unremoved — that's what the WARNING below reports.
+  if [ "$DRY" -eq 1 ]; then
+    echo "would remove $HOOKS_DEST/stdd_test_guard.py (if present) and unregister its settings.json entry"
+  else
+    if [ -f "$SETTINGS_JSON" ]; then
+      if command -v python3 >/dev/null 2>&1; then
+        python3 "$HOOKS_SRC/register_stdd_hook.py" "$SETTINGS_JSON" "$HOOKS_DEST/stdd_test_guard.py" --remove \
+          || echo "WARNING: could not fully unregister the stdd_test_guard.py PreToolUse entry — remove it by hand from $SETTINGS_JSON" >&2
+      else
+        echo "WARNING: python3 not found — could not auto-unregister the hook from $SETTINGS_JSON. Remove it by hand." >&2
+      fi
+    fi
+    if [ -f "$HOOKS_DEST/stdd_test_guard.py" ]; then
+      rm "$HOOKS_DEST/stdd_test_guard.py"
+      echo "removed $HOOKS_DEST/stdd_test_guard.py"
+    fi
   fi
 
   # Institution layout and its symlinks are left in place on uninstall —
@@ -333,7 +412,7 @@ for n in agents rules hooks; do
 done
 ensure_skills_dest_safe
 
-mkdir -p "$DEST"
+[ "$DRY" -eq 1 ] || mkdir -p "$DEST"
 skill_conflicts=""
 for s in $SKILLS; do
   if [ -d "$SKILLS_DEST/$s" ] && ! diff -rq "$SKILLS_SRC/$s" "$SKILLS_DEST/$s" >/dev/null 2>&1; then
@@ -376,7 +455,7 @@ for f in $ROLES; do
   fi
 done
 
-mkdir -p "$SKILLS_DEST"
+[ "$DRY" -eq 1 ] || mkdir -p "$SKILLS_DEST"
 for s in $SKILLS; do
   if [ "$DRY" -eq 1 ]; then
     for sf in "$SKILLS_SRC/$s"/*; do echo "would install $SKILLS_DEST/$s/$(basename "$sf")"; done
@@ -390,7 +469,7 @@ done
 # Base rules are plugin-owned: unconditional overwrite, version stamped from
 # plugin.json. Never touches rules/customize/ — that's the user's landing
 # zone, handled separately below.
-mkdir -p "$RULES_DEST"
+[ "$DRY" -eq 1 ] || mkdir -p "$RULES_DEST"
 for f in $RULES; do
   if [ "$DRY" -eq 1 ]; then
     echo "would install $RULES_DEST/$f (version $VERSION)"
@@ -401,7 +480,7 @@ for f in $RULES; do
   fi
 done
 
-mkdir -p "$RULES_DEST/customize"
+[ "$DRY" -eq 1 ] || mkdir -p "$RULES_DEST/customize"
 if [ -n "$CUSTOMIZE_FILES" ]; then
   for f in $CUSTOMIZE_FILES; do
     if [ -f "$RULES_DEST/customize/$f" ]; then
@@ -417,10 +496,36 @@ fi
 
 # Hooks are plugin-owned scripts: unconditional overwrite, no frontmatter to
 # stamp a version into.
-mkdir -p "$HOOKS_DEST"
+[ "$DRY" -eq 1 ] || mkdir -p "$HOOKS_DEST"
 for f in $HOOK_FILES; do
   if [ -f "$HOOKS_SRC/$f" ]; then
     [ "$DRY" -eq 1 ] && echo "would install $HOOKS_DEST/$f" || { cp "$HOOKS_SRC/$f" "$HOOKS_DEST/$f"; echo "installed $HOOKS_DEST/$f"; }
+  fi
+done
+
+# Workflows are plugin-owned scripts (code-enforced STDD phases): unconditional
+# overwrite, no frontmatter to stamp a version into — same treatment as hooks.
+[ "$DRY" -eq 1 ] || mkdir -p "$WORKFLOWS_DEST"
+for f in $WORKFLOWS; do
+  if [ "$DRY" -eq 1 ]; then
+    echo "would install $WORKFLOWS_DEST/$f"
+  else
+    cp "$WORKFLOWS_SRC/$f" "$WORKFLOWS_DEST/$f"
+    echo "installed $WORKFLOWS_DEST/$f"
+  fi
+done
+
+# scripts/stdd_custody_check.py is a runtime dependency workflows/stdd-execute.js
+# relays to at runtime (REQ-07/REQ-10): unconditional overwrite, same treatment
+# as hooks/workflows. The rest of scripts/ (this repo's own CI tooling) is not
+# installed — see the $SCRIPTS definition above.
+[ "$DRY" -eq 1 ] || mkdir -p "$SCRIPTS_DEST"
+for f in $SCRIPTS; do
+  if [ "$DRY" -eq 1 ]; then
+    echo "would install $SCRIPTS_DEST/$f"
+  else
+    cp "$SCRIPTS_SRC/$f" "$SCRIPTS_DEST/$f"
+    echo "installed $SCRIPTS_DEST/$f"
   fi
 done
 
@@ -435,7 +540,7 @@ if [ -n "$STDD_ROLE" ]; then
       ;;
     ALL)
       STDD_SKILLS=$(stdd_profile_skills ALL)
-      mkdir -p "$SKILLS_DEST"
+      [ "$DRY" -eq 1 ] || mkdir -p "$SKILLS_DEST"
       for s in $STDD_SKILLS; do
         if [ "$DRY" -eq 1 ]; then
           echo "would install STDD skill $SKILLS_DEST/$s"
@@ -476,42 +581,51 @@ fi
 [ "$DRY" -eq 1 ] && { echo "dry-run done (nothing written)."; exit 0; }
 
 # Record what we installed, then verify every file actually landed.
-printf '%s\n' $ROLES > "$MANIFEST"
-want=$(echo $ROLES | wc -w | tr -d ' '); got=0
-for f in $ROLES; do [ -f "$DEST/$f" ] && got=$((got+1)); done
-if [ "$got" -ne "$want" ]; then
-  echo "ERROR: expected $want files in $DEST but found $got — partial install, re-run." >&2
-  exit 1
-fi
+#
+# verify_asset's CHECK argument ("file" or "dir") is the only behavior axis
+# here — rules' combined $ALL_RULES list (built just below) already spells
+# "customize/foo.md" per entry, so checking "$dest/$f" against $RULES_DEST
+# naturally reaches both rules/*.md and rules/customize/*.md with the same
+# "file" check as every other asset; no special-casing needed. Sets the
+# global VERIFY_GOT (not a subshell return) so `exit 1` on failure aborts
+# the whole script, not just a captured command substitution.
+verify_asset() {
+  local label="$1" dest="$2" manifest="$3" check="$4"; shift 4
+  local list="$*"
+  printf '%s\n' $list > "$manifest"
+  local want f
+  want=$(echo $list | wc -w | tr -d ' ')
+  VERIFY_GOT=0
+  for f in $list; do
+    if [ "$check" = "dir" ]; then
+      [ -d "$dest/$f" ] && VERIFY_GOT=$((VERIFY_GOT+1))
+    else
+      [ -f "$dest/$f" ] && VERIFY_GOT=$((VERIFY_GOT+1))
+    fi
+  done
+  if [ "$VERIFY_GOT" -ne "$want" ]; then
+    echo "ERROR: expected $want $label in $dest but found $VERIFY_GOT — partial install, re-run." >&2
+    exit 1
+  fi
+}
 
-printf '%s\n' $SKILLS > "$SKILLS_MANIFEST"
-want_skills=$(echo $SKILLS | wc -w | tr -d ' '); got_skills=0
-for s in $SKILLS; do [ -d "$SKILLS_DEST/$s" ] && got_skills=$((got_skills+1)); done
-if [ "$got_skills" -ne "$want_skills" ]; then
-  echo "ERROR: expected $want_skills skills in $SKILLS_DEST but found $got_skills — partial install, re-run." >&2
-  exit 1
-fi
+verify_asset "roles"     "$DEST"           "$MANIFEST"           file $ROLES
+got=$VERIFY_GOT
+verify_asset "skills"    "$SKILLS_DEST"    "$SKILLS_MANIFEST"    dir  $SKILLS
+got_skills=$VERIFY_GOT
 
 ALL_RULES="$RULES"
 for f in $CUSTOMIZE_FILES; do ALL_RULES="$ALL_RULES customize/$f"; done
-printf '%s\n' $ALL_RULES > "$RULES_MANIFEST"
-want_rules=$(echo $ALL_RULES | wc -w | tr -d ' '); got_rules=0
-for f in $RULES; do [ -f "$RULES_DEST/$f" ] && got_rules=$((got_rules+1)); done
-for f in $CUSTOMIZE_FILES; do [ -f "$RULES_DEST/customize/$f" ] && got_rules=$((got_rules+1)); done
-if [ "$got_rules" -ne "$want_rules" ]; then
-  echo "ERROR: expected $want_rules rules in $RULES_DEST but found $got_rules — partial install, re-run." >&2
-  exit 1
-fi
+verify_asset "rules"     "$RULES_DEST"     "$RULES_MANIFEST"     file $ALL_RULES
+got_rules=$VERIFY_GOT
+verify_asset "hooks"     "$HOOKS_DEST"     "$HOOKS_MANIFEST"     file $HOOK_FILES
+got_hooks=$VERIFY_GOT
+verify_asset "workflows" "$WORKFLOWS_DEST" "$WORKFLOWS_MANIFEST" file $WORKFLOWS
+got_workflows=$VERIFY_GOT
+verify_asset "scripts"   "$SCRIPTS_DEST"   "$SCRIPTS_MANIFEST"   file $SCRIPTS
+got_scripts=$VERIFY_GOT
 
-printf '%s\n' $HOOK_FILES > "$HOOKS_MANIFEST"
-want_hooks=$(echo $HOOK_FILES | wc -w | tr -d ' '); got_hooks=0
-for f in $HOOK_FILES; do [ -f "$HOOKS_DEST/$f" ] && got_hooks=$((got_hooks+1)); done
-if [ "$got_hooks" -ne "$want_hooks" ]; then
-  echo "ERROR: expected $want_hooks hooks in $HOOKS_DEST but found $got_hooks — partial install, re-run." >&2
-  exit 1
-fi
-
-echo "install done: $got roles in $DEST (manifest: $MANIFEST), $got_skills skills in $SKILLS_DEST (manifest: $SKILLS_MANIFEST), $got_rules rules in $RULES_DEST (manifest: $RULES_MANIFEST), $got_hooks hooks in $HOOKS_DEST (manifest: $HOOKS_MANIFEST)"
+echo "install done: $got roles in $DEST (manifest: $MANIFEST), $got_skills skills in $SKILLS_DEST (manifest: $SKILLS_MANIFEST), $got_rules rules in $RULES_DEST (manifest: $RULES_MANIFEST), $got_hooks hooks in $HOOKS_DEST (manifest: $HOOKS_MANIFEST), $got_workflows workflows in $WORKFLOWS_DEST (manifest: $WORKFLOWS_MANIFEST), $got_scripts scripts in $SCRIPTS_DEST (manifest: $SCRIPTS_MANIFEST)"
 echo "NOTE: open a NEW Claude Code session to load the roles and skills (both are read at session start)."
 
 echo ""

@@ -25,4 +25,6 @@ def allow_cases(home):
     return [
         ("unrelated_path", f"{home}/Desktop/notes.txt"),
         ("unrelated_home_claude_subdir", f"{home}/.claude/projects/foo.md"),
+        ("claude_md_backup_suffix", "/some/project/CLAUDE.md.bak"),
+        ("claude_mdx_suffix", "/some/project/CLAUDE.mdx"),
     ]

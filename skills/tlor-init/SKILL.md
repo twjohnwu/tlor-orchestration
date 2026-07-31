@@ -97,7 +97,7 @@ source for re-applying any customization by hand afterward — tell them
 plainly which file was backed up and where.
 
 Report each file's outcome (installed / updated-with-backup / unchanged)
-for Step 11's summary.
+for Step 12's summary.
 
 ### Step 4: Install required rules
 
@@ -319,7 +319,32 @@ export TLOR_INSTITUTION_GUARD=1  # Enable institution file guard
 export TLOR_VERIFY_GATE=1        # Enable test verification gate
 ```
 
-### Step 11: Report summary
+### Step 11: Install workflow scripts
+
+Workflow scripts are plugin-owned, code-enforced STDD phases (currently
+`workflows/stdd-execute.js`) — copy them from the plugin's `workflows/`
+directory to `<target>/workflows/` as an **unconditional overwrite**, the
+same treatment Step 4 gives base rules (no frontmatter to preserve, so
+nothing user-writable is at risk). The same treatment applies to the
+custody-check script the workflow relays to at runtime
+(`scripts/stdd_custody_check.py`, REQ-07/REQ-10) — copy it from the plugin's
+`scripts/` directory to `<target>/scripts/` as an unconditional overwrite;
+the other files under `scripts/` (`check_links.py`, `check_oldname.py`,
+`lint_agents_frontmatter.py`) are this repo's own CI tooling, not runtime
+dependencies, and are NOT installed.
+
+Destination by install level:
+
+- **User level**: `~/.claude/workflows/`, `~/.claude/scripts/`
+- **Project level**: `.claude/workflows/`, `.claude/scripts/`
+- **Repo level**: `<user-specified path>/workflows/`, `<user-specified path>/scripts/`
+
+`install.sh` is the single source of truth for the actual copy/manifest
+mechanics (mirrors its hooks-copy loop, with its own `.tlor-manifest` at
+each destination) — run `./install.sh --dry-run` to preview what it will do
+for the current installation before applying it for real.
+
+### Step 12: Report summary
 
 Print installation summary:
 
@@ -332,6 +357,8 @@ tlor-orchestration initialization complete:
   CLAUDE.md: created / updated / skipped
   AGENTS.md: created / updated / skipped
   Hooks:     institution_guard (enabled/skipped), verify_gate (enabled/skipped)
+  Workflows: N installed (workflows/)
+  Scripts:   N installed (scripts/)
   Backups:   N file(s) as <file>.bak-YYYYMMDD-HHMMSS (see per-file list above)
 ```
 

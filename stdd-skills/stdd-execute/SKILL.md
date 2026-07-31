@@ -10,7 +10,7 @@ strict RED → GREEN → REFACTOR loop and a task-boundary spec re-check.
 Canonical spec: `STDD/specs/stdd-execute.md` (REQ-04); cross-cutting
 mechanisms (frontmatter status, dual-fingerprint rule, `[wip]`/`[x]`
 semantics, Lint-STOP, design-ux consistency check) are canonical in
-`STDD/spec.md` — referenced here, not restated.
+`stdd-skills/stdd-spec/SKILL.md` Step 6 — referenced here, not restated.
 
 ## 0. Precondition
 
@@ -186,8 +186,8 @@ Once a task's RED → GREEN → REFACTOR is done:
    `spec.md`'s `design_ux_fingerprint`. This makes sure execution itself
    hasn't drifted spec/design-ux out from under their recorded
    fingerprints. Apply the design-ux consistency check exactly as defined
-   in `STDD/spec.md`'s design-ux consistency check section (single source of
-   truth, (a)/(b) branches) — never skip branch (b) just because
+   in `stdd-skills/stdd-spec/SKILL.md` Step 6's design-ux consistency check
+   section (single source of truth, (a)/(b) branches) — never skip branch (b) just because
    `design-ux.md` happens not to exist.
 4. Mark the task `[x]` in `tasks.md`.
 5. Report: N/M scenarios green, task K/T complete.
@@ -224,6 +224,24 @@ When execution reveals that a design file (`design-be.md` / `design-fe.md`
    attempt another in-place correction. Instead return to `stdd-plan` to
    re-cut `tasks.md`, and let the user decide how to proceed.
 
+## Workflow relay (`workflows/stdd-execute.js`)
+
+Use instead of this skill when the custody chain and the verifier round cap
+must be enforced by code rather than by prose (see `workflows/stdd-execute.js`'s
+own `meta.whenToUse`). Its `BLOCKED` outcomes are a pinned v2 schema
+(REQ-05): every BLOCKED result carries `status: 'blocked'`, `stage`
+(`'red'`/`'green'`/`'verify'`/`'reset'`/...), `reason` (the first blocking
+reason string) and `reasons` (the full array) — these two REPLACE the
+older, now-retired `result`/`phase` field names; any report or log line
+relaying this shape MUST read `status`/`stage`/`reason`/`reasons`, not
+`result`/`phase`.
+
+`scripts/stdd_custody_check.py`'s exit code 0 with a `CUSTODY:` verdict line
+means PASS (not exit 0 alone — see its module docstring). Exit 2 is a
+separate, non-verdict `argparse` error path (bad/unknown flag, or supplying
+both `--change-dir` and the legacy `change`/`--root` together) and prints no
+`CUSTODY:` line at all; never read exit 2 as PASS or FAIL.
+
 ## 7. `[INFRA]` / small-task fast path (S-18)
 
 For a task marked `[INFRA]`, or an obviously small single-file change:
@@ -247,6 +265,13 @@ For a task marked `[INFRA]`, or an obviously small single-file change:
   by default — without it, protection is detection-after-the-fact via
   `/stdd-lint`, not prevention. Say this plainly in any report, don't imply
   stronger guarantees than exist.
+- **Recovery discriminator is an agent-reported claim** (REQ-01, mirrored
+  from `STDD/spec.md`): the GREEN-recovery path's discriminator — whether
+  re-running `task.verificationCommand` exits 0 — is itself an
+  agent-reported claim; this runtime has no execution path of its own, only
+  dispatched agents that report back. No recovery design can be stronger
+  than the reporting agent's honesty; this is an accepted limit, not a gap
+  this skill attempts to close.
 - Status/frontmatter approval fields (`status`, `approved_fingerprint`,
   `design_ux_fingerprint`) are never protected by a mechanical hook under
   any configuration — this is a deliberate framework decision (REQ-09), not

@@ -43,9 +43,11 @@ def is_institution_file(path):
     for prefix in INSTITUTION_PREFIXES:
         if path.startswith(prefix):
             return True
-    # Router files, any location
+    # Router files, any location (anchored: matches the shell's
+    # */CLAUDE.md|CLAUDE.md|*/AGENTS.md|AGENTS.md glob, not a substring
+    # anywhere in the path — e.g. CLAUDE.md.bak / CLAUDE.mdx must NOT match)
     for pattern in ROUTER_FILE_PATTERNS:
-        if pattern in path:
+        if path.endswith(pattern):
             return True
     return False
 
