@@ -50,9 +50,6 @@ If the user corrects you mid-task for breaking a dispatch rule: STOP fully,
 name the rule you believe you broke, confirm understanding, then resume in
 dispatch mode — never finish the remaining work inline "since you're halfway".
 
-Rationale: raw file contents in the main context dilute the user's original
-constraints and burn tokens; weaker models degrade fastest under dilution.
-
 ## 2. Delegation contract — every dispatch has three parts
 
 Every subagent prompt MUST contain:
@@ -95,13 +92,6 @@ and then ALWAYS pass `model` explicitly.
 - A per-call `model` parameter OVERRIDES a role's pinned frontmatter — use it
   to downgrade eagle-sentinel for routine read-backs, or to downgrade the
   opus-pinned panel lenses for routine/borderline convenings.
-- Check which models your harness actually makes available before pinning
-  one that isn't — an unavailable model name will simply fail to dispatch.
-  Unpinned built-in search agents typically inherit the session's model —
-  pinned roles make this moot; generic fallbacks must pass `model` explicitly.
-- Per-agent effort pins live in role frontmatter (`effort: low|…|max`) where
-  your harness supports it; if it doesn't, drop the field and rely on model
-  selection alone.
 - Unsure between tiers: higher for judgment-heavy, lower for volume-heavy.
 
 ### 3b. Investigation tiering — choose the search tier BEFORE dispatching
@@ -131,7 +121,10 @@ remainder on cheap tiers (§4 de-escalation).
 - **De-escalate solved patterns**: once opus/sonnet has cracked the pattern,
   write the recipe into the prompt and batch the rest to `dwarf-smith`.
 - **Hard cap: two retry rounds per subtask per tier.** After that, escalate,
-  re-frame, or surface to the user. Never grind.
+  re-frame, or surface to the user. Never grind. The cap counts repeated
+  attempts at the SAME failed subtask. Multi-round adversarial review (a
+  panel re-convened on new evidence, loop-until-dry) and independent
+  same-role dispatches are different work, not retries, and are not capped.
 
 ## 5. Verification — never self-certify
 

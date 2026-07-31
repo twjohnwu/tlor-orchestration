@@ -6,6 +6,18 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.6.0 — 2026-08-01
+
+- base rules slimmed to policy-only (mechanism narration that duplicates the
+  harness removed from dispatch.md/decomposition.md)
+- dispatch.md §4 clarified: adversarial-review rounds and independent same-role
+  dispatches are not retries (transcript audit: only 13% of heuristic "retries"
+  were true failure re-dispatches, n=45)
+- new opt-in dispatch_guard PreToolUse hook (TLOR_DISPATCH_GUARD=1): denies
+  generic-subagent dispatches unless `[generic-ok]` + explicit model (transcript
+  audit: 65 generic dispatches, 54% were mis-named verification prompts)
+- tlor-init Step 10 documents the new hook
+
 ## v0.5.0 — 2026-07-28
 
 **BREAKING**

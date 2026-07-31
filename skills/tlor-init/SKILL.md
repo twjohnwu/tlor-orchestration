@@ -302,12 +302,20 @@ Present available hooks with clear descriptions:
    - Activated by setting `TLOR_VERIFY_GATE=1` in your environment
    - Requires Python 3
 
+3. **dispatch_guard** (PreToolUse): Denies Agent dispatches with
+   `subagent_type: general-purpose` or `claude` unless the prompt contains the
+   literal marker `[generic-ok]` AND an explicit `model` parameter is passed.
+   Redirects naming slips to the pinned roles (dispatch.md §3).
+   - Activated by setting `TLOR_DISPATCH_GUARD=1` in your environment
+   - Requires Python 3
+
 Let the user choose per-hook: install or skip. Do NOT install any hook without
 explicit consent.
 
 For hooks chosen: copy `hooks/institution_guard.py`, `hooks/institution_guard.sh`
 (bash fallback used when Python 3 is unavailable), `hooks/pre_tool_use.sh`
-(dispatcher entry point), and `hooks/verify_gate.py` from the plugin bundle
+(dispatcher entry point), `hooks/verify_gate.py`, and `hooks/dispatch_guard.py`
+from the plugin bundle
 to `~/.claude/institution/hooks/` (this lands at
 `~/.claude/hooks/` through the Step 3 symlink). Then explain that activation
 is still via environment variables. Tell the user to add the relevant env

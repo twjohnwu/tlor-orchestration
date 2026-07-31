@@ -23,10 +23,8 @@ If any box is unchecked, split. If all are checked, dispatch it whole — do
 not split for the sake of splitting; every extra agent costs integration
 work and adds a place for information to get lost.
 
-**Too big for one dispatch**: "implement the export feature" (design decisions
-+ multiple files + tests = several done-definitions).
-**Too small to be its own dispatch**: "rename this variable in one file" —
-fold it into a neighboring subtask or do it inline (dispatch.md §1 MAY list).
+**Too big for one dispatch**: "implement the export feature" (several done-definitions).
+**Too small to be its own dispatch**: "rename this variable in one file" (fold into a neighboring subtask or do it inline, dispatch.md §1 MAY list).
 
 ## 2. How to cut: by acceptance criterion, not by file
 
