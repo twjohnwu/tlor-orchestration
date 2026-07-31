@@ -9,6 +9,9 @@ CLAUDE.local.md
 .superpowers/*
 openspec/*
 specs/*
+STDD/*
+STDD
 __pycache__/
 skill-creator-workspace/
 .DS_Store
+*.bak-*
