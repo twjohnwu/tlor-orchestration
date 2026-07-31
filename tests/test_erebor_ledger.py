@@ -7,9 +7,12 @@ no internals are imported. Every fixture transcript is SYNTHETIC and written
 under pytest's tmp_path, handed to the script via `--root`; the real
 `~/.claude/projects/` is never read.
 """
+import importlib.util
 import json
 import subprocess
 import sys
+
+import pytest
 
 from conftest import REPO_ROOT
 
@@ -449,3 +452,182 @@ def test_dispatch_counts_unaffected_by_dedup(tmp_path):
     assert cell(report, "dwarf-smith", "dispatches") == "1"
     assert cell(report, "ranger-pathfinder", "dispatches") == "1"
     assert cell(report, "dwarf-smith", "output") == "50"
+
+
+# --------------------------------------------------------------------------
+# 8. H3 — absolute dollar amounts (the test gap the review's diagnosis
+# understated: no prior test pinned an exact dollar string anywhere)
+# --------------------------------------------------------------------------
+
+def test_absolute_dollar_amounts_pinned(tmp_path):
+    """A fixed fixture (round-number tokens, dates safely before the
+    sonnet-5 tier switch on 2026-09-01) pinned against EXACT rendered dollar
+    strings for the actual cost, the counterfactual (API-equivalent inline)
+    cost, and the headroom preserved — not merely a directional (`>`)
+    comparison. gondor-builder runs on sonnet-5 (input $2, output $10 per
+    MTok); the Fable orchestrator's counterfactual uses fable-5 pricing
+    (input $10, output $50 per MTok)."""
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s1",
+        [orchestrator_line("2026-07-20T10:00:00.000Z", 1, ["gondor-builder"])],
+        dispatches=[
+            (
+                "gondor-builder",
+                "gondor-builder",
+                [
+                    assistant(
+                        "2026-07-20T10:00:01.000Z",
+                        "msg-abs",
+                        "req-abs",
+                        SONNET,
+                        usage(inp=1_000_000, out=1_000_000),
+                    )
+                ],
+            )
+        ],
+    )
+    report = run_report(tmp_path)
+    # actual: 1M in * $2/MTok + 1M out * $10/MTok = $2.00 + $10.00
+    assert cell(report, "gondor-builder", "actual_cost") == "$12.00"
+    # counterfactual (inline on fable-5): 1M in * $10/MTok + 1M out * $50/MTok
+    assert cell(report, "gondor-builder", "inline_cost") == "$60.00"
+    assert cell(report, "gondor-builder", "headroom") == "$48.00"
+
+
+# --------------------------------------------------------------------------
+# 9. H1 — pricing must follow the RECORD's own date, not the execution date
+# --------------------------------------------------------------------------
+
+def test_record_priced_by_own_date_not_execution_date(tmp_path):
+    """Two records in the SAME dispatch, on the SAME model (sonnet-5),
+    straddling the price table's `next_tier.effective_from` (2026-09-01):
+    one dated 2026-07-20 (intro tier, output $10/MTok) and one dated
+    2026-09-05 (standard tier, output $15/MTok). Each record MUST be priced
+    at its own tier. Before the H1 fix, the whole dispatch's aggregated
+    tokens were priced ONCE using the report's EXECUTION date — as long as
+    this test runs before 2026-09-01, that bug would price BOTH records at
+    the intro ($10) tier, giving $20.00 instead of the correct $25.00."""
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s1",
+        [orchestrator_line("2026-07-20T10:00:00.000Z", 1, ["gondor-builder"])],
+        dispatches=[
+            (
+                "gondor-builder",
+                "gondor-builder",
+                [
+                    assistant(
+                        "2026-07-20T10:00:01.000Z", "msg-pre", "req-pre", SONNET, usage(out=1_000_000)
+                    ),
+                    assistant(
+                        "2026-09-05T10:00:01.000Z", "msg-post", "req-post", SONNET, usage(out=1_000_000)
+                    ),
+                ],
+            )
+        ],
+    )
+    report = run_report(tmp_path)
+    assert cell(report, "gondor-builder", "actual_cost") == "$25.00"
+
+
+# --------------------------------------------------------------------------
+# 10. H2 — quota-headroom figures 3/4 must be normalized by period length
+# --------------------------------------------------------------------------
+
+def test_subscription_figure_normalized_by_period_months(tmp_path):
+    """Figure 3 divides this period's total cost by the MONTHLY subscription
+    fee — for a `--month 2026-07` report (31 days), the fee must be scaled
+    by 31/30.4375 ≈ 1.02 months before dividing, and the report must LABEL
+    that conversion, not divide by the raw monthly fee unscaled (which
+    inflates the ratio for any period longer than one cycle)."""
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s1",
+        [orchestrator_line("2026-07-20T10:00:00.000Z", 1, ["gondor-builder"])],
+        dispatches=[
+            (
+                "gondor-builder",
+                "gondor-builder",
+                [assistant("2026-07-20T10:00:01.000Z", "msg-h2", "req-h2", SONNET, usage(out=1_000_000))],
+            )
+        ],
+    )
+    report = run_report(tmp_path, "--month", "2026-07", "--subscription-usd", "100")
+    section = report.split("### 3. Subscription worth-it", 1)[1].split("###", 1)[0]
+    assert "1.02" in section, section
+    assert "$101.85" in section, section
+    assert "Ratio: **0.1x**" in section, section
+
+
+# --------------------------------------------------------------------------
+# 11. M10 — dedup attribution must land on the earliest INCLUDED occurrence,
+# never an excluded ("other" orchestrator) session
+# --------------------------------------------------------------------------
+
+def test_dedup_attribution_skips_excluded_session_owner(tmp_path):
+    """The same (message.id, requestId) key's TRUE-earliest occurrence sits
+    in a session whose orchestrator is neither Fable nor Opus (excluded,
+    spec §3) — the excluded report path never renders a role/pricing
+    breakdown, so attributing to that occurrence would zero this key's
+    tokens everywhere they COULD be reported. Attribution must instead land
+    on the earliest occurrence in an INCLUDED session."""
+    # Excluded session: main-session record itself is on sonnet (not
+    # fable/opus), so this session classifies as "other" and is excluded.
+    excluded_main = assistant(
+        "2026-07-20T09:00:00.000Z", "msg-x", "req-x", SONNET, usage(out=500)
+    )
+    make_session(tmp_path, "proj-a", "s-excluded", [excluded_main])
+    # Included session: fable orchestrator, dwarf-smith dispatch re-emits
+    # the SAME key later.
+    dup_later = assistant("2026-07-20T09:31:00.000Z", "msg-x", "req-x", SONNET, usage(out=500))
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s-included",
+        [orchestrator_line("2026-07-20T09:30:00.000Z", 1, ["dwarf-smith"])],
+        dispatches=[("dwarf-smith", "dwarf-smith", [dup_later])],
+    )
+    report = run_report(tmp_path)
+    assert cell(report, "dwarf-smith", "output") == "500"
+    assert cell(report, "dwarf-smith", "dispatches") == "1"
+
+
+# --------------------------------------------------------------------------
+# 12. M9 — a mistyped/unknown role-row key must raise, never silently
+# synthesize a zero row. Unlike every other test in this file, this ONE
+# case imports the module directly (breaking the file's own black-box-only
+# convention stated in the module docstring): the bug this guards against
+# is an INTERNAL data-structure invariant with no observable difference in
+# the rendered report, so subprocess/stdout assertion cannot exercise it.
+# --------------------------------------------------------------------------
+
+def _load_erebor_ledger_module():
+    spec = importlib.util.spec_from_file_location("erebor_ledger_module", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    # Register in sys.modules BEFORE exec: the script's dataclasses (under
+    # `from __future__ import annotations`) resolve their field type hints
+    # via `sys.modules[cls.__module__]` at class-definition time, which
+    # fails with a bare AttributeError if the module was never registered.
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_unknown_role_key_raises_instead_of_silent_zero_row():
+    """`GroupState.roles` is a plain dict keyed by `RoleKey`, not a
+    `defaultdict` — looking up a key that was never dispatched (e.g. a
+    typo'd role/model/effort combination) must raise `KeyError`, never
+    silently vivify a fresh all-zero row (the pre-fix
+    `defaultdict(new_role_row)` behavior, which made a mistyped key
+    indistinguishable from a real zero-dispatch role)."""
+    m = _load_erebor_ledger_module()
+    g = m.new_group_state()
+    known_key = m.RoleKey("gondor-builder", "sonnet-5", "medium")
+    g.roles[known_key] = m.new_role_row()
+    g.roles[known_key].dispatches = 3
+    with pytest.raises(KeyError):
+        _ = g.roles[m.RoleKey("gondor-builder", "sonnet-5", "TYPO")]
