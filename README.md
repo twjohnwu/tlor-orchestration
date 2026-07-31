@@ -24,6 +24,18 @@ coding session needs to delegate reliably.
 | `/westmarch-scribe` | Archive a filled compact-MADR decision to the project's decision log / instruction file / general decisions log | Advisory closing step of stdd-explore/uiux/spec/plan, directly after a durable decision, or proactively on decision-keywords in conversation (both require the tlor rules layer installed, i.e. `/tlor-init` run first) |
 | `/minas-tirith-archivist` | Read-only query counterpart to `/westmarch-scribe` — searches archived decision records (general and project-scoped) and answers with citations, never writes or edits | Asking about past decisions or why a convention exists, or directly by the user (also requires the tlor rules layer installed) |
 
+## Code-enforced STDD workflow (opt-in)
+
+`workflows/stdd-execute.js` (a Workflow script) plus its runtime dependency
+`scripts/stdd_custody_check.py` (the custody/fingerprint verdict program it
+relays to) enforce the STDD execute phase's approval-custody chain and
+verifier-round cap by code rather than by prose — see
+[Skills](docs/en/skills.md) for detail. `install.sh`/`/tlor-init` copy both
+to `~/.claude/workflows/` and `~/.claude/scripts/` (or the project/repo-level
+equivalent); an install done only via `claude plugin add` also finds them
+through the plugin's own installed directory (`custodyCheck`'s search-location
+list).
+
 ## Docs
 
 - [Roles & dispatch](docs/en/roles.md) — the worldview, the eleven-role fellowship, subagent dispatch snippet

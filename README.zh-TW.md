@@ -23,6 +23,17 @@ English version: [README.md](README.md).
 | `/westmarch-scribe` | 將已填 Outcome 的精簡 MADR 決策歸檔至專案 decision log／instruction 檔／通用決策紀錄 | stdd-explore/uiux/spec/plan 的建議性收尾步驟、做出耐久決策後直接呼叫，或對話中出現決策關鍵詞時主動觸發（兩者都需先安裝 tlor rules 層，即先跑過 `/tlor-init`）|
 | `/minas-tirith-archivist` | `/westmarch-scribe` 的唯讀查詢對應版——搜尋已歸檔的決策紀錄（通用與專案層級）並附引用回答，絕不寫入或編輯 | 詢問過去的決策或某個慣例的緣由，或使用者直接呼叫（同樣需先安裝 tlor rules 層）|
 
+## Code-enforced STDD 工作流程（選配）
+
+`workflows/stdd-execute.js`（一支 Workflow script）與它執行時所依賴的
+`scripts/stdd_custody_check.py`（它轉呼的 custody／fingerprint 裁決程式）
+以程式碼而非 prose 的方式強制執行 STDD execute 階段的核准 custody chain 與
+verifier round cap——細節見 [Skills](docs/zh-TW/skills.md)。`install.sh`／
+`/tlor-init` 會把兩者複製到 `~/.claude/workflows/` 與 `~/.claude/scripts/`
+（或對應的 project/repo 層路徑）；僅透過 `claude plugin add` 安裝、未跑過
+install.sh／tlor-init 的環境，也能透過 plugin 自己的安裝目錄
+（`custodyCheck` 的搜尋位置清單其中一項）找到它們。
+
 ## 文件
 
 - [角色與派工](docs/zh-TW/roles.md) — 世界觀、十一角色遠征隊名冊、subagent 派工 snippet

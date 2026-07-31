@@ -6,8 +6,36 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.5.0 — 2026-07-28
+
+**BREAKING**
+- `changeDir` is now a required, caller-confirmed absolute path — no
+  `STDD/<name>` fallback.
+- The BLOCKED return shape replaces `result`/`phase` with
+  `status`/`stage`/`reason`+`reasons`.
+- `scripts/stdd_custody_check.py --change-dir` is now the primary CLI mode.
+- A second `TASKS:` stdout line joins the custody contract, including the
+  literal `TASKS: missing` when a change has no `tasks.md`.
+
+**Fixes**
+- Pricing was resolved by execution date rather than by each record's own
+  date, which would have silently re-priced every historical report once a
+  future price tier took effect.
+- Subscription and quota figures divided a multi-period total by a
+  single-month fee and single-cycle ceiling with no normalization.
+- The two router-file guard implementations disagreed on which paths they
+  protect.
+- The test-file guard did not fire at all on the framework's own template
+  citation format.
+
 ## v0.4.0 — 2026-07-27
 
+- `install.sh`/`skills/tlor-init/SKILL.md`: install the code-enforced STDD
+  workflow's runtime files (`workflows/stdd-execute.js` and its dependency
+  `scripts/stdd_custody_check.py`) to `~/.claude/workflows/` and
+  `~/.claude/scripts/`, with their own manifests and uninstall loops
+  (previously undocumented and uninstallable — a `claude plugin add`-only
+  install had no path to find these two files at all).
 - New `rules/customize/output-calibration.md` seed: deliverable length
   guidance plus the five things brevity never trims.
 - `rules/maintenance.md`: whole-corpus compaction budget and a rules-file
