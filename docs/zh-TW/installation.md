@@ -4,7 +4,7 @@
 
 ## 兩種使用方式
 
-- **輕量**——只裝 plugin。安裝後，任何一個新開的 session 都能使用十一個角色
+- **輕量**——只裝 plugin。安裝後，任何一個新開的 session 都能使用十二個角色
   （若是在已開啟的 session 中安裝，須先執行 `/reload-plugins`）。請直接
   以名稱明確呼叫角色，或加上 [roles.md](roles.md) 的 CLAUDE.md snippet
   以取得穩定的派工——我們的 headless 測試顯示，僅靠 description 並不能

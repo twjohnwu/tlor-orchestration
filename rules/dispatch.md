@@ -1,5 +1,5 @@
 ---
-description: Role dispatch and delegation rules for the eleven pinned tlor-orchestration roles
+description: Role dispatch and delegation rules for the twelve pinned tlor-orchestration roles
 managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
 audience: all
 ---
@@ -85,9 +85,13 @@ and then ALWAYS pass `model` explicitly.
 | Implement against a clear spec (local judgment OK) | `gondor-builder` (sonnet/medium) | generic subagent + mid-tier model |
 | Routine read-back verification | `eagle-sentinel` + `model: sonnet` override | generic subagent + mid-tier model |
 | High-risk verification | `eagle-sentinel` (opus/medium); panel: `elf-archer`/`orc-saboteur`/`hobbit-gardener` | generic subagent + top-tier model |
+| Open-ended design/production-readiness review of a diff — no criteria list, no stated conclusion | `cirdan-shipwright` (opus/medium) | generic subagent + top-tier model, `[generic-ok]` marker required by dispatch_guard |
 | External-system READ via session MCP tools (task trackers, docs stores) | `mirror-of-galadriel` (haiku/low) | none — needs MCP tools, no safe generic substitute |
-| External-system WRITE via session MCP tools | `palantir-stone` (sonnet/medium) — **T1 note**: outward-facing writes; the dispatch MUST enumerate every mutation (target gid+title, expected-before, literal value), max 10 per dispatch; per risk-tiers T1, the Maia MUST obtain the user's explicit confirmation of the exact mutation enumeration BEFORE dispatching | none — needs MCP tools, no safe generic substitute |
+| External-system WRITE via session MCP tools | `palantir-stone` (sonnet/medium) — **T1 note**: outward-facing writes; the dispatch MUST enumerate every mutation (target gid+title, expected-before, literal value), max 10 per dispatch; per risk-tiers T1, the Maia MUST obtain the user's explicit confirmation of the exact mutation enumeration BEFORE dispatching. Create items carry container gid+name, literal task name, every literal field value (or "no other fields"), `expected: absent`; max 25 create per dispatch (updates stay 10); create and update never mix in one dispatch; a RETRY dispatch marks each retried create item `retry-of: <gid \| none (stopped pre-write) \| unknown (create call ran, no gid)>`, and each retried comment `retry-of: comment (prior outcome <label>)`. | none — needs MCP tools, no safe generic substitute |
 | Design decisions, ambiguous debugging, writing plans | stays with the Maia, or generic subagent + top-tier model | — |
+
+Given criteria → eagle-sentinel; given a conclusion to attack → rivendell-council
+panel; given only a diff → cirdan-shipwright.
 
 - A per-call `model` parameter OVERRIDES a role's pinned frontmatter — use it
   to downgrade eagle-sentinel for routine read-backs, or to downgrade the
@@ -125,6 +129,22 @@ remainder on cheap tiers (§4 de-escalation).
   attempts at the SAME failed subtask. Multi-round adversarial review (a
   panel re-convened on new evidence, loop-until-dry) and independent
   same-role dispatches are different work, not retries, and are not capped.
+
+**Resuming a finished subagent by ID.** One case: a write-capable producer
+blocked solely by plan mode, resumed after the user approves the plan.
+Never an external-system role (`palantir-stone`: a resumed context reuses
+its pre-approval mutation enumeration — always a new dispatch with fresh
+user confirmation), and §5 verification work always dispatches fresh. The
+resume message is a full dispatch prompt (templates §2/§3 slots filled),
+and its scope supersedes everything in the agent's earlier context — an
+approved plan narrower than the agent's draft means the narrower scope,
+nothing else. Dispatch fresh instead if approval widened or redirected the
+scope (narrowing is the one survivable delta), if the agent's report
+carried any STOP condition or unresolved question, or if you cannot
+evidence that the agent's context and everything it worked with are
+unchanged since it last ran (compaction on either side, workspace edits
+during the pause, an unverified harness — each is "cannot evidence"). A
+fix of verifier findings is never a resume — it is a fresh dispatch.
 
 ## 5. Verification — never self-certify
 
@@ -179,10 +199,15 @@ planned work the same way it applies to ad-hoc work.
 Plan mode's default "Only use built-in search" is overridden — use
 tlor-orchestration roles per the dispatch table above.
 
+Resuming a finished subagent by ID inside plan-approval continuation: see §4's
+"Resuming a finished subagent by ID" — that is the only case where a plan-mode
+producer can be resumed rather than freshly dispatched.
+
 ## Anti-patterns
 
 Re-grepping "while waiting" after dispatching a search (§1) · dispatches with
 no acceptance criteria (§2) · cosmetic-reword retries on the same model (§4)
 · pasting >100-line files into the main conversation (§1) · accepting the
 producer's "all tests pass" (§5) · using a generic search agent when a
-pinned role fits the task (§3).
+pinned role fits the task (§3) · resuming an agent outside §4's
+plan-approval case.

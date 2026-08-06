@@ -4,7 +4,7 @@
 
 ## Two ways to use this
 
-- **Lightweight** — just install the plugin. The eleven roles become available
+- **Lightweight** — just install the plugin. The twelve roles become available
   in any NEW session after install (in an already-running session, run
   `/reload-plugins` first). Invoke them explicitly by name, or add the
   CLAUDE.md snippet in [roles.md](roles.md) for consistent dispatch — in

@@ -6,6 +6,22 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.7.0 — 2026-08-06
+
+- palantir-stone 0.1.0: task creation opened — create-item contract threaded
+  through all ten rules, gid-first retry with a three-form retry-of marker
+  (+ comment-retry markers), container verification via get_project,
+  intra-batch duplicate-name STOP, a five-precondition STOP catalogue,
+  delete stays permanently banned; forged through an EIGHT-round adversarial
+  panel (24 lens dispatches, 8 fix waves).
+- new role cirdan-shipwright (12th): open-ended design/production-readiness
+  review of a diff; criteria-bound work stays with eagle-sentinel,
+  conclusion-attack work goes to the panel.
+- dispatch.md §4: subagent resume rule (plan-approval continuation only) —
+  ten-round adversarial review, contracted from a general resume affordance
+  to the single evidence-backed case.
+- dispatch.md §3 routing row + Anti-patterns entries.
+
 ## v0.6.0 — 2026-08-01
 
 - base rules slimmed to policy-only (mechanism narration that duplicates the

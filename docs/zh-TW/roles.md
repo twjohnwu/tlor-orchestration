@@ -25,6 +25,7 @@
 | `hobbit-gardener` | 哈比人園丁 | opus / medium | 簡潔性鏡頭：修剪過度工程 |
 | `mirror-of-galadriel` | 凱蘭崔爾之鏡 | haiku / low | 唯讀查詢外部系統（任務追蹤、文件庫），透過 session 的 MCP 工具——只看，不動手 |
 | `palantir-stone` | 真知晶石 | sonnet / medium | 唯一能透過 session MCP 工具**寫入**外部系統的角色；照派工列舉的內容逐字執行，自己不判斷寫什麼 |
+| `cirdan-shipwright` | 造船者刻爾丹 | opus / medium | 開放式的 diff 設計／production-readiness 審查——沒有準則清單、沒有結論可攻；有準則的活留給 `eagle-sentinel`，攻結論的活交給抗辯小組 |
 
 前九者中的後三者組成**抗辯審查小組**——高風險判定時由 `eagle-sentinel`
 建議、**Maia 召集**（≥3 個獨立鏡頭＋一位裁判）。例行或邊界案的召集，
@@ -64,6 +65,7 @@ Prefer the pinned tlor-orchestration roles over generic subagents:
 - Adversarial review of major conclusions → elf-archer + orc-saboteur + hobbit-gardener in parallel
 - Read an external system via session MCP tools → mirror-of-galadriel
 - Write to an external system via session MCP tools (enumerated mutations only) → palantir-stone
+- Open-ended design/production-readiness review of a bare diff (no criteria, no conclusion to attack) → cirdan-shipwright
 
 Delegate any read of >3 files or repo-wide scan; keep only conclusions + file:line in the main thread.
 ```
