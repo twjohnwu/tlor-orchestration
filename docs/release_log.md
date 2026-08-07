@@ -12,6 +12,7 @@ release first — new sections go at the top.
 - stdd-execute closing-review trigger now covers the prose path (all tasks `[x]` + manual gate), not only the JS relay's `COMPLETE`/`REVIEW_REQUIRED`
 - stdd-execute SKILL.md field docs scoped to BLOCKED: non-BLOCKED outcomes keep legacy `result`/`phase` (matches the relay implementation; doc-only fix, user-adjudicated)
 - closing review: cirdan dispatch gains the no-plugin fallback wording; non-git projects skip the offer (empty-diff illusion)
+- backported the 2026-07-27 installed-side STDD fixes into the repo ([wip] marked only after the RED test file is written — avoids stdd_test_guard self-lock; workflow-path fingerprint "detection, not prevention" clarification; stdd-lint/stdd-plan drift) — repo and installed copies re-unified
 
 ## v0.7.0 — 2026-08-06
 

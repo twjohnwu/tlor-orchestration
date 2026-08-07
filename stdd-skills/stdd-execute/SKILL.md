@@ -45,13 +45,10 @@ Dispatch a builder (role `gondor-builder` if tlor-orchestration/pinned roles are
 installed, otherwise a generic subagent with `model: sonnet` stated
 explicitly) with these exact instructions:
 
-1. **First**, mark this task `[wip]` in `tasks.md` — this is the *only*
-   place `[wip]` gets written, so an interruption after this point is
-   detectable later.
-2. Read the task's `S-XX` scenario GIVEN/WHEN/THEN from `spec.md`.
-3. Write a test function named `test_sXX_<scenario_snake>`.
-4. Reference `REQ-XX / S-XX` in the test's docstring.
-5. Run the task's verification command and confirm the test **fails for
+1. Read the task's `S-XX` scenario GIVEN/WHEN/THEN from `spec.md`.
+2. Write a test function named `test_sXX_<scenario_snake>`.
+3. Reference `REQ-XX / S-XX` in the test's docstring.
+4. Run the task's verification command and confirm the test **fails for
    the correct reason** (a real assertion failure against the intended
    behavior — not an import error or syntax error). If the first run fails
    on import/collection (e.g. the target module or class doesn't exist
@@ -59,6 +56,12 @@ explicitly) with these exact instructions:
    the test imports, each raising `NotImplementedError` — then re-run.
    Stubbing is part of RED, not implementation: it exists only to convert
    an import error into a behavioral failure.
+5. **ONLY NOW** mark this task `[wip]` in `tasks.md` — after the test file
+   is written, never before. `[wip]` is what closes the test file to
+   further writes (see `hooks/stdd_test_guard.py`'s `[wip]`-block
+   protection), so marking it first would lock out this dispatch's own RED
+   write. This is the *only* place `[wip]` gets written, so an interruption
+   after this point is detectable later.
 6. Quote the actual RED output, then **end the dispatch**. **Do not write
    any implementation code** in this dispatch.
 
@@ -203,7 +206,8 @@ Once a task's RED → GREEN → REFACTOR is done:
 
 If `/stdd-lint` is not installed at any of these checkpoints, **STOP** and
 report "`/stdd-lint` not installed - mechanical check incomplete" (single-source Lint-STOP
-rule, `STDD/spec.md`) — never silently skip the mechanical check.
+rule, S-31 in `stdd-lint`'s `references/checklist.md`) — never silently skip
+the mechanical check.
 
 ## 6. Plan-drift protocol (S-17)
 
@@ -249,9 +253,11 @@ both `--change-dir` and the legacy `change`/`--root` together) and prints no
 
 For a task marked `[INFRA]`, or an obviously small single-file change:
 
-- Mark the task `[wip]` at start and `[x]` on completion, exactly like the
-  full path — this keeps S-19's interrupt detection working for `[INFRA]`
-  tasks too.
+- If `tasks.md` names a test file for this task, write it first (same
+  ordering reason as Dispatch A step 5 above — marking `[wip]` first would
+  lock out this dispatch's own write), then mark `[wip]`; otherwise mark
+  `[wip]` at start. Mark `[x]` on completion either way — this keeps S-19's
+  interrupt detection working for `[INFRA]` tasks too.
 - Run **one** builder dispatch (implementation) and **one** verify dispatch
   — skip the multi-round RED → GREEN → REFACTOR structure, but still
   report execution results and the actual verification command output.
@@ -260,6 +266,82 @@ For a task marked `[INFRA]`, or an obviously small single-file change:
   line is `/stdd-lint` S-40, not this skill).
 - Never mislabel work that should be a scenario task (`S-XX`) as `[INFRA]`
   just to dodge the full loop.
+
+## 8. Code-enforced alternative — the `stdd-execute` workflow
+
+This skill is the **prose path**: every gate above is enforced by the executing
+model following instructions. `workflows/stdd-execute.js` (installed into
+`.claude/workflows/`) is the **code-enforced path** for the same phase, and it
+is where the two gates that prose cannot hold become mechanical:
+
+- The custody chain — `spec.md`'s recomputed body hash vs `approved_fingerprint`,
+  and `design-ux.md`'s vs `design_ux_fingerprint` — is compared by
+  `scripts/stdd_custody_check.py`, a read-only program that opens those files
+  **itself** and prints one `CUSTODY: PASS|FAIL …` line. The workflow validates
+  that line against a strict grammar, requires the verdict word and the exit
+  status to agree, and blocks on anything that is not an exact PASS — a
+  malformed, multi-line or absent line blocks. No agent is asked to judge the
+  custody chain, and no agent-supplied hash is compared against another
+  agent-supplied hash. A blocked result names the failing artifact and carries
+  both hashes, and no later phase runs.
+- The 2-round builder/verifier cap (step 4) is the bound of a `for` loop; there
+  is no path to a third round.
+- The test-file fingerprint firewall is checked against both the GREEN and the
+  verify results, and an empty or malformed digest **blocks** instead of
+  skipping the check. The RED baseline is deliberately *not* quoted into the
+  GREEN or fix prompts, so the comparison is against a value the caller holds
+  rather than against the prompt's own echo.
+- A task is marked `[x]` only after the independent verifier passes it, and the
+  RED dispatch writes the test file *before* marking `[wip]` — the optional
+  test-file guard closes a `[wip]` task's test file to further writes, so the
+  opposite order would deadlock RED's own write.
+
+Both paths implement the same steps and the same STDD semantics — choose the
+workflow when the change is risky enough that a self-enforced gate is not good
+enough, and this skill when you want the conversational loop. The workflow still
+cannot ask the user anything: it stops at the manual-verification gate and hands
+the checklist back to the calling session (step 5's completion gate), which asks
+with selectable options.
+
+### What the workflow path still does NOT enforce
+
+- **The relay is trusted.** The comparison happens inside a program, but a
+  subagent runs that program and relays its verdict line and exit status. A
+  relayed line is in principle forgeable; the strict grammar check removes the
+  trivial bypass and raises the bar, it is not a barrier. The program carries a
+  residual hole of its own: an actor that edits a body **and** rewrites the
+  matching `approved_fingerprint` produces a self-consistent PASS. Detecting
+  that needs a trust anchor outside the working tree (a signature, or git
+  history), which the custody chain does not have.
+- **The approval is unauthenticated.** `decision.approved` is a field the
+  calling session fills in; the workflow cannot tell an approval a human gave
+  from one a caller invented, and its own completion report says so. What it
+  *does* enforce: the unconfirmed set is derived from the checklist it read and
+  is never accepted from the caller, confirmations for ids that are not on the
+  checklist are discarded, and completion requires positive evidence — zero
+  tasks plus an empty checklist can no longer yield a completion claim.
+- **There is no lock.** Two concurrent invocations against the same change
+  directory will race: both pass the custody gate, both write the same
+  `tasks.md` and `.progress.log`, and the second to mark a task overwrites the
+  first's accounting. Step 0's one-session-at-a-time rule is a documented limit
+  on this path too, not a mechanism.
+- **Lint severity is agent-chosen.** The workflow blocks on `FAIL` findings and
+  refuses to read an unrecognised status as anything but a failure, but it is
+  the dispatched agent that assigns `PASS`/`FAIL`/`SKIP`/`REPORT` to each
+  `stdd-lint` check. A real failure reported as `SKIP` or `REPORT` is invisible
+  to the gate.
+- **`spec.md`'s `status: approved` field is still agent-reported.** The custody
+  program owns the fingerprint comparison only; it does not read `status`. That
+  one check remains as weak as it was on the prose path.
+- **Already-done task counts are relayed, not independently verified.** On
+  entry, how many TDD tasks are already `[x]` (`alreadyDoneCount`) comes
+  entirely from the load dispatch's report of `tasks.md`'s markers — one
+  relay layer, the same class of trust as the custody verdict line above. A
+  task marked `[x]` by some other means would be counted as done here with no
+  way for the workflow to tell that apart from a task it verified itself.
+- Frontmatter *writes* (`status`, `approved_fingerprint`,
+  `design_ux_fingerprint`) remain unguarded on this path, exactly as on the
+  prose path.
 
 ## Notes / honest limits
 
@@ -278,7 +360,12 @@ For a task marked `[INFRA]`, or an obviously small single-file change:
 - Status/frontmatter approval fields (`status`, `approved_fingerprint`,
   `design_ux_fingerprint`) are never protected by a mechanical hook under
   any configuration — this is a deliberate framework decision (REQ-09), not
-  a gap this skill can close.
+  a gap this skill can close. A *write* to those fields is still unguarded on
+  the workflow path too; what the workflow adds is that the fingerprint
+  *comparison* is performed by a program that reads the files itself, so a
+  drifted artifact cannot be talked past — detection, not prevention. Step 8's
+  "What the workflow path still does NOT enforce" is the single source of truth
+  for that path's limits; do not restate them in a report from memory, read them.
 
 ## Closing — external-ticket writeback (advisory)
 

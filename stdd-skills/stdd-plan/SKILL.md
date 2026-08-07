@@ -8,11 +8,11 @@ description: 'Generate condition-based design artifacts (design-be.md / design-f
 Third phase of the STDD pipeline (`stdd-explore → stdd-uiux (conditional) →
 stdd-spec → stdd-plan → stdd-execute`). Turns an approved `spec.md` into
 condition-based design artifacts and a scenario-covered `tasks.md`. Canonical
-spec: `STDD/specs/stdd-plan.md` (REQ-03); cross-cutting mechanisms (frontmatter
-status fields, dual-fingerprint rule, wiki/ taxonomy, Lint-STOP rule) are
-canonical in `stdd-skills/stdd-spec/SKILL.md` Step 6 — this skill references
-them, it does not restate them. Worked examples: `templates/design-be.md`,
-`templates/tasks.md`.
+spec: `STDD/specs/stdd-plan.md` (REQ-03); the cross-cutting mechanical checks
+(frontmatter status fields, dual-fingerprint rule, Lint-STOP rule) are canonical
+in `stdd-lint`'s `references/checklist.md` — this skill references them, it does
+not restate them; the `wiki/` taxonomy is described at step 9 below. Worked
+examples: `templates/design-be.md`, `templates/tasks.md`.
 Distilled references: `references/openapi-skeleton.md`,
 `references/23-design-patterns.md`.
 
