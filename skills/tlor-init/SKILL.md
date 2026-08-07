@@ -305,7 +305,7 @@ Present available hooks with clear descriptions:
 
 3. **dispatch_guard** (PreToolUse): Denies Agent dispatches with
    `subagent_type: general-purpose` or `claude` unless the prompt contains the
-   literal marker `[generic-ok]` AND an explicit `model` parameter is passed.
+   literal marker `[bombadil-freeagent]` AND an explicit `model` parameter is passed.
    Redirects naming slips to the pinned roles (dispatch.md §3).
    - Activated by setting `TLOR_DISPATCH_GUARD=1` in your environment
    - Requires Python 3

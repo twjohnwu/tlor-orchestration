@@ -23,6 +23,7 @@ release first — new sections go at the top.
 - dispatch.md §3 routing row + Anti-patterns entries.
 - stdd-execute gains a second Closing advisory: post-execute design review — an optional, ask-first, non-gating `cirdan-shipwright` dispatch over the change's accumulated diff (base ref named by the dispatcher; findings route to the Maia, spec-implicating ones through the plan-drift protocol).
 - roles docs: the three rivendell-council lenses move to their own sub-table in en/zh roles.md; the positional 'last three of the first nine' wording is gone (roster growth can no longer rot it).
+- the generic-dispatch escape hatch is formalized: dispatch.md §3 gains a no-role-fits row + escape-hatch discipline (state the reason; second recurrence proposes a new role); the marker is renamed `[generic-ok]` → `[bombadil-freeagent]` (unreleased, no external consumers).
 
 ## v0.6.0 — 2026-08-01
 

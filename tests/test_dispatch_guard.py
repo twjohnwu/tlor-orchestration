@@ -3,8 +3,8 @@
 
 Opt-in PreToolUse hook (TLOR_DISPATCH_GUARD=1): denies Agent/Task dispatches
 whose subagent_type is a generic escape hatch ("general-purpose" or "claude")
-unless the prompt carries the literal marker "[generic-ok]" AND an explicit
-`model` parameter is passed.
+unless the prompt carries the literal marker "[bombadil-freeagent]" AND an
+explicit `model` parameter is passed.
 """
 from conftest import HOOKS_DIR
 
@@ -53,7 +53,7 @@ def test_general_purpose_no_marker_denied(run_hook):
 
 
 def test_marker_but_no_model_denied(run_hook):
-    result = _run(run_hook, _payload(subagent_type="general-purpose", prompt="do it [generic-ok]"))
+    result = _run(run_hook, _payload(subagent_type="general-purpose", prompt="do it [bombadil-freeagent]"))
     assert result.returncode == 0
     decision = result.decision
     assert decision is not None
@@ -69,9 +69,17 @@ def test_model_but_no_marker_denied(run_hook):
 
 
 def test_marker_and_model_allowed(run_hook):
-    result = _run(run_hook, _payload(subagent_type="general-purpose", prompt="do it [generic-ok]", model="opus"))
+    result = _run(run_hook, _payload(subagent_type="general-purpose", prompt="do it [bombadil-freeagent]", model="opus"))
     assert result.returncode == 0
     assert result.decision is None
+
+
+def test_old_marker_no_longer_recognized_denied(run_hook):
+    result = _run(run_hook, _payload(subagent_type="general-purpose", prompt="do it [generic-ok]", model="opus"))
+    assert result.returncode == 0
+    decision = result.decision
+    assert decision is not None
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
 def test_claude_type_denied(run_hook):

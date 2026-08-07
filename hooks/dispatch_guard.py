@@ -4,7 +4,7 @@ Dispatch guard — an OPT-IN PreToolUse hook (silent unless TLOR_DISPATCH_GUARD=
 
 Denies Agent/Task dispatches whose subagent_type is a generic escape hatch
 ("general-purpose" or "claude") unless the prompt carries the literal marker
-"[generic-ok]" AND an explicit `model` parameter is passed. This is the L2
+"[bombadil-freeagent]" AND an explicit `model` parameter is passed. This is the L2
 backstop for dispatch.md §3: naming slips that bypass the pinned role table
 get redirected instead of silently going through.
 
@@ -19,7 +19,7 @@ if os.environ.get("TLOR_DISPATCH_GUARD") != "1":
 
 GENERIC_SUBAGENT_TYPES = frozenset({"general-purpose", "claude"})
 
-GENERIC_OK_MARKER = "[generic-ok]"
+GENERIC_OK_MARKER = "[bombadil-freeagent]"
 
 
 def main():
@@ -56,8 +56,9 @@ def main():
                     "implement→gondor-builder/dwarf-smith, repo search→"
                     "rohirrim-outrider/ranger-pathfinder, web research→"
                     "noldor-loremaster. If a generic agent is truly required, "
-                    "add the marker [generic-ok] to the prompt AND pass an "
-                    "explicit model."
+                    "add the marker [bombadil-freeagent] to the prompt AND pass an "
+                    "explicit model. ([bombadil-freeagent] marks the free agent "
+                    "outside the roster — for task shapes no pinned role covers.)"
                 ),
             }
         }, ensure_ascii=False))
