@@ -6,6 +6,13 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.7.1 (2026-08-07)
+
+- cirdan-shipwright decline gate hardened to an eagle-1.5.1-style step 0 (a supplied criteria list must not be executed) — fixes the acceptance PARTIAL
+- stdd-execute closing-review trigger now covers the prose path (all tasks `[x]` + manual gate), not only the JS relay's `COMPLETE`/`REVIEW_REQUIRED`
+- stdd-execute SKILL.md field docs scoped to BLOCKED: non-BLOCKED outcomes keep legacy `result`/`phase` (matches the relay implementation; doc-only fix, user-adjudicated)
+- closing review: cirdan dispatch gains the no-plugin fallback wording; non-git projects skip the offer (empty-diff illusion)
+
 ## v0.7.0 — 2026-08-06
 
 - palantir-stone 0.1.0: task creation opened — create-item contract threaded

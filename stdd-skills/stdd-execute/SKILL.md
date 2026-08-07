@@ -231,10 +231,13 @@ must be enforced by code rather than by prose (see `workflows/stdd-execute.js`'s
 own `meta.whenToUse`). Its `BLOCKED` outcomes are a pinned v2 schema
 (REQ-05): every BLOCKED result carries `status: 'blocked'`, `stage`
 (`'red'`/`'green'`/`'verify'`/`'reset'`/...), `reason` (the first blocking
-reason string) and `reasons` (the full array) — these two REPLACE the
-older, now-retired `result`/`phase` field names; any report or log line
-relaying this shape MUST read `status`/`stage`/`reason`/`reasons`, not
-`result`/`phase`.
+reason string) and `reasons` (the full array) — for the BLOCKED shape only,
+these REPLACE the older `result`/`phase` field names. Non-BLOCKED outcomes
+(`COMPLETE`/`INCOMPLETE`/`REVIEW_REQUIRED`) still carry the legacy
+`result`/`phase` pair (see `workflows/stdd-execute.js` around its final
+`log(...)` for the two-shape read). Any report or log line relaying an
+outcome MUST branch on shape: read `status`/`stage`/`reason`/`reasons` for
+BLOCKED, `result`/`phase` for everything else.
 
 `scripts/stdd_custody_check.py`'s exit code 0 with a `CUSTODY:` verdict line
 means PASS (not exit 0 alone — see its module docstring). Exit 2 is a
@@ -291,14 +294,20 @@ never make it a gate on completion.
 
 ## Closing — post-execute design review (advisory)
 
-Once the workflow reports `COMPLETE` (or `REVIEW_REQUIRED` resolved by human
-confirmation), the Maia MAY offer a whole-diff design review. Ask the user
-with AskUserQuestion, stating the cost plainly (one opus dispatch); the user
-declining never affects the change's completion status — this is advisory,
-not a gate, and is never invoked automatically.
+Once the change is complete — on the prose path (the default), every task in
+tasks.md checked `[x]` and the manual completion gate confirmed; on the
+workflow-relay path, the workflow reporting `COMPLETE` (or `REVIEW_REQUIRED`
+resolved by human confirmation) — the Maia MAY offer a whole-diff design
+review. Ask the user with AskUserQuestion, stating the cost plainly (one
+opus dispatch); the user declining never affects the change's completion
+status — this is advisory, not a gate, and is never invoked automatically.
+In a non-git project there is no valid base ref and the diff would be an
+empty illusion — skip this offer entirely; do not present it to the user.
 
-If accepted, dispatch `cirdan-shipwright` with only the change name and a
-base ref the calling session names itself (a commit, or "this change's
+If accepted, dispatch `cirdan-shipwright` (if tlor-orchestration or an
+equivalent pinned-role package is installed, otherwise a generic subagent
+with `model: opus` stated explicitly) with only the change name and a base
+ref the calling session names itself (a commit, or "this change's
 uncommitted working tree") — stdd-execute records no base commit anywhere,
 so the dispatcher supplies it. Do NOT include acceptance criteria or a
 conclusion in the prompt; either would trip the role's decline gate.
