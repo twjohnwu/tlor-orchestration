@@ -288,3 +288,27 @@ status back, (b) write an estimate back, (c) don't write back), never an
 open-ended question; the user not choosing a write-back option means no
 dispatch. This is advisory, not a step: never invoke it automatically, and
 never make it a gate on completion.
+
+## Closing — post-execute design review (advisory)
+
+Once the workflow reports `COMPLETE` (or `REVIEW_REQUIRED` resolved by human
+confirmation), the Maia MAY offer a whole-diff design review. Ask the user
+with AskUserQuestion, stating the cost plainly (one opus dispatch); the user
+declining never affects the change's completion status — this is advisory,
+not a gate, and is never invoked automatically.
+
+If accepted, dispatch `cirdan-shipwright` with only the change name and a
+base ref the calling session names itself (a commit, or "this change's
+uncommitted working tree") — stdd-execute records no base commit anywhere,
+so the dispatcher supplies it. Do NOT include acceptance criteria or a
+conclusion in the prompt; either would trip the role's decline gate.
+
+Division of labor: the per-task `eagle-sentinel` verifier already checked
+each task against its own spec scenario; `cirdan-shipwright` sweeps the
+cross-task whole — contracts, coupling, operability, over-engineering. No
+duplication.
+
+Findings go to the dispatching Maia for adjudication. A fix for a
+Blocker/Important finding is a NEW dispatch, never a resume. A finding that
+implicates the spec's own design routes through `## 6. Plan-drift protocol`
+above — never edit the frozen spec directly.

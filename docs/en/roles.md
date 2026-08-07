@@ -21,18 +21,24 @@
 | `dwarf-smith` | Dwarven smith | sonnet / low | Fully-specified mechanical work; never improvises |
 | `gondor-builder` | Mason of Gondor | sonnet / medium | Implements a clear spec with local judgment; design stays with the Maia |
 | `eagle-sentinel` | Great Eagle | opus / medium | Fresh-context adversarial verification; CONFIRMED/REFUTED |
+| `mirror-of-galadriel` | Seeing-glass of Lothlórien | haiku / low | Read-only lookup into EXTERNAL systems via session MCP tools (task trackers, docs stores) — looks, never touches |
+| `palantir-stone` | The palantír | sonnet / medium | The ONLY role that WRITES to external systems via session MCP tools; executes dispatch-enumerated mutations verbatim, never decides what to write |
+| `cirdan-shipwright` | Círdan the Shipwright | opus / medium | Open-ended design/production-readiness review of a bare diff — no criteria list, no stated conclusion to attack; criteria-bound work stays with `eagle-sentinel`, conclusion-attack work goes to the panel below |
+
+### The adversarial review panel (rivendell-council lenses)
+
+These three lenses take no ordinary dispatches — for high-risk verdicts
+`eagle-sentinel` recommends convening them, and the Maia convenes it
+(≥3 independent lenses + a judge, flow in the `rivendell-council` skill).
+For routine or borderline convenings, pass an explicit `model: sonnet`
+downgrade when dispatching the lenses — a per-call override beats the
+role's pinned frontmatter.
+
+| Role | Race & post | Model / effort | Duty |
+|---|---|---|---|
 | `elf-archer` | Elven archer | opus / medium | Correctness lens: every arrow pins one logical flaw |
 | `orc-saboteur` | Orc saboteur | opus / medium | Security & failure-mode lens: input validation, races, partial failure |
 | `hobbit-gardener` | Hobbit gardener | opus / medium | Simplicity lens: prunes over-engineering |
-| `mirror-of-galadriel` | Seeing-glass of Lothlórien | haiku / low | Read-only lookup into EXTERNAL systems via session MCP tools (task trackers, docs stores) — looks, never touches |
-| `palantir-stone` | The palantír | sonnet / medium | The ONLY role that WRITES to external systems via session MCP tools; executes dispatch-enumerated mutations verbatim, never decides what to write |
-| `cirdan-shipwright` | Círdan the Shipwright | opus / medium | Open-ended design/production-readiness review of a bare diff — no criteria list, no stated conclusion to attack; criteria-bound work stays with `eagle-sentinel`, conclusion-attack work goes to the panel |
-
-The last three of the first nine form the **adversarial review panel**: for
-high-risk verdicts `eagle-sentinel` recommends it, and the Maia convenes it
-(≥3 independent lenses + a judge). For routine or borderline convenings, pass
-an explicit `model: sonnet` downgrade when dispatching the lenses — a
-per-call override beats the role's pinned frontmatter.
 
 ## The external-system pair
 

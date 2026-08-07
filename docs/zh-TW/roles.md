@@ -20,16 +20,19 @@
 | `dwarf-smith` | 矮人鍛造師 | sonnet / low | 規格完全明確的機械工作；絕不即興 |
 | `gondor-builder` | 剛鐸石匠 | sonnet / medium | 照明確 spec 實作、容許區域性小判斷；設計歧義留給 Maia |
 | `eagle-sentinel` | 巨鷹哨兵 | opus / medium | Fresh-context 對抗式驗證；CONFIRMED/REFUTED |
+| `mirror-of-galadriel` | 凱蘭崔爾之鏡 | haiku / low | 唯讀查詢外部系統（任務追蹤、文件庫），透過 session 的 MCP 工具——只看，不動手 |
+| `palantir-stone` | 真知晶石 | sonnet / medium | 唯一能透過 session MCP 工具**寫入**外部系統的角色；照派工列舉的內容逐字執行，自己不判斷寫什麼 |
+| `cirdan-shipwright` | 造船者刻爾丹 | opus / medium | 開放式的 diff 設計／production-readiness 審查——沒有準則清單、沒有結論可攻；有準則的活留給 `eagle-sentinel`，攻結論的活交給下方的抗辯審查小組 |
+
+### 抗辯審查小組（rivendell-council 鏡頭）
+
+這三個鏡頭平時不接一般派工——高風險判定時由 `eagle-sentinel` 建議、**Maia 召集**（≥3 個獨立鏡頭＋一位裁判，流程見 `rivendell-council` skill）。例行或邊界案的召集，派遣鏡頭時可明示 `model: sonnet` 降級——派遣時的覆寫優先於角色的 frontmatter pin。
+
+| 角色 | 種族與職位 | Model / effort | 職責 |
+|---|---|---|---|
 | `elf-archer` | 精靈神射手 | opus / medium | 正確性鏡頭：每一箭命中一個邏輯漏洞 |
 | `orc-saboteur` | 半獸人破壞者 | opus / medium | 安全與失效鏡頭：輸入驗證、競態、部分失敗 |
 | `hobbit-gardener` | 哈比人園丁 | opus / medium | 簡潔性鏡頭：修剪過度工程 |
-| `mirror-of-galadriel` | 凱蘭崔爾之鏡 | haiku / low | 唯讀查詢外部系統（任務追蹤、文件庫），透過 session 的 MCP 工具——只看，不動手 |
-| `palantir-stone` | 真知晶石 | sonnet / medium | 唯一能透過 session MCP 工具**寫入**外部系統的角色；照派工列舉的內容逐字執行，自己不判斷寫什麼 |
-| `cirdan-shipwright` | 造船者刻爾丹 | opus / medium | 開放式的 diff 設計／production-readiness 審查——沒有準則清單、沒有結論可攻；有準則的活留給 `eagle-sentinel`，攻結論的活交給抗辯小組 |
-
-前九者中的後三者組成**抗辯審查小組**——高風險判定時由 `eagle-sentinel`
-建議、**Maia 召集**（≥3 個獨立鏡頭＋一位裁判）。例行或邊界案的召集，
-派遣鏡頭時可明示 `model: sonnet` 降級——派遣時的覆寫優先於角色的 frontmatter pin。
 
 ## 外部系統讀寫配對
 

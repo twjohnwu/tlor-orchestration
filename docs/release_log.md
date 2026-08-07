@@ -21,6 +21,8 @@ release first — new sections go at the top.
   ten-round adversarial review, contracted from a general resume affordance
   to the single evidence-backed case.
 - dispatch.md §3 routing row + Anti-patterns entries.
+- stdd-execute gains a second Closing advisory: post-execute design review — an optional, ask-first, non-gating `cirdan-shipwright` dispatch over the change's accumulated diff (base ref named by the dispatcher; findings route to the Maia, spec-implicating ones through the plan-drift protocol).
+- roles docs: the three rivendell-council lenses move to their own sub-table in en/zh roles.md; the positional 'last three of the first nine' wording is gone (roster growth can no longer rot it).
 
 ## v0.6.0 — 2026-08-01
 
