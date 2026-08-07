@@ -185,3 +185,70 @@ def test_tlor_init_step3_summary_reference_matches_actual_step_number():
         "expected the literal cross-reference \"for Step 12's summary\" in "
         "SKILL.md (REQ-12) — got a differently-numbered cross-reference"
     )
+
+
+AGENTS_DIR = REPO_ROOT / "agents"
+
+
+def _agent_role_names_from_glob():
+    """Return the set of role names (filename stem) under agents/*.md."""
+    return {p.stem for p in AGENTS_DIR.glob("*.md")}
+
+
+def _agent_role_names_from_skill_step3(text):
+    """Extract the role names listed in SKILL.md's Step 3 install list
+    ("install the N agent role definitions" followed by a `- <name>.md`
+    bullet block)."""
+    step3_match = re.search(
+        r"install the \d+ agent role definitions.*?\n((?:- [a-z0-9-]+\.md\n)+)",
+        text,
+        re.DOTALL,
+    )
+    assert step3_match, (
+        "no Step 3 'install the N agent role definitions' bullet list found "
+        "in SKILL.md"
+    )
+    return set(re.findall(r"- ([a-z0-9-]+)\.md", step3_match.group(1)))
+
+
+def test_skill_step3_install_list_matches_agents_dir_glob_exactly():
+    """Guard test binding the hand-maintained Step 3 install list to the
+    real agents/ directory.
+
+    GIVEN `skills/tlor-init/SKILL.md` Step 3 hand-lists every agent role file
+      it installs
+    WHEN comparing that list against the actual `agents/*.md` glob
+    THEN every name in the glob SHALL appear in the list and vice versa —
+      an added, removed, or renamed agent file that isn't mirrored in
+      SKILL.md would otherwise install a stale or incomplete set silently.
+    """
+    glob_names = _agent_role_names_from_glob()
+    skill_names = _agent_role_names_from_skill_step3(SKILL_MD.read_text(encoding="utf-8"))
+
+    assert skill_names == glob_names, (
+        f"SKILL.md Step 3 install list {sorted(skill_names)} does not match "
+        f"the agents/*.md glob {sorted(glob_names)} exactly"
+    )
+
+
+def test_skill_step3_agent_count_word_matches_agents_dir_glob_count():
+    """Guard test binding Step 3's literal count word to the agents/ glob.
+
+    GIVEN SKILL.md's "install the N agent role definitions" sentence states
+      a literal count
+    WHEN comparing N against `len(agents/*.md)`
+    THEN they SHALL be equal — a hand-edited count that drifts from the real
+      file count would otherwise go unnoticed.
+    """
+    glob_count = len(_agent_role_names_from_glob())
+    text = SKILL_MD.read_text(encoding="utf-8")
+
+    count_match = re.search(r"install the (\d+) agent role definitions", text)
+    assert count_match, (
+        "no 'install the N agent role definitions' sentence found in SKILL.md"
+    )
+
+    assert int(count_match.group(1)) == glob_count, (
+        f"SKILL.md states {count_match.group(1)} agent role definitions but "
+        f"the agents/*.md glob has {glob_count}"
+    )
