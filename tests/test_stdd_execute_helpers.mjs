@@ -177,12 +177,20 @@ async function loadWorkflow(scriptedResponses = [], args = {}, options = {}) {
     'redStage',
     'doneStage',
     'reconcileTaskCount',
+    'reorderTasksToTasksLine',
     'runLint',
     'run',
     'meta',
     'LOAD_SCHEMA',
     'EXPECTED_LINT_S_IDS',
-    'TASKS_LINE_RE'
+    'TASKS_LINE_RE',
+    // M1 batch (GWT/design inlining + M4 merged-task id token, RED phase —
+    // implementation lands later): `gwtLooksValid` does not exist yet in
+    // workflows/stdd-execute.js, so it is extracted as `undefined` per the
+    // skip-note contract above; `markerLineMatchesId` already exists but was
+    // never on this list because no prior scenario needed it standalone.
+    'gwtLooksValid',
+    'markerLineMatchesId'
   ];
   const presentBindings = REQUESTED_BINDINGS.filter((name) =>
     new RegExp(`\\b(?:function|const|let|var)\\s+${name}\\b`).test(evaluable)
@@ -1590,7 +1598,7 @@ test(
       `CUSTODY: PASS change=demo spec.recorded=${fullDigest} spec.computed=${fullDigest} ` +
       'design_ux.recorded=- design_ux.computed=-';
     const expectedIds = Array.from({ length: 27 }, (_, i) => `S-${i + 1}`).concat('INFRA');
-    const tasksLine = `TASKS: open=27 wip=0 done=0 manual=0 infra=1 ids=${expectedIds.join(',')}`;
+    const tasksLine = `TASKS: open=27 wip=0 done=0 manual=0 infra=1 ids=${expectedIds.join(';')}`;
 
     const loadRelay = {
       timestamp: '2026-01-01T00:00:00Z',
@@ -1786,7 +1794,8 @@ test(
     }
 
     // --- Case B: tasksLine present but malformed (does not match
-    // `TASKS: open=<n> wip=<n> done=<n> manual=<n> infra=<n> ids=<id>(,<id>)*`).
+    // `TASKS: open=<n> wip=<n> done=<n> manual=<n> infra=<n> ids=<id>(;<id>)*`,
+    // where <id> is itself `<subid>(,<subid>)*` for a merged task, v0.7.3).
     {
       const { run } = await loadWorkflow(
         [
@@ -1858,7 +1867,7 @@ test(
 // REQ-20 G-01, AGREEMENT scenario paired with S-29's disagreement case):
 // GIVEN a custody relay reporting a well-formed `CUSTODY: PASS` line together
 // with a legitimate `TASKS:` count line (`open=2 wip=1 done=1 manual=1
-// infra=1 ids=S-32-A,S-32-B,S-32-C,S-32-D`) and a scripted load dispatch
+// infra=1 ids=S-32-A;S-32-B;S-32-C;S-32-D`) and a scripted load dispatch
 // whose returned task array matches those counts and that ids multiset/order
 // exactly (one task doubles as `manual`, one doubles as `infra` — the H-03
 // fixture pin: at least one of the two `open` tasks (`S-32-A`) is
@@ -1892,7 +1901,7 @@ test(
       `CUSTODY: PASS change=demo spec.recorded=${fullDigest} spec.computed=${fullDigest} ` +
       'design_ux.recorded=- design_ux.computed=-';
     const taskIds = ['S-32-A', 'S-32-B', 'S-32-C', 'S-32-D'];
-    const tasksLine = `TASKS: open=2 wip=1 done=1 manual=1 infra=1 ids=${taskIds.join(',')}`;
+    const tasksLine = `TASKS: open=2 wip=1 done=1 manual=1 infra=1 ids=${taskIds.join(';')}`;
 
     const loadRelay = {
       timestamp: '2026-01-01T00:00:00Z',
@@ -2117,7 +2126,7 @@ test('top-level outcome-summary log reads the correct fields for a BLOCKED outco
 // open+wip+done and the id multiset/order, but never cross-checks each
 // returned task's reported `marker` against the TASKS: line's own
 // open/wip/done counts. GIVEN a custody TASKS: line reporting open=3 wip=0
-// done=0 (ids=S-1,S-2,S-3), WHEN loadChange returns exactly those 3 ids (so
+// done=0 (ids=S-1;S-2;S-3), WHEN loadChange returns exactly those 3 ids (so
 // length/manual/infra/id-multiset all agree) but every one carries
 // marker "done", THEN run() SHALL BLOCK rather than let openTddTasks
 // compute to empty and silently report all 3 as already-completed with zero
@@ -2130,7 +2139,7 @@ test(
     const passLine =
       `CUSTODY: PASS change=demo spec.recorded=${fullDigest} spec.computed=${fullDigest} ` +
       'design_ux.recorded=- design_ux.computed=-';
-    const tasksLine = 'TASKS: open=3 wip=0 done=0 manual=0 infra=0 ids=S-1,S-2,S-3';
+    const tasksLine = 'TASKS: open=3 wip=0 done=0 manual=0 infra=0 ids=S-1;S-2;S-3';
     const loadRelay = {
       timestamp: '2026-01-01T00:00:00Z',
       specStatus: 'approved',
@@ -2525,30 +2534,72 @@ test(
   }
 );
 
-// N-comma (adversarial-council round 2, 2026-07-28): reconcileTaskCount's id
-// cross-check compares `actualIds.join(',')` vs `expectedIds.join(',')`, so
-// one array whose ids join to the same string as a DIFFERENT array (e.g. one
-// element vs two elements that happen to concatenate identically) is
-// indistinguishable from an agreeing multiset. GIVEN loadChange returning
-// ONE task whose id is itself `S-1,S-2` (never rejected by taskShapeBlockers
-// in this direct-call test, which bypasses that separate gate on purpose to
-// exercise reconcileTaskCount in isolation) and a TASKS: line naming TWO
-// distinct ids `S-1` and `S-2`, WHEN reconcileTaskCount runs, THEN it SHALL
-// report a blocker naming the id disagreement — the join-based compare used
-// to read these as equal (`'S-1,S-2' === 'S-1,S-2'`) and report zero
-// blockers for this case.
+// N-comma (adversarial-council round 2, 2026-07-28; separator updated v0.7.3
+// merged-id gap-closure): reconcileTaskCount's id cross-check compares
+// `actualIds.join(',')` vs `expectedIds.join(',')`, so one array whose ids
+// join to the same string as a DIFFERENT array (e.g. one element vs two
+// elements that happen to concatenate identically) is indistinguishable from
+// an agreeing multiset. GIVEN loadChange returning ONE task whose id is
+// itself `S-1,S-2` (never rejected by taskShapeBlockers in this direct-call
+// test, which bypasses that separate gate on purpose to exercise
+// reconcileTaskCount in isolation) and a TASKS: line naming TWO distinct ids
+// `S-1` and `S-2` (v0.7.3: the TASKS: line's inter-task separator is `;`, so
+// two distinct ids are written `ids=S-1;S-2` — a plain comma between them
+// would now instead name ONE merged task, per the M4 grammar), WHEN
+// reconcileTaskCount runs, THEN it SHALL report a blocker naming the id
+// disagreement — the join-based compare used to read these as equal
+// (`'S-1,S-2' === 'S-1,S-2'`) and report zero blockers for this case.
 test(
-  "reconcileTaskCount compares ids element-wise, not by joined string — a single id containing a comma is not mistaken for two ids",
+  "reconcileTaskCount compares ids element-wise, not by joined string — a single merged id is not mistaken for two distinct ids",
   async () => {
     const { reconcileTaskCount } = await loadWorkflow([], {});
 
-    const tasksLine = 'TASKS: open=1 wip=0 done=0 manual=0 infra=0 ids=S-1,S-2';
+    const tasksLine = 'TASKS: open=1 wip=0 done=0 manual=0 infra=0 ids=S-1;S-2';
     const tasks = [{ id: 'S-1,S-2', marker: 'todo', kind: 'scenario' }];
 
     const blockers = reconcileTaskCount(tasksLine, tasks);
     assert.ok(
       blockers.some((b) => /id/i.test(b)),
-      'a one-task array whose lone id joins to the same string as a two-id TASKS: line should be reported as an id disagreement, not accepted'
+      'a one-task array whose lone (merged) id disagrees in length with a two-id TASKS: line should be reported as an id disagreement, not accepted'
+    );
+  }
+);
+
+// v0.7.3 gap-closure (merged-task TASKS: line ambiguity): before this fix,
+// the TASKS: line joined ALL task ids — including an already comma-joined
+// merged id (M4, e.g. `S-03,S-04`) — with the SAME comma used inside a
+// merged id, so a line naming one plain task plus one merged task
+// (`ids=S-01,S-03,S-04`) was unparseable as "two tasks, one merged" vs
+// "three plain tasks": reconcileTaskCount's length check would then FALSELY
+// block every legitimate merged task, and reorderTasksToTasksLine could
+// never place the merged task at all. GIVEN loadChange returning exactly two
+// tasks (`S-01` and the merged `S-03,S-04`) and a TASKS: line naming them
+// with the new unambiguous `;`-separated grammar, WHEN reconcileTaskCount
+// and reorderTasksToTasksLine run, THEN both SHALL treat the line as naming
+// TWO tasks (one of them merged), not three.
+test(
+  'reconcileTaskCount and reorderTasksToTasksLine treat a merged-id TASKS: line entry as ONE task, not two',
+  async () => {
+    const { reconcileTaskCount, reorderTasksToTasksLine } = await loadWorkflow([], {});
+
+    const tasksLine = 'TASKS: open=2 wip=0 done=0 manual=0 infra=0 ids=S-01;S-03,S-04';
+    const tasks = [
+      { id: 'S-03,S-04', marker: 'todo', kind: 'scenario' },
+      { id: 'S-01', marker: 'todo', kind: 'scenario' }
+    ];
+
+    const blockers = reconcileTaskCount(tasksLine, tasks);
+    assert.deepEqual(
+      blockers,
+      [],
+      `expected zero blockers for a two-task TASKS: line (one merged) agreeing with two returned tasks, got ${JSON.stringify(blockers)}`
+    );
+
+    const reordered = reorderTasksToTasksLine(tasksLine, tasks);
+    assert.deepEqual(
+      reordered.map((t) => t.id),
+      ['S-01', 'S-03,S-04'],
+      `expected reorder to place S-01 before the merged S-03,S-04 per the TASKS: line's own order, got ${JSON.stringify(reordered.map((t) => t.id))}`
     );
   }
 );
@@ -2872,7 +2923,7 @@ test('taskShapeBlockers rejects a task.testFunction carrying a U+2028-smuggled i
 // order (…S-29,S-32,S-33,S-31 vs the file's own …S-29,S-31,S-32,S-33 —
 // verified at tasks.md:662/690). scripts/stdd_custody_check.py's TASKS: line
 // is the trusted, mechanical top-to-bottom reader; the load agent is not.
-// GIVEN a custody TASKS: line naming ids=P-1,P-2,P-3 in that order, and a
+// GIVEN a custody TASKS: line naming ids=P-1;P-2;P-3 in that order, and a
 // load response returning those same 3 ids correctly (matching multiset)
 // but PERMUTED (P-1, P-3, P-2), WHEN run() executes, THEN it SHALL NOT
 // BLOCK on the ordering alone, and the tasks the pipeline actually consumes
@@ -2885,12 +2936,12 @@ test(
     const passLine =
       `CUSTODY: PASS change=demo spec.recorded=${fullDigest} spec.computed=${fullDigest} ` +
       'design_ux.recorded=- design_ux.computed=-';
-    const tasksLine = 'TASKS: open=3 wip=0 done=0 manual=0 infra=0 ids=P-1,P-2,P-3';
+    const tasksLine = 'TASKS: open=3 wip=0 done=0 manual=0 infra=0 ids=P-1;P-2;P-3';
     const loadRelay = {
       timestamp: '2026-01-01T00:00:00Z',
       specStatus: 'approved',
       designUxExists: false,
-      // Deliberately permuted relative to the TASKS: line's ids=P-1,P-2,P-3.
+      // Deliberately permuted relative to the TASKS: line's ids=P-1;P-2;P-3.
       tasks: ['P-1', 'P-3', 'P-2'].map((id) => ({
         id: id,
         title: `task ${id}`,
@@ -2941,7 +2992,7 @@ test(
 
 // REQ-20 gap-closure companion: the anti-truncation guarantee must not
 // weaken while order stops being a blocking condition. GIVEN a custody
-// TASKS: line naming 3 ids (open=3, ids=Q-1,Q-2,Q-3) and a load response
+// TASKS: line naming 3 ids (open=3, ids=Q-1;Q-2;Q-3) and a load response
 // that returns only 2 of them (Q-1, Q-2 — Q-3 genuinely missing), WHEN
 // run() executes, THEN it SHALL still BLOCK as load:incomplete — a missing
 // id is a multiset disagreement, not a mere ordering difference.
@@ -2952,7 +3003,7 @@ test(
     const passLine =
       `CUSTODY: PASS change=demo spec.recorded=${fullDigest} spec.computed=${fullDigest} ` +
       'design_ux.recorded=- design_ux.computed=-';
-    const tasksLine = 'TASKS: open=3 wip=0 done=0 manual=0 infra=0 ids=Q-1,Q-2,Q-3';
+    const tasksLine = 'TASKS: open=3 wip=0 done=0 manual=0 infra=0 ids=Q-1;Q-2;Q-3';
     const loadRelay = {
       timestamp: '2026-01-01T00:00:00Z',
       specStatus: 'approved',
@@ -3124,7 +3175,7 @@ test(
     }
 
     const scriptedResponses = [
-      { verdictLine: passLine, tasksLine: 'TASKS: open=3 wip=0 done=0 manual=0 infra=1 ids=INFRA-1,S-A,S-B', exitCode: 0, stderr: '', detail: '' },
+      { verdictLine: passLine, tasksLine: 'TASKS: open=3 wip=0 done=0 manual=0 infra=1 ids=INFRA-1;S-A;S-B', exitCode: 0, stderr: '', detail: '' },
       loadRelay,
       // Consumed by the infra task's own stage dispatches IF run() drives it
       // serially before pipeline() (the behavior under test): red, green,
@@ -3213,7 +3264,7 @@ test(
     }
 
     const scriptedResponses = [
-      { verdictLine: passLine, tasksLine: 'TASKS: open=2 wip=0 done=0 manual=0 infra=1 ids=INFRA-1,S-A', exitCode: 0, stderr: '', detail: '' },
+      { verdictLine: passLine, tasksLine: 'TASKS: open=2 wip=0 done=0 manual=0 infra=1 ids=INFRA-1;S-A', exitCode: 0, stderr: '', detail: '' },
       loadRelay,
       // The infra task's RED dispatch fails outright.
       { ok: false, detail: 'infra RED never established', testFileHash: fullDigest }
@@ -3464,5 +3515,399 @@ test(
         );
       });
     });
+  }
+);
+
+// --- M1 batch (GWT/design inlining + M4 merged-task id token — RED phase,
+// implementation lands later) -----------------------------------------------
+//
+// Measured 223.6M cache-read tokens came from stage agents re-reading the
+// full spec.md/design docs on every RED/GREEN/verify dispatch. This batch
+// pins the fix: loadChange (workflows/stdd-execute.js:659-682) captures each
+// task's GWT (`gwt`) and, if present, a design excerpt (`designExcerpt`) once
+// at load time; the RED/GREEN/verify prompts (workflows/stdd-execute.js:1181,
+// 1220-1236, 1279) inline that captured text instead of telling the stage
+// agent to go re-read spec.md/design-*.md itself. `gwtLooksValid(task)` is
+// the fail-closed gate: an absent/malformed `gwt` falls back to today's
+// literal "go read it yourself" instructions rather than inlining garbage.
+//
+// None of `gwt`/`designExcerpt`/`gwtLooksValid` exist in
+// workflows/stdd-execute.js yet — every assertion below that depends on them
+// is expected to fail for real against the current source.
+
+const GWT_TASK_ID = 'S-40-demo';
+const GWT_CHANGE_DIR = '/confirmed/absolute/STDD/demo';
+
+// Verbatim REQ-section copy: a `### REQ-` heading, a `#### S-<id>:` heading
+// for the task's own id, GIVEN/WHEN/THEN markers, and (per the spec: "may
+// include sibling scenarios") one sibling scenario's heading riding along.
+const VALID_GWT = [
+  '### REQ-40: Inlined GWT for the RED/GREEN/verify dispatch prompts',
+  '',
+  `#### ${GWT_TASK_ID}: token-reduction happy path`,
+  '- GIVEN the loader already read spec.md once for this task',
+  '- WHEN the RED/GREEN/verify prompts are built',
+  '- THEN they inline this GIVEN/WHEN/THEN text verbatim instead of re-reading spec.md',
+  '',
+  `#### ${GWT_TASK_ID}-sibling: a sibling scenario kept for context`,
+  '- GIVEN a sibling scenario documented in the same REQ section',
+  '- WHEN the loader captures gwt for the task above',
+  '- THEN the sibling heading may still ride along verbatim'
+].join('\n');
+
+const VALID_DESIGN_EXCERPT =
+  'Design note: reuse the existing RetryScheduler class per design-be.md; do not introduce a new queue abstraction.';
+
+// Missing the THEN marker entirely — malformed, must not be trusted.
+const MALFORMED_GWT_NO_THEN = [
+  '### REQ-41: fallback probe',
+  '',
+  `#### ${GWT_TASK_ID}: malformed gwt missing THEN`,
+  '- GIVEN a gwt block that is missing its THEN line',
+  '- WHEN the loader captures it anyway'
+].join('\n');
+
+function baseLoadRelayFor(task, tasksLineIds) {
+  const fullDigest = 'a'.repeat(64);
+  const passLine =
+    `CUSTODY: PASS change=demo spec.recorded=${fullDigest} spec.computed=${fullDigest} ` +
+    'design_ux.recorded=- design_ux.computed=-';
+  return {
+    scriptedResponses: [
+      {
+        verdictLine: passLine,
+        tasksLine: `TASKS: open=1 wip=0 done=0 manual=0 infra=0 ids=${tasksLineIds}`,
+        exitCode: 0,
+        stderr: '',
+        detail: ''
+      },
+      {
+        timestamp: '2026-01-01T00:00:00Z',
+        specStatus: 'approved',
+        designUxExists: false,
+        tasks: [task],
+        manualChecklist: [],
+        notes: ''
+      },
+      { ok: true, redOutput: 'AssertionError: expected true', testFileHash: fullDigest, detail: '' },
+      { ok: true, output: 'green', testFileHash: fullDigest, refactorNotes: '', detail: '' },
+      { pass: true, commandOutput: 'ok 1', testFileHash: fullDigest, blockingDetail: '' },
+      { marked: true, markerLine: `- [x] \`${task.id}\` ${task.title}`, detail: '' },
+      { installed: true, findings: cleanLintFindings(), rawReport: CLEAN_RAW_REPORT }
+    ]
+  };
+}
+
+// LOAD_SCHEMA gains two OPTIONAL per-task string fields (schema is
+// descriptive documentation for the real agent SDK, not runtime-enforced by
+// this harness — checked directly on the extracted schema object).
+test('M1: LOAD_SCHEMA declares optional per-task gwt and designExcerpt fields', async () => {
+  const { LOAD_SCHEMA } = await loadWorkflow([], {});
+  const taskProps = LOAD_SCHEMA.properties.tasks.items.properties;
+  const taskRequired = LOAD_SCHEMA.properties.tasks.items.required;
+
+  assert.ok(taskProps.gwt, 'LOAD_SCHEMA task item should declare a `gwt` field');
+  assert.equal(taskProps.gwt && taskProps.gwt.type, 'string', '`gwt` should be typed as a string');
+  assert.ok(!taskRequired.includes('gwt'), '`gwt` should be optional, not required');
+
+  assert.ok(taskProps.designExcerpt, 'LOAD_SCHEMA task item should declare a `designExcerpt` field');
+  assert.equal(
+    taskProps.designExcerpt && taskProps.designExcerpt.type,
+    'string',
+    '`designExcerpt` should be typed as a string'
+  );
+  assert.ok(!taskRequired.includes('designExcerpt'), '`designExcerpt` should be optional, not required');
+});
+
+test(
+  'M1: valid gwt + designExcerpt are inlined verbatim into the RED, GREEN and verify prompts, and the old ' +
+    're-read-spec.md instructions are dropped from RED/verify',
+  async () => {
+    const task = {
+      id: GWT_TASK_ID,
+      title: 'inlined gwt happy path',
+      marker: 'todo',
+      kind: 'scenario',
+      testFile: 'tests/fake_gwt.mjs',
+      testFunction: 'fakeGwt',
+      verificationCommand: 'true',
+      targetKind: 'modify',
+      gwt: VALID_GWT,
+      designExcerpt: VALID_DESIGN_EXCERPT
+    };
+    const { scriptedResponses } = baseLoadRelayFor(task, GWT_TASK_ID);
+    const { run, calls } = await loadWorkflow(scriptedResponses, {}, { pipelineImpl: sequentialPipeline });
+    await run({ change: 'demo', changeDir: GWT_CHANGE_DIR });
+
+    const redCall = calls.find((c) => c.label === `red-0-${GWT_TASK_ID}`);
+    const greenCall = calls.find((c) => c.label === `green-0-${GWT_TASK_ID}`);
+    const verifyCall = calls.find((c) => c.label === `verify-0-${GWT_TASK_ID}-r0`);
+    assert.ok(redCall, 'expected a red-0-... dispatch');
+    assert.ok(greenCall, 'expected a green-0-... dispatch');
+    assert.ok(verifyCall, 'expected a verify-0-...-r0 dispatch');
+
+    [
+      ['RED', redCall],
+      ['GREEN', greenCall],
+      ['verify', verifyCall]
+    ].forEach(([label, call]) => {
+      assert.ok(
+        call.prompt.includes(VALID_GWT),
+        `${label} prompt should inline the task's gwt text verbatim; got: ${call.prompt.slice(0, 400)}`
+      );
+      assert.ok(
+        call.prompt.toLowerCase().includes("this task's scenarios:"),
+        `${label} prompt should carry a line noting "this task's scenarios:"`
+      );
+      assert.ok(
+        call.prompt.includes(`${GWT_CHANGE_DIR}/spec.md`),
+        `${label} prompt should still point at ${GWT_CHANGE_DIR}/spec.md as the full-file location`
+      );
+      assert.ok(
+        call.prompt.includes(VALID_DESIGN_EXCERPT),
+        `${label} prompt should inline the non-"none" designExcerpt text verbatim`
+      );
+    });
+
+    assert.ok(
+      !redCall.prompt.includes(`Read scenario ${GWT_TASK_ID}'s GIVEN/WHEN/THEN from`),
+      'once a valid gwt is inlined, RED should no longer tell the agent to go read the scenario from spec.md itself'
+    );
+    assert.ok(
+      !verifyCall.prompt.includes(`Check scenario ${GWT_TASK_ID}'s GIVEN/WHEN/THEN in`),
+      'once a valid gwt is inlined, verify should no longer tell the agent to go check the scenario in spec.md itself'
+    );
+    assert.match(
+      verifyCall.prompt,
+      /(the file wins|re-check against the file)/i,
+      'verify should keep a soft instruction to re-check the inlined text against the file if in doubt'
+    );
+  }
+);
+
+test(
+  'M1: designExcerpt "none" adds no design text/instruction, but a valid gwt is still inlined',
+  async () => {
+    const task = {
+      id: GWT_TASK_ID,
+      title: 'inlined gwt, no design excerpt',
+      marker: 'todo',
+      kind: 'scenario',
+      testFile: 'tests/fake_gwt.mjs',
+      testFunction: 'fakeGwt',
+      verificationCommand: 'true',
+      targetKind: 'modify',
+      gwt: VALID_GWT,
+      designExcerpt: 'none'
+    };
+    const { scriptedResponses } = baseLoadRelayFor(task, GWT_TASK_ID);
+    const { run, calls } = await loadWorkflow(scriptedResponses, {}, { pipelineImpl: sequentialPipeline });
+    await run({ change: 'demo', changeDir: GWT_CHANGE_DIR });
+
+    const redCall = calls.find((c) => c.label === `red-0-${GWT_TASK_ID}`);
+    assert.ok(redCall, 'expected a red-0-... dispatch');
+    assert.ok(
+      redCall.prompt.includes(VALID_GWT),
+      'gwt should still be inlined even when designExcerpt is the literal "none"'
+    );
+    assert.ok(
+      !/design excerpt|design note/i.test(redCall.prompt.replace(VALID_GWT, '')),
+      'a literal "none" designExcerpt should add no new design instruction/text to the prompt'
+    );
+  }
+);
+
+test(
+  'M1: missing/malformed gwt falls back to today\'s literal read-it-yourself instructions and logs the fallback',
+  async () => {
+    const task = {
+      id: GWT_TASK_ID,
+      title: 'malformed gwt falls back',
+      marker: 'todo',
+      kind: 'scenario',
+      testFile: 'tests/fake_gwt.mjs',
+      testFunction: 'fakeGwt',
+      verificationCommand: 'true',
+      targetKind: 'modify',
+      gwt: MALFORMED_GWT_NO_THEN,
+      designExcerpt: 'none'
+    };
+    const { scriptedResponses } = baseLoadRelayFor(task, GWT_TASK_ID);
+    const { run, calls, logs } = await loadWorkflow(scriptedResponses, {}, { pipelineImpl: sequentialPipeline });
+    const result = await run({ change: 'demo', changeDir: GWT_CHANGE_DIR });
+
+    const redCall = calls.find((c) => c.label === `red-0-${GWT_TASK_ID}`);
+    const verifyCall = calls.find((c) => c.label === `verify-0-${GWT_TASK_ID}-r0`);
+    assert.ok(redCall, 'expected a red-0-... dispatch');
+    assert.ok(verifyCall, 'expected a verify-0-...-r0 dispatch');
+
+    assert.ok(
+      redCall.prompt.includes(`Read scenario ${GWT_TASK_ID}'s GIVEN/WHEN/THEN from ${GWT_CHANGE_DIR}/spec.md.`),
+      "a malformed gwt should fall back to today's literal RED instruction, not block or inline garbage"
+    );
+    assert.ok(
+      verifyCall.prompt.includes(
+        `Check scenario ${GWT_TASK_ID}'s GIVEN/WHEN/THEN in ${GWT_CHANGE_DIR}/spec.md is actually what the test asserts.`
+      ),
+      "a malformed gwt should fall back to today's literal verify instruction, not block or inline garbage"
+    );
+    assert.notEqual(
+      result.result,
+      'BLOCKED',
+      'an invalid gwt must trigger the fallback, not a BLOCKED outcome — this is not a fail-closed condition'
+    );
+    assert.ok(
+      logs.some((message) => /gwt/i.test(message) && /(fallback|invalid|malformed)/i.test(message)),
+      `expected a log line recording the gwt-invalid fallback; got logs: ${JSON.stringify(logs)}`
+    );
+  }
+);
+
+test('M1: gwtLooksValid — pure-function acceptance cases', async () => {
+  const { gwtLooksValid } = await loadWorkflow([], {});
+
+  assert.equal(
+    gwtLooksValid({ id: GWT_TASK_ID, gwt: VALID_GWT }),
+    true,
+    'a well-formed gwt (REQ heading + this task\'s S-heading + GIVEN/WHEN/THEN + a sibling heading) should be valid'
+  );
+
+  const missingReqHeading = VALID_GWT.split('\n')
+    .filter((line) => !line.startsWith('### REQ-'))
+    .join('\n');
+  assert.equal(
+    gwtLooksValid({ id: GWT_TASK_ID, gwt: missingReqHeading }),
+    false,
+    'gwt with no `### REQ-` heading at all should be invalid'
+  );
+
+  assert.equal(
+    gwtLooksValid({ id: GWT_TASK_ID, gwt: MALFORMED_GWT_NO_THEN }),
+    false,
+    'gwt missing the THEN marker should be invalid'
+  );
+
+  const mergedGwtMissingOneHeading = [
+    '### REQ-42: merged task',
+    '',
+    '#### S-03: first half of the merged pair',
+    '- GIVEN one scenario of the merged pair',
+    '- WHEN only S-03 has a heading',
+    '- THEN gwtLooksValid should still refuse it'
+  ].join('\n');
+  assert.equal(
+    gwtLooksValid({ id: 'S-03,S-04', gwt: mergedGwtMissingOneHeading }),
+    false,
+    'a merged-task id requires an `#### S-<id>` heading for EVERY comma-separated id — one missing should invalidate the whole gwt'
+  );
+
+  assert.equal(
+    gwtLooksValid({ id: GWT_TASK_ID, gwt: '' }),
+    false,
+    'an empty gwt should be invalid'
+  );
+});
+
+// M4 merged-task id token: `id: 'S-03,S-04'` is the literal first backtick
+// token loadChange reports for a merged task (per stdd-plan/SKILL.md's
+// module-convergence rule) — flows through markerLineMatchesId (which
+// already escapes id as a literal, so the comma is not new production work)
+// and gwtLooksValid (which is new: BOTH `#### S-03` and `#### S-04` headings
+// are required).
+test('M4: merged-task id token "S-03,S-04" — marker matching and gwtLooksValid both require the full literal token', async () => {
+  const { markerLineMatchesId, gwtLooksValid } = await loadWorkflow([], {});
+  const mergedId = 'S-03,S-04';
+
+  assert.ok(
+    markerLineMatchesId(`- [ ] \`${mergedId}\` merged retry-and-exhaustion scenarios`, ' ', mergedId),
+    'markerLineMatchesId should match a task line whose id is the literal comma-joined token'
+  );
+  assert.ok(
+    !markerLineMatchesId('- [ ] `S-03` merged retry-and-exhaustion scenarios', ' ', mergedId),
+    'markerLineMatchesId should NOT match a line carrying only one half of the merged id'
+  );
+
+  const mergedGwtBothHeadings = [
+    '### REQ-42: merged task',
+    '',
+    '#### S-03: first half of the merged pair',
+    '- GIVEN the first scenario of the merged pair',
+    '- WHEN both scenarios share one test file',
+    '- THEN they are merged into one task',
+    '',
+    '#### S-04: second half of the merged pair',
+    '- GIVEN the second scenario of the merged pair',
+    '- WHEN both scenarios share one test file',
+    '- THEN they are merged into one task'
+  ].join('\n');
+  assert.equal(
+    gwtLooksValid({ id: mergedId, gwt: mergedGwtBothHeadings }),
+    true,
+    'gwtLooksValid should accept a merged id once BOTH `#### S-03` and `#### S-04` headings are present'
+  );
+});
+
+test(
+  'M1: the load-change prompt instructs verbatim, non-summarized capture of gwt plus a read of design-be.md/design-fe.md if present',
+  async () => {
+    const fullDigest = 'a'.repeat(64);
+    const passLine =
+      `CUSTODY: PASS change=demo spec.recorded=${fullDigest} spec.computed=${fullDigest} ` +
+      'design_ux.recorded=- design_ux.computed=-';
+    const loadRelay = {
+      timestamp: '2026-01-01T00:00:00Z',
+      specStatus: 'approved',
+      designUxExists: false,
+      tasks: [
+        {
+          id: 'S-50-demo',
+          title: 'load-prompt wording probe',
+          marker: 'todo',
+          kind: 'scenario',
+          testFile: 'tests/fake.mjs',
+          testFunction: 'fake',
+          verificationCommand: 'true',
+          targetKind: 'modify'
+        }
+      ],
+      manualChecklist: [],
+      notes: ''
+    };
+    const scriptedResponses = [
+      {
+        verdictLine: passLine,
+        tasksLine: 'TASKS: open=1 wip=0 done=0 manual=0 infra=0 ids=S-50-demo',
+        exitCode: 0,
+        stderr: '',
+        detail: ''
+      },
+      loadRelay,
+      { ok: true, redOutput: 'AssertionError: expected true', testFileHash: fullDigest, detail: '' },
+      { ok: true, output: 'green', testFileHash: fullDigest, refactorNotes: '', detail: '' },
+      { pass: true, commandOutput: 'ok 1', testFileHash: fullDigest, blockingDetail: '' },
+      { marked: true, markerLine: '- [x] `S-50-demo` load-prompt wording probe', detail: '' },
+      { installed: true, findings: cleanLintFindings(), rawReport: CLEAN_RAW_REPORT }
+    ];
+
+    const { run, calls } = await loadWorkflow(scriptedResponses, {}, { pipelineImpl: sequentialPipeline });
+    await run({ change: 'demo', changeDir: GWT_CHANGE_DIR });
+
+    const loadCall = calls.find((c) => c.label === 'load-change');
+    assert.ok(loadCall, 'expected a load-change dispatch');
+
+    assert.match(
+      loadCall.prompt,
+      /verbatim/i,
+      'the load-change prompt should instruct a verbatim capture (not just an id/title extraction)'
+    );
+    assert.match(
+      loadCall.prompt,
+      /do not (summar|paraphrase)/i,
+      'the load-change prompt should explicitly forbid paraphrasing/summarizing the captured GWT'
+    );
+    assert.ok(
+      loadCall.prompt.includes('design-be.md') && loadCall.prompt.includes('design-fe.md'),
+      'the load-change prompt should instruct reading design-be.md/design-fe.md (if present) for the design excerpt'
+    );
   }
 );

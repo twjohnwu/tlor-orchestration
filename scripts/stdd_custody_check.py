@@ -44,7 +44,7 @@ design_ux.recorded=<v> design_ux.computed=<v>
 spec.computed=<v> design_ux.recorded=<v> design_ux.computed=<v>
 
 On PASS, a second line always follows (S-28, REQ-20): `TASKS: open=<n>
-wip=<n> done=<n> manual=<n> infra=<n> ids=<id>(,<id>)*`, counted over FORMAL
+wip=<n> done=<n> manual=<n> infra=<n> ids=<id>(;<id>)*`, counted over FORMAL
 task lines only — a line matching `^- \[( |wip|x)\] ` immediately followed
 by a backtick-wrapped id. Text that merely looks like a marker (prose
 quoting `- [x]`, a mermaid node label, an uppercase `[X]`) is not counted.
@@ -435,6 +435,18 @@ FENCE_LINE_RE = re.compile(r"^\s*```")
 # CHANGE_NAME_RE's character class alone would accept it: any downstream CLI
 # consumer reading the whitespace-separated `ids=` token would see a leading
 # dash as a flag, not an id (council round 3, P5).
+#
+# M4 (merged-task id token): stdd-plan's module-convergence rule can report
+# one task's id as a comma-joined list of scenario ids (e.g. `S-03,S-04`).
+# CHANGE_NAME_RE/TASK_ID_RE itself is deliberately left untouched (it still
+# rejects a bare comma) so change-name validation elsewhere is not loosened
+# by this — only the task-id ACCEPTANCE check below is widened, by
+# validating each comma-split token against the exact same strict per-token
+# charset/traversal rule individually (mirrors workflows/stdd-execute.js's
+# `idTokens.some((token) => !CHANGE_NAME_RE.test(token))` check exactly). A
+# garbage id like `S-03,../../etc` still blocks, because its second token
+# fails TASK_ID_RE on its own; an empty token from a trailing/double comma
+# also fails, since TASK_ID_RE requires 1+ characters.
 TASK_ID_RE = CHANGE_NAME_RE
 
 TASK_STATUS_NAMES = {" ": "open", "wip": "wip", "x": "done"}
@@ -444,8 +456,15 @@ TASKS_MISSING_LINE = "TASKS: missing"
 
 
 def build_tasks_line(change_dir: Path, stdd_root: Path) -> str:
-    """`TASKS: open=<n> wip=<n> done=<n> manual=<n> infra=<n> ids=<id>(,<id>)*`
-    counted over the FORMAL task lines of `tasks.md`, in file order. Returns
+    """`TASKS: open=<n> wip=<n> done=<n> manual=<n> infra=<n> ids=<id>(;<id>)*`
+    counted over the FORMAL task lines of `tasks.md`, in file order. `<id>`
+    itself may be a comma-joined merged task id (stdd-plan's module-
+    convergence rule, e.g. `S-03,S-04`) — the inter-task separator is `;`,
+    deliberately DIFFERENT from the `,` used inside a merged id, so a line
+    naming one plain task plus one merged task is never ambiguous between
+    "two tasks, one merged" and "three plain tasks" (v0.7.3 gap-closure: a
+    plain `,`-joined `ids=` list made every legitimate merged task look like
+    an extra, non-existent task to every consumer that split on `,`). Returns
     `TASKS_MISSING_LINE` when the change carries no tasks.md at all (REQ-20,
     spec.md:1121, user decision): the custody chain itself (spec.md/
     design-ux.md) is unaffected by a missing tasks.md, so the CUSTODY:
@@ -465,10 +484,11 @@ def build_tasks_line(change_dir: Path, stdd_root: Path) -> str:
       UnicodeDecodeError straight through main()'s `except OSError`, which
       does not catch it (ValueError, not OSError), producing a bare
       traceback and no verdict line at all (council round 3, P2);
-    - a parsed task id contains a character outside `TASK_ID_RE`, or starts
-      with `-` (council round 3, P5) — printing it anyway would violate this
-      file's own "whitespace-free key=value token" invariant, and a leading
-      dash reads as a flag to any downstream CLI consumer (L1);
+    - a parsed task id (or, for a merged id, any of its comma-split tokens
+      individually, M4) contains a character outside `TASK_ID_RE`, or the
+      id starts with `-` (council round 3, P5) — printing it anyway would
+      violate this file's own "whitespace-free key=value token" invariant,
+      and a leading dash reads as a flag to any downstream CLI consumer (L1);
     - a task-shaped line is found indented under leading whitespace, which
       TASK_LINE_RE's column-0 anchor would otherwise silently skip, dropping
       a real task from the count with no signal at all (L2);
@@ -514,12 +534,20 @@ def build_tasks_line(change_dir: Path, stdd_root: Path) -> str:
                 )
             continue
         status, task_id, tag = match.group(1), match.group(2), match.group(3)
-        if not TASK_ID_RE.match(task_id) or task_id.startswith("-"):
+        # M4: a merged task id is a comma-joined list of per-token ids
+        # (stdd-plan's module-convergence rule) — validate EACH token against
+        # the unchanged TASK_ID_RE rather than the whole string, mirroring
+        # the JS side's per-token check exactly. An empty token (leading/
+        # trailing/double comma) fails TASK_ID_RE on its own, same as any
+        # other illegal character.
+        id_tokens = task_id.split(",")
+        if any(not TASK_ID_RE.match(token) for token in id_tokens) or task_id.startswith("-"):
             raise Verdict(
                 "tasks.md:unsafe-task-id",
                 f"{tasks_path}:{lineno}: task id {task_id!r} contains a "
-                "character outside [A-Za-z0-9._-], or starts with '-', which "
-                "would break the whitespace-free TASKS: line grammar",
+                "character outside [A-Za-z0-9._-] (checked per comma-split "
+                "token), or starts with '-', which would break the "
+                "whitespace-free TASKS: line grammar",
             )
         counts[TASK_STATUS_NAMES[status]] += 1
         ids.append(task_id)
@@ -534,7 +562,7 @@ def build_tasks_line(change_dir: Path, stdd_root: Path) -> str:
         )
     return (
         f"TASKS: open={counts['open']} wip={counts['wip']} done={counts['done']} "
-        f"manual={counts['manual']} infra={counts['infra']} ids={','.join(ids)}"
+        f"manual={counts['manual']} infra={counts['infra']} ids={';'.join(ids)}"
     )
 
 

@@ -769,7 +769,11 @@ def test_change_dir_mode_change_token_is_the_directories_own_last_path_segment(t
 def test_tasks_line_counts_open_wip_done_manual_infra_tags_and_ids_correctly_ignoring_non_task_lines(tmp_path):
     """S-28: `stdd_custody_check.py` must print, immediately after the
     `CUSTODY:` verdict line, a second line
-    `TASKS: open=<n> wip=<n> done=<n> manual=<n> infra=<n> ids=<id>(,<id>)*`
+    `TASKS: open=<n> wip=<n> done=<n> manual=<n> infra=<n> ids=<id>(;<id>)*`
+    (v0.7.3: the inter-task separator is `;`, not `,` — a comma is reserved
+    for joining the sub-ids of a single merged task, e.g. `S-03,S-04`, so a
+    plain comma between two ids can no longer be mistaken for a merged id's
+    internal separator)
     whose five counts and `ids` list match only the FORMAL task lines in
     `tasks.md` — lines matching `^- \\[( |wip|x)\\] ` immediately followed by
     a backtick-wrapped id — in file order. Non-task lines that merely
@@ -787,7 +791,7 @@ def test_tasks_line_counts_open_wip_done_manual_infra_tags_and_ids_correctly_ign
     assert lines[0].startswith("CUSTODY: "), lines[0]
     assert lines[1] == (
         "TASKS: open=2 wip=1 done=2 manual=1 infra=1 "
-        "ids=S-01,S-02,S-03,S-04,S-05"
+        "ids=S-01;S-02;S-03;S-04;S-05"
     ), lines[1]
 
 
@@ -847,7 +851,7 @@ def test_bom_prefixed_tasks_md_counts_both_tasks_not_just_the_second(tmp_path):
     proc = run_check(tmp_path)
     assert proc.returncode == 0, proc.stdout + proc.stderr
     lines = proc.stdout.splitlines()
-    assert lines[1] == "TASKS: open=1 wip=0 done=1 manual=0 infra=0 ids=t1,t2", lines[1]
+    assert lines[1] == "TASKS: open=1 wip=0 done=1 manual=0 infra=0 ids=t1;t2", lines[1]
 
 
 def test_undecodable_tasks_md_fails_with_a_named_reason_instead_of_a_traceback(tmp_path):
@@ -912,6 +916,82 @@ def test_task_id_with_a_leading_dash_fails_instead_of_emitting_a_flag_like_token
     change_dir = make_valid_change(tmp_path)
     (change_dir / "tasks.md").write_text(
         "- [ ] `-t1` a task whose id starts with a dash\n", encoding="utf-8"
+    )
+    proc = run_check(tmp_path)
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    word, fields = verdict_fields(proc.stdout)
+    assert word == "FAIL"
+    assert fields["reason"] == "tasks.md:unsafe-task-id"
+    assert "TASKS:" not in proc.stdout
+
+
+# --------------------------------------------------------------------------
+# M4: merged-task ids (stdd-plan's module-convergence rule, e.g. `S-03,S-04`)
+# --------------------------------------------------------------------------
+
+def test_merged_task_id_passes_custody_and_keeps_its_internal_comma_in_ids(tmp_path):
+    """A merged task id is a comma-joined list of per-token ids, each of which
+    individually matches TASK_ID_RE — the JS side (workflows/stdd-execute.js)
+    already accepts this per-token, so the custody script must stop
+    hard-FAILing it as `unsafe-task-id` before build_tasks_line even runs.
+    The inter-TASK separator stays `;`, so the merged id's own `,` survives
+    unescaped inside a single `ids=` token."""
+    change_dir = make_valid_change(tmp_path)
+    (change_dir / "tasks.md").write_text(
+        "# Tasks\n\n"
+        "- [ ] `S-03,S-04` a module-convergence merged task\n"
+        "- [x] `S-05` a plain task\n",
+        encoding="utf-8",
+    )
+    proc = run_check(tmp_path)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    lines = proc.stdout.splitlines()
+    assert lines[1] == (
+        "TASKS: open=1 wip=0 done=1 manual=0 infra=0 ids=S-03,S-04;S-05"
+    ), lines[1]
+
+
+def test_merged_task_id_with_a_trailing_comma_fails_as_unsafe_task_id(tmp_path):
+    """A trailing comma splits into an empty final token, which TASK_ID_RE
+    (requiring 1+ chars) rejects — the merged-id acceptance must not paper
+    over a degenerate empty token."""
+    change_dir = make_valid_change(tmp_path)
+    (change_dir / "tasks.md").write_text(
+        "- [ ] `S-03,` a task id with a trailing comma\n", encoding="utf-8"
+    )
+    proc = run_check(tmp_path)
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    word, fields = verdict_fields(proc.stdout)
+    assert word == "FAIL"
+    assert fields["reason"] == "tasks.md:unsafe-task-id"
+    assert "TASKS:" not in proc.stdout
+
+
+def test_merged_task_id_with_a_double_comma_fails_as_unsafe_task_id(tmp_path):
+    """A double comma splits into an empty middle token, same as a trailing
+    comma — must fail, not be silently treated as a two-token merge."""
+    change_dir = make_valid_change(tmp_path)
+    (change_dir / "tasks.md").write_text(
+        "- [ ] `S-03,,S-04` a task id with an empty middle token\n",
+        encoding="utf-8",
+    )
+    proc = run_check(tmp_path)
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    word, fields = verdict_fields(proc.stdout)
+    assert word == "FAIL"
+    assert fields["reason"] == "tasks.md:unsafe-task-id"
+    assert "TASKS:" not in proc.stdout
+
+
+def test_merged_task_id_with_a_traversal_token_fails_as_unsafe_task_id(tmp_path):
+    """Splitting on `,` must validate EVERY resulting token against the
+    unchanged TASK_ID_RE — a garbage second token like `../x` must still
+    block the whole id, not slip through because the first token looked
+    fine."""
+    change_dir = make_valid_change(tmp_path)
+    (change_dir / "tasks.md").write_text(
+        "- [ ] `S-03,../x` a task id whose second token escapes the charset\n",
+        encoding="utf-8",
     )
     proc = run_check(tmp_path)
     assert proc.returncode == 1, proc.stdout + proc.stderr

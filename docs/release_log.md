@@ -6,6 +6,13 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.7.3 (2026-08-08)
+
+- M1: the load agent now extracts each task's REQ-section GWT text (verbatim, siblings included) plus a design-be/fe excerpt; RED/GREEN/verify prompts inline them instead of instructing a full spec.md re-read (measured driver: 223.6M cache-read tokens). JS-side `gwtLooksValid` shape validation with per-task fail-open fallback to the old read-it-yourself instructions; verify keeps a soft "the file wins" re-check clause.
+- M4 completion: merged-task id line format defined (single comma-joined backtick token `S-03,S-04`) — tasks.md template example + stdd-plan SKILL.md sentence; task-id validation widened per-token in BOTH workflows/stdd-execute.js and scripts/stdd_custody_check.py (base pattern unchanged); custody TASKS: line inter-task separator changed ',' → ';' so merged ids are unambiguous (coordinated producer+consumer change, ships atomically in this version).
+- Tests: test-first; mjs 51→59, pytest 153→159.
+- Source: specs/phosphorflux-stdd/token-reduction-proposal.md — with this, M1–M6 are all landed.
+
 ## v0.7.2 (2026-08-08)
 
 - M2: stdd-execute workflow now runs open `[INFRA]` tasks serially through the full stage chain BEFORE fanning out scenario tasks via pipeline(); any BLOCKED infra task halts the run before fan-out (prevents whole-round scaffold waste)

@@ -90,8 +90,17 @@ const CUSTODY_FAIL_RE =
 // tasks.md — a trusted-reader cross-check against whatever loadChange claims
 // to have found. manual/infra are TAG subsets of open/wip/done, never a 4th
 // and 5th mutually-exclusive category (G-01).
+//
+// v0.7.3 gap-closure (merged-task TASKS: line ambiguity): the inter-task
+// separator in the `ids=` list is `;`, not `,` — a plain `,` is reserved for
+// joining the sub-ids of a single M4 merged task (e.g. `S-03,S-04`). Before
+// this, both separators were the same character, so a line naming one plain
+// task plus one merged task (`ids=S-01,S-03,S-04`) could not be told apart
+// from three plain tasks: every consumer that split on `,` saw 3 ids where
+// only 2 tasks existed, so reconcileTaskCount falsely blocked every
+// legitimate merged task and reorderTasksToTasksLine could never place one.
 const TASKS_LINE_RE =
-  /^TASKS: open=(\d+) wip=(\d+) done=(\d+) manual=(\d+) infra=(\d+) ids=([A-Za-z0-9._-]+(?:,[A-Za-z0-9._-]+)*)$/;
+  /^TASKS: open=(\d+) wip=(\d+) done=(\d+) manual=(\d+) infra=(\d+) ids=([A-Za-z0-9._-]+(?:,[A-Za-z0-9._-]+)*(?:;[A-Za-z0-9._-]+(?:,[A-Za-z0-9._-]+)*)*)$/;
 
 const TASK_MARKERS = ['todo', 'wip', 'done'];
 const TASK_KINDS = ['scenario', 'infra', 'manual'];
@@ -185,7 +194,25 @@ const LOAD_SCHEMA = {
           testFile: { type: 'string' },
           testFunction: { type: 'string' },
           verificationCommand: { type: 'string' },
-          targetKind: { type: 'string' }
+          targetKind: { type: 'string' },
+          // M1 (token-reduction): OPTIONAL per-task fields so the RED/GREEN/
+          // verify prompts can inline a verbatim excerpt instead of every
+          // stage re-reading spec.md/design-*.md itself. Optional, not
+          // required — an un-upgraded loadChange call (or a task the loader
+          // could not confidently excerpt) simply omits them, and
+          // gwtLooksValid's fail-open fallback below covers that case.
+          gwt: {
+            type: 'string',
+            description:
+              'verbatim copy of the `### REQ-XX:` section(s) containing this task\'s scenario(s) (siblings may ' +
+              'ride along), including a GIVEN/WHEN/THEN block per scenario; "" if not captured'
+          },
+          designExcerpt: {
+            type: 'string',
+            description:
+              'verbatim excerpt of design-be.md/design-fe.md paragraph(s) citing this task\'s scenario id(s) or ' +
+              'their REQ id; the literal "none" when nothing matches or neither file exists'
+          }
         }
       }
     },
@@ -668,6 +695,8 @@ async function loadChange(changeDir, inputsHash) {
       `3. Read ${changeDir}/tasks.md and return every formal task line in FILE ORDER (never reorder or group them — the Nth entry of your returned array must be the Nth such line top-to-bottom in the file): its id — id is the FIRST backtick token on that task line (e.g. \`S-12\`, or \`INFRA\` for the tag-only [INFRA] task) — NEVER a task number, title, marker — the checkbox is the bracket token at the very start of the task line, before that first backtick token; a bracket token appearing later on the line — including one inside the title — is never the checkbox, even if the title's own wording is about that bracket state — map the checkbox to the word the caller expects: \`[ ]\` -> "todo", \`[wip]\` -> "wip", \`[x]\` -> "done"; if a task's checkbox is some other bracket token, report that raw token string verbatim instead of guessing which of the three it means — kind (scenario / infra for [INFRA] / manual for [MANUAL]), the exact test file and test function name it names, its exact verification command, and targetKind — the task line's [NEW]/[MODIFY] tag, reported as "new" or "modify" ("unmarked" if the line carries neither).`,
       `4. Return every entry of tasks.md's "Manual verification checklist" section.`,
       '5. Return the output of `date -u +%Y-%m-%dT%H:%M:%SZ` as the timestamp.',
+      `6. For each scenario/infra task, also capture \`gwt\`: the verbatim text of the \`### REQ-XX:\` section(s) in ${changeDir}/spec.md that contain this task's scenario id(s) (a sibling scenario under the same REQ heading may ride along). Copy it verbatim — do not summarize, paraphrase or reformat it. Leave gwt as "" if you cannot confidently locate it.`,
+      `7. For each scenario/infra task, also capture \`designExcerpt\`: read ${changeDir}/design-be.md and ${changeDir}/design-fe.md if either exists, and copy verbatim — do not summarize or paraphrase — any paragraph(s) that cite this task's scenario id(s) or their REQ id, capped at roughly 40 lines (add one truncation note line if you cut it short). Report the literal string "none" if neither file exists or nothing in them matches.`,
       '',
       'Report a field verbatim or as "" — never invent, normalize or repair a value. For marker, apply the mapping in step 3 above and only fall back to the raw bracket text for an other bracket token outside those three. If a task\'s kind is something other than the listed values, report what is actually there rather than the nearest legal value; the caller blocks on an unrecognised marker or kind instead of guessing.',
       REPORT_CONTRACT
@@ -709,9 +738,20 @@ function taskShapeBlockers(tasks) {
         `${where}: unrecognised kind "${truncate(task.kind, 40)}" — refusing to guess whether it needs a TDD loop`
       );
     }
-    if (!CHANGE_NAME_RE.test(String(task.id))) {
+    // M4 (merged-task id token): stdd-plan's module-convergence rule can
+    // report one task's id as a comma-joined list of scenario ids (e.g.
+    // `S-03,S-04`). CHANGE_NAME_RE itself is deliberately left untouched
+    // (it still rejects a bare comma) so directory-name validation
+    // elsewhere is not loosened by this — only THIS acceptance check is
+    // widened, by validating each comma-split token against the exact same
+    // strict per-token charset/traversal rule individually. A garbage id
+    // like `S-03,../../etc` still blocks, because its second token fails
+    // CHANGE_NAME_RE on its own.
+    const idTokens = String(task.id).split(',');
+    if (idTokens.some((token) => !CHANGE_NAME_RE.test(token))) {
       blockers.push(
-        `${where}: task.id "${truncate(task.id, 40)}" does not match ^[A-Za-z0-9._-]+$ — refusing to build a read-back regex from it`
+        `${where}: task.id "${truncate(task.id, 40)}" does not match ^[A-Za-z0-9._-]+$ (or a comma-joined list ` +
+          'of such tokens) — refusing to build a read-back regex from it'
       );
     } else {
       idCounts.set(task.id, (idCounts.get(task.id) || 0) + 1);
@@ -867,7 +907,7 @@ function reconcileTaskCount(tasksLine, tasks) {
     manual: Number(match[4]),
     infra: Number(match[5])
   };
-  const expectedIds = match[6].split(',');
+  const expectedIds = match[6].split(';');
   const blockers = [];
 
   const expectedTotal = expected.open + expected.wip + expected.done;
@@ -946,8 +986,15 @@ function reconcileTaskCount(tasksLine, tasks) {
   // order is instead derived from the TASKS: line by
   // reorderTasksToTasksLine, below, once this check passes. Sorting (not
   // joining) preserves the comma-collision fix above: one id that happens
-  // to contain a comma still cannot be mistaken for two ids, since a
-  // length mismatch or an element-by-element compare still catches it.
+  // to contain a comma still cannot be mistaken for two ids, since a length
+  // mismatch or an element-by-element compare still catches it. That comma-
+  // collision protection is now backed by an unambiguous grammar rather than
+  // relying solely on the compare shape: `expectedIds` was split on `;`
+  // (TASKS_LINE_RE's own inter-task separator, v0.7.3), so a single merged
+  // id's internal `,` is never split into extra phantom ids in the first
+  // place — the element-wise compare here is a second, independent guard on
+  // top of that, not the only thing standing between a merged id and a
+  // false multiset mismatch.
   const sortedActual = actualIds.slice().sort();
   const sortedExpected = expectedIds.slice().sort();
   const idsMatch =
@@ -957,8 +1004,8 @@ function reconcileTaskCount(tasksLine, tasks) {
     });
   if (!idsMatch) {
     blockers.push(
-      `loadChange's task id multiset [${actualIds.join(',')}] disagrees with the ` +
-        `TASKS: line's ids=${expectedIds.join(',')}`
+      `loadChange's task id multiset [${actualIds.join(';')}] disagrees with the ` +
+        `TASKS: line's ids=${expectedIds.join(';')}`
     );
   }
 
@@ -981,7 +1028,7 @@ function reorderTasksToTasksLine(tasksLine, tasks) {
   if (!match) {
     return tasks;
   }
-  const expectedIds = match[6].split(',');
+  const expectedIds = match[6].split(';');
   const byId = new Map();
   tasks.forEach(function index(task) {
     byId.set(task && task.id, task);
@@ -1023,6 +1070,55 @@ function markerLineMatchesId(line, markerChar, id) {
   const text = String(line === null || line === undefined ? '' : line);
   const re = new RegExp('^\\s*-\\s\\[' + escapeRegExp(markerChar) + '\\]\\s`' + escapeRegExp(id) + '`(?:\\s|$)');
   return re.test(text);
+}
+
+// M1 (token-reduction): pure acceptance check for a task's loadChange-
+// captured `gwt` text, gating whether the RED/GREEN/verify prompts may
+// inline it verbatim instead of telling the agent to go re-read spec.md
+// itself. Deliberately conservative — anything it rejects falls back to
+// today's read-it-yourself instructions (fail-open, never a BLOCKED
+// outcome), so a false negative only costs the token savings, never
+// correctness. Requires: a non-empty gwt; at least one `### REQ-` heading;
+// an `#### <id>:` heading for EVERY comma-separated id in task.id (M4:
+// a merged task's id, e.g. `S-03,S-04`, needs a heading per half); and all
+// three of GIVEN/WHEN/THEN present somewhere in the text.
+function gwtLooksValid(task) {
+  const gwt = task && task.gwt;
+  if (typeof gwt !== 'string' || gwt.trim() === '') {
+    return false;
+  }
+  if (!/^### REQ-/m.test(gwt)) {
+    return false;
+  }
+  const ids = String((task && task.id) || '').split(',');
+  for (let i = 0; i < ids.length; i += 1) {
+    const headingRe = new RegExp('^#### ' + escapeRegExp(ids[i]) + ':', 'm');
+    if (!headingRe.test(gwt)) {
+      return false;
+    }
+  }
+  // Anchored to a `- GIVEN`/`- WHEN`/`- THEN` bullet line, not a bare
+  // substring match — a heading title mentioning the word "THEN" in prose
+  // (e.g. "malformed gwt missing THEN") must not read as a real THEN clause.
+  return /^\s*-\s*GIVEN\b/m.test(gwt) && /^\s*-\s*WHEN\b/m.test(gwt) && /^\s*-\s*THEN\b/m.test(gwt);
+}
+
+// M1: builds the fenced, inlined GWT(+design excerpt) block shared by the
+// RED, GREEN and verify prompts, once gwtLooksValid(task) has confirmed the
+// captured text is trustworthy. Returns null when it is not, so the three
+// call sites can fall back to their own today's-instructions text instead of
+// inlining garbage. A literal (or blank) `designExcerpt` of "none" adds no
+// text at all — the whole point of that literal is "nothing to say here".
+function gwtInlineBlock(task, dir) {
+  if (!gwtLooksValid(task)) {
+    return null;
+  }
+  const lines = [`This task's scenarios: ${task.id} (full file: ${dir}/spec.md).`, '```', task.gwt, '```'];
+  const excerpt = typeof task.designExcerpt === 'string' ? task.designExcerpt.trim() : '';
+  if (excerpt && excerpt.toLowerCase() !== 'none') {
+    lines.push('', excerpt);
+  }
+  return lines.join('\n');
 }
 
 // M4 Template Method: the entry-guard-then-body shape shared by the five
@@ -1173,12 +1269,31 @@ const redStage = stage(
   },
   async function redBody(prev, task, index) {
     const dir = dirOf(task);
+    // M1 (token-reduction): a valid gwt is inlined verbatim below so this
+    // dispatch does not need to re-read spec.md itself; an invalid/missing
+    // one falls open to today's read-it-yourself instruction instead of
+    // blocking, with one log line recording that fallback happened.
+    const gwtBlock = gwtInlineBlock(task, dir);
+    if (!gwtBlock && typeof task.gwt === 'string' && task.gwt !== '') {
+      log(`task ${task.id}: gwt looks malformed/invalid — falling back to the read-it-yourself RED instruction`);
+    }
+    const scenarioStep = gwtBlock
+      ? `2. ${gwtBlock}`
+      : `2. Read scenario ${task.id}'s GIVEN/WHEN/THEN from ${dir}/spec.md.`;
+    // With a valid gwt inlined, the `#### <id>:` heading inside it already
+    // carries the task's own scenario title — repeating task.title in this
+    // top line would be redundant, and would risk a title that happens to
+    // echo prompt-instruction wording (e.g. "design excerpt") reading as if
+    // this dispatch had generated that wording itself. Falls back to the
+    // ordinary id+title label whenever gwt is not inlined, unchanged from
+    // before this feature.
+    const dispatchLabel = gwtBlock ? task.id : taskLabel(task);
     const red = await agent(
       [
-        `STDD RED dispatch for task ${taskLabel(task)} in ${dir}.`,
+        `STDD RED dispatch for task ${dispatchLabel} in ${dir}.`,
         '',
         `1. FIRST append \`START ${task.id}\` to ${dir}/.progress.log. This liveness line is written before anything else, so an interruption from this point on stays detectable.`,
-        `2. Read scenario ${task.id}'s GIVEN/WHEN/THEN from ${dir}/spec.md.`,
+        scenarioStep,
         `3. Write the test function \`${task.testFunction}\` in \`${task.testFile}\`, citing ${task.id} in its docstring.`,
         `4. Run \`${task.verificationCommand}\` and confirm it fails for the intended behavioral reason — a real assertion failure, not a collection or module-resolution error. If the first run cannot even collect the test (the target module or class does not exist yet), create a MINIMAL stub whose members raise NotImplementedError, then re-run. Stubbing is part of RED.`,
         `5. ONLY NOW mark this task \`[wip]\` in ${dir}/tasks.md — after the test file is written, never before. \`[wip]\` is what closes the test file to further writes, so marking it first would lock out this dispatch's own write. This is the only place \`[wip]\` is written.`,
@@ -1217,11 +1332,17 @@ const greenStage = stage(
     return !prev || prev.status !== 'red' ? { skip: prev } : null;
   },
   async function greenBody(prev, task, index) {
+    // M1 (token-reduction): same inlined gwt(+design excerpt) block as
+    // redStage — GREEN never had a "go read spec.md" instruction to fall
+    // back to, so an invalid/missing gwt here just omits the block, with no
+    // second fallback log (redStage already logged it once for this task).
+    const gwtBlock = gwtInlineBlock(task, dirOf(task));
     const green = await agent(
       [
         `STDD GREEN + REFACTOR dispatch for task ${taskLabel(task)} in ${dirOf(task)}.`,
         '',
         `RED output that must stay explained: ${prev.redOutput}`,
+        ...(gwtBlock ? ['', gwtBlock] : []),
         '',
         'GREEN:',
         `1. Write the minimum code that makes \`${task.verificationCommand}\` pass.`,
@@ -1269,6 +1390,14 @@ const greenStage = stage(
 );
 
 async function verifyOnce(task, index, round) {
+  // M1 (token-reduction): same inlined gwt(+design excerpt) block as
+  // redStage/greenStage, with a soft re-check sentence — a checker acting
+  // on stale/mis-copied inlined text is worse than one that re-reads the
+  // file, so it is told the file wins if the two ever disagree.
+  const gwtBlock = gwtInlineBlock(task, dirOf(task));
+  const scenarioStep = gwtBlock
+    ? `3. ${gwtBlock}\nIf in doubt, re-check against the file — the file wins.`
+    : `3. Check scenario ${task.id}'s GIVEN/WHEN/THEN in ${dirOf(task)}/spec.md is actually what the test asserts.`;
   return await agent(
     [
       `Independent verification of STDD task ${taskLabel(task)} in ${dirOf(task)}. Round ${round}.`,
@@ -1276,7 +1405,7 @@ async function verifyOnce(task, index, round) {
       '',
       `1. Run \`${task.verificationCommand}\` yourself and quote the output.`,
       `2. Run the full previously-passing scenario suite and confirm no regression.`,
-      `3. Check scenario ${task.id}'s GIVEN/WHEN/THEN in ${dirOf(task)}/spec.md is actually what the test asserts.`,
+      scenarioStep,
       `4. Return \`shasum -a 256 ${singleQuoteShell(task.testFile)}\`.`,
       '',
       'Set pass=false with the blocking detail whenever the command does not pass. Do not repair anything yourself.',

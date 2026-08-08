@@ -223,7 +223,12 @@ noted.
   one-scenario-per-task when several scenarios share a test-file is the
   exception, not the default, and MUST carry a stated reason (e.g. the
   scenarios are independently approvable, or their RED/GREEN cycles must
-  land in separate commits).
+  land in separate commits). Line format: a merged task carries all of its
+  scenario ids as ONE comma-joined backtick token (e.g. `` `S-03,S-04` ``)
+  in the id position of its tasks.md checkbox line — that single token, not
+  a separate id per scenario, is what stays the task's literal id through
+  every subsequent marker line and through the execute workflow. See
+  `templates/tasks.md` for the worked example.
 
 ## 7. Coverage gate before approval (S-08)
 

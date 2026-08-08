@@ -39,6 +39,23 @@ language: en
   - REFACTOR: SOLID + DRY check as above
   - Spec re-check: re-read `spec.md` S-02
 
+- [ ] `S-04,S-05` `[NEW]` Retry-count metric emitted on success and on final failure
+  - Merged-task form: both scenarios' Test mapping points at the same file
+    (`tests/webhook/test_retry_metrics.py`), so this one task covers them
+    together instead of splitting one task per scenario — the merged id is
+    a single backtick token joining the scenario ids with a comma
+    (`` `S-04,S-05` ``), and that same token is what stays on the marker
+    line through GREEN/REFACTOR below.
+  - RED: write `tests/webhook/test_retry_metrics.py::test_success_emits_metric`
+    and `tests/webhook/test_retry_metrics.py::test_final_failure_emits_metric`
+    in one pass
+  - Verify RED: `pytest tests/webhook/test_retry_metrics.py -q` fails (no
+    metric emission yet)
+  - GREEN: implement metric emission in `schedule_retry()`
+  - Verify GREEN: `pytest tests/webhook/test_retry_metrics.py -q` passes
+  - REFACTOR: SOLID + DRY check as above
+  - Spec re-check: re-read `spec.md` S-04 and S-05
+
 - `[INFRA]` Add `next_attempt_at` column migration
   - Reason: schema change with no scenario ID of its own; required by both
     S-01 and S-02's implementation, not itself a testable behavior.

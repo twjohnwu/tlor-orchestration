@@ -317,3 +317,70 @@ def test_stdd_execute_skill_documents_resume_hash_and_quota_precheck():
         "stdd-execute/SKILL.md does not document a quota/rate-limit "
         "pre-check performed before fanning out scenario tasks"
     )
+
+
+# --- M1 batch (GWT/design inlining + M4 merged-task id token — RED phase,
+# implementation lands later) ------------------------------------------------
+#
+# The module-convergence rule (stdd-plan/SKILL.md's existing "same test-file
+# SHOULD be merged into one task" sentence, see MODULE_CONVERGENCE_RE above)
+# already tells the planner to merge scenarios sharing a test-file, but never
+# says what a merged task's own `id` token looks like on the tasks.md line.
+# M4 fixes that: a merged task's id is the comma-joined list of its scenario
+# ids inside ONE backtick token (e.g. `` `S-03,S-04` ``) — this is what
+# workflows/stdd-execute.js's loadChange step 3 reports verbatim as `task.id`,
+# and what markerLineMatchesId/gwtLooksValid then key off of (see
+# tests/test_stdd_execute_helpers.mjs's M4 test). Verified by grep before
+# writing these: neither templates/tasks.md nor SKILL.md currently contains a
+# comma-joined id inside a single backtick token, or a sentence describing
+# that format — these tests are expected to FAIL against the current source.
+
+TASKS_TEMPLATE = REPO_ROOT / "stdd-skills" / "stdd-plan" / "templates" / "tasks.md"
+
+MERGED_ID_BACKTICK_TOKEN_RE = re.compile(r"`[A-Za-z0-9._-]+,[A-Za-z0-9._-]+`")
+
+
+def test_tasks_template_shows_a_merged_task_comma_id_example():
+    """M4-doc (M1 batch): templates/tasks.md worked example includes a
+    merged-task id.
+
+    GIVEN stdd-skills/stdd-plan/templates/tasks.md, the worked example
+      SKILL.md's module-convergence rule points readers at
+    WHEN reading its full text
+    THEN it SHALL contain at least one task line whose id is a single
+      backtick token joining two (or more) scenario ids with a comma (e.g.
+      `` `S-03,S-04` ``), demonstrating the merged-task id format.
+    """
+    text = TASKS_TEMPLATE.read_text(encoding="utf-8")
+    assert MERGED_ID_BACKTICK_TOKEN_RE.search(text), (
+        "stdd-skills/stdd-plan/templates/tasks.md does not contain a merged-"
+        "task example line (a single backtick token joining two scenario "
+        "ids with a comma, e.g. `S-03,S-04`)"
+    )
+
+
+MERGED_TASK_ID_FORMAT_RE = re.compile(
+    r"\bcomma\b.{0,150}?\b(id|backtick)\b|\b(id|backtick)\b.{0,150}?\bcomma\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def test_stdd_plan_skill_states_the_merged_task_id_line_format():
+    """M4-doc (M1 batch): stdd-plan/SKILL.md documents the merged-task id
+    line format.
+
+    GIVEN stdd-skills/stdd-plan/SKILL.md's module-convergence rule (scenarios
+      sharing a test-file SHOULD be merged into one task)
+    WHEN reading its full text
+    THEN it SHALL also state HOW a merged task's id is written on the
+      tasks.md line — a single backtick token joining the merged scenario
+      ids with a comma — tolerant of exact wording, but specific enough that
+      a match cannot be an accident ("comma" and "id"/"backtick" must appear
+      within a short window of each other).
+    """
+    text = PLAN_SKILL.read_text(encoding="utf-8")
+    assert MERGED_TASK_ID_FORMAT_RE.search(text), (
+        "stdd-plan/SKILL.md does not state the merged-task id line format "
+        "(a single backtick token joining the merged scenario ids with a "
+        "comma) anywhere in its text"
+    )
