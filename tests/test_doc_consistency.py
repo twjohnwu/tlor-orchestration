@@ -252,3 +252,68 @@ def test_skill_step3_agent_count_word_matches_agents_dir_glob_count():
         f"SKILL.md states {count_match.group(1)} agent role definitions but "
         f"the agents/*.md glob has {glob_count}"
     )
+
+
+# --- M2-M6 token-reduction batch (RED phase — implementation lands later) --
+#
+# Both tests below target doc text that does not exist yet in the checked-in
+# SKILL.md files (verified by grep before writing these: neither "merge"
+# near "same test-file" wording, nor `resumeFromRunId`/`inputsHash`/a
+# quota-vs-fan-out phrase, currently appears anywhere in either file) — the
+# implementing dispatch adds the prose these regexes look for; these tests
+# are expected to FAIL against the current source.
+
+MODULE_CONVERGENCE_RE = re.compile(
+    r"same test-file.{0,200}?merge|merge.{0,200}?same test-file",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def test_stdd_plan_skill_states_the_module_convergence_rule():
+    """M4-doc (token-reduction M4).
+
+    GIVEN stdd-skills/stdd-plan/SKILL.md's tasks.md-generation guidance
+    WHEN reading its full text
+    THEN it SHALL state that scenarios sharing the same test-file SHOULD be
+      merged into one task — tolerant of exact wording, but specific enough
+      that a match cannot be an accident (both "same test-file" and "merge"
+      must appear within a short window of each other).
+    """
+    text = PLAN_SKILL.read_text(encoding="utf-8")
+    assert MODULE_CONVERGENCE_RE.search(text), (
+        "stdd-plan/SKILL.md does not state the module-convergence rule "
+        "(scenarios sharing the same test-file SHOULD be merged into one "
+        "task) anywhere in its text"
+    )
+
+
+QUOTA_NEAR_FAN_OUT_RE = re.compile(
+    r"(quota|rate.?limit).{0,150}?fan-out|fan-out.{0,150}?(quota|rate.?limit)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def test_stdd_execute_skill_documents_resume_hash_and_quota_precheck():
+    """M3b/M6-doc (token-reduction M3b, M6).
+
+    GIVEN stdd-skills/stdd-execute/SKILL.md
+    WHEN reading its full text
+    THEN it SHALL contain the literal identifiers `resumeFromRunId` and
+      `inputsHash` (M3b: resumable, hash-addressed runs), AND SHALL document
+      a quota/rate-limit pre-check performed before fanning out scenario
+      tasks (M6).
+    """
+    text = EXECUTE_SKILL.read_text(encoding="utf-8")
+
+    assert "resumeFromRunId" in text, (
+        "stdd-execute/SKILL.md does not mention the literal identifier "
+        "'resumeFromRunId' anywhere"
+    )
+    assert "inputsHash" in text, (
+        "stdd-execute/SKILL.md does not mention the literal identifier "
+        "'inputsHash' anywhere"
+    )
+    assert QUOTA_NEAR_FAN_OUT_RE.search(text), (
+        "stdd-execute/SKILL.md does not document a quota/rate-limit "
+        "pre-check performed before fanning out scenario tasks"
+    )

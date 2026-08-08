@@ -1877,6 +1877,13 @@ test(
 // `pipelineResult`, because a canned array would never place a real `red-`
 // dispatch into `calls[]` and this scenario's THEN is specifically about that
 // dispatch being reached, not merely about the accounting count matching.
+// M2 update (token-reduction): the fixture's `S-32-C` infra task is now
+// driven serially through its own full stage chain BEFORE `pipeline()` is
+// invoked at all (workflows/stdd-execute.js ~2029-2069) — `pipelineImpl:
+// sequentialPipeline` here only ever sees the scenario tasks (`S-32-A`), the
+// same role it already played; only the scripted-response queue's ORDER
+// changed to match infra-then-scenario dispatch, not this test's
+// reconciliation assertions below.
 test(
   'load-completeness reconciliation: counts and ids all agree, workflow proceeds past load to the first task-stage dispatch (calls[] reaches it)',
   async () => {
@@ -1942,14 +1949,28 @@ test(
       notes: ''
     };
 
-    // Consumed in call order: custody-check, load-change, then (only
-    // S-32-A is open+TDD — S-32-C is wip so resetWipStage does dispatch a
-    // reset-confirmation read-back for it via sequentialPipeline; but
-    // sequentialPipeline only drives openTddTasks, which is just [S-32-A])
-    // red, green, verify, done, lint.
+    // Consumed in call order under the M2 infra-first execution order
+    // (workflows/stdd-execute.js ~2029-2069): custody-check, load-change,
+    // then the infra task S-32-C (wip) is driven through its full stage
+    // chain FIRST, entirely on its own — resetWipStage's exit-0 rerun probe
+    // routes it via the GREEN-recovery path (spec.md:53-81), so it consumes
+    // only rerun, verify, done (no reset/red/green dispatch — the same
+    // shape the sibling recovery test at :1996 pins) — and only THEN does
+    // pipeline() (sequentialPipeline) fan out over the scenario tasks, which
+    // here is just [S-32-A]: red, green, verify, done. Finally lint.
     const scriptedResponses = [
       { verdictLine: passLine, exitCode: 0, stderr: '', detail: '', tasksLine: tasksLine },
       loadRelay,
+      // rerun-0-S-32-C (resetWipStage's interrupt-recovery probe): exitCode
+      // 0 takes the GREEN-recovery branch, so no reset/red/green dispatch is
+      // ever sent for S-32-C.
+      { exitCode: 0, commandOutput: 'ok 1', detail: '' },
+      // verify-0-S-32-C-r0
+      { pass: true, commandOutput: 'ok 1', testFileHash: fullDigest, blockingDetail: '' },
+      // done-0-S-32-C
+      { marked: true, markerLine: '- [x] `S-32-C` wip infra task', detail: '' },
+      // red-0-S-32-A / green-0-S-32-A / verify-0-S-32-A-r0 / done-0-S-32-A,
+      // dispatched by pipeline() only after the infra task above is done.
       { ok: true, redOutput: 'AssertionError: expected true', testFileHash: fullDigest, detail: '' },
       { ok: true, output: 'green', testFileHash: fullDigest, refactorNotes: '', detail: '' },
       { pass: true, commandOutput: 'ok 1', testFileHash: fullDigest, blockingDetail: '' },
@@ -3018,5 +3039,430 @@ test(
       /false positive/i,
       'the runLint prompt should tell the agent a believed false positive is still reported honestly, not softened'
     );
+  }
+);
+
+// --- M2-M6 token-reduction batch (RED phase — implementation lands later) --
+//
+// These tests target six behaviors that do NOT exist yet in
+// workflows/stdd-execute.js: M2 (infra tasks driven serially, outside the
+// scenario fan-out pipeline), M3a/M3b (an `args.inputsHash` threaded into
+// the custody/load/wip-probe prompts), M5 (an `effort: 'low'` opt on
+// mechanical, non-judgment dispatches). Every test below is EXPECTED TO
+// FAIL against the current source; the implementing dispatch makes them
+// pass without changing their assertions.
+
+// M2-order (spec.md token-reduction M2): GIVEN a mixed set of open tasks —
+// one [INFRA] task and two scenario tasks — WHEN run() executes, THEN the
+// infra task SHALL be driven through the full RED/GREEN/verify/mark-done
+// stage chain (reusing resetWipStage/redStage/greenStage/verifyStage/
+// doneStage) BEFORE pipeline() is ever invoked, and pipeline() SHALL be
+// handed ONLY the two scenario tasks — never the infra task. Today, isTddTask
+// (workflows/stdd-execute.js:830-832) treats 'infra' and 'scenario'
+// identically and run() (workflows/stdd-execute.js:1998) hands the ENTIRE
+// openTddTasks array — infra included — to one pipeline() call, so both
+// assertions below are expected to fail for real.
+test(
+  'M2-order: an infra task is driven through its full stage chain before pipeline() runs, and pipeline() receives only the scenario tasks',
+  async () => {
+    const fullDigest = 'a'.repeat(64);
+    const passLine =
+      `CUSTODY: PASS change=demo spec.recorded=${fullDigest} spec.computed=${fullDigest} ` +
+      'design_ux.recorded=- design_ux.computed=-';
+    const infraTask = {
+      id: 'INFRA-1',
+      title: 'infra bootstrap probe',
+      marker: 'todo',
+      kind: 'infra',
+      testFile: 'tests/fake_infra.mjs',
+      testFunction: 'fakeInfra',
+      verificationCommand: 'true',
+      targetKind: 'modify'
+    };
+    const loadRelay = {
+      timestamp: '2026-01-01T00:00:00Z',
+      specStatus: 'approved',
+      designUxExists: false,
+      tasks: [
+        infraTask,
+        {
+          id: 'S-A',
+          title: 'scenario A',
+          marker: 'todo',
+          kind: 'scenario',
+          testFile: 'tests/fake_a.mjs',
+          testFunction: 'fakeA',
+          verificationCommand: 'true',
+          targetKind: 'modify'
+        },
+        {
+          id: 'S-B',
+          title: 'scenario B',
+          marker: 'todo',
+          kind: 'scenario',
+          testFile: 'tests/fake_b.mjs',
+          testFunction: 'fakeB',
+          verificationCommand: 'true',
+          targetKind: 'modify'
+        }
+      ],
+      manualChecklist: [],
+      notes: ''
+    };
+
+    // Populated by orderTrackingPipeline once run() actually invokes
+    // pipeline(); `state.calls` is assigned right after loadWorkflow()
+    // returns (before run() is called), so by the time pipeline() actually
+    // fires during the run(), the closure sees a real `calls` array and can
+    // snapshot it — capturing exactly which agent() calls happened BEFORE
+    // this pipeline invocation.
+    const state = {};
+    async function orderTrackingPipeline(tasks) {
+      state.pipelineCallSnapshot = state.calls.slice();
+      state.pipelineTaskIds = tasks.map((t) => t.id);
+      return tasks.map((t) => ({ status: 'done', task: t }));
+    }
+
+    const scriptedResponses = [
+      { verdictLine: passLine, tasksLine: 'TASKS: open=3 wip=0 done=0 manual=0 infra=1 ids=INFRA-1,S-A,S-B', exitCode: 0, stderr: '', detail: '' },
+      loadRelay,
+      // Consumed by the infra task's own stage dispatches IF run() drives it
+      // serially before pipeline() (the behavior under test): red, green,
+      // verify, done. Today's unimplemented source never dispatches these —
+      // they are left unconsumed in the queue and reach runLint instead,
+      // which reads them as a malformed lint reply and BLOCKs on
+      // `lint.installed` being falsy rather than crashing (see
+      // gateLint, workflows/stdd-execute.js:1703-1709) — a clean, non-throwing
+      // failure either way.
+      { ok: true, redOutput: 'AssertionError: expected true', testFileHash: fullDigest, detail: '' },
+      { ok: true, output: 'green', testFileHash: fullDigest, refactorNotes: '', detail: '' },
+      { pass: true, commandOutput: 'ok 1', testFileHash: fullDigest, blockingDetail: '' },
+      { marked: true, markerLine: '- [x] `INFRA-1` infra bootstrap probe', detail: '' },
+      { installed: true, findings: cleanLintFindings(), rawReport: CLEAN_RAW_REPORT }
+    ];
+
+    const { run, calls } = await loadWorkflow(scriptedResponses, {}, { pipelineImpl: orderTrackingPipeline });
+    state.calls = calls;
+
+    await run({ change: 'demo', changeDir: '/confirmed/absolute/STDD/demo' });
+
+    assert.deepEqual(
+      state.pipelineTaskIds,
+      ['S-A', 'S-B'],
+      `pipeline() should be handed only the scenario tasks, not the infra task — got ${JSON.stringify(state.pipelineTaskIds)}`
+    );
+    const preInfraStageLabels = (state.pipelineCallSnapshot || []).map((c) => (c && c.label) || '');
+    assert.ok(
+      preInfraStageLabels.some((label) => /^red-/.test(label) && label.includes('INFRA-1')),
+      `expected a red-stage dispatch for INFRA-1 BEFORE pipeline() was invoked — labels seen before pipeline(): ${JSON.stringify(preInfraStageLabels)}`
+    );
+    assert.ok(
+      preInfraStageLabels.some((label) => /^done-/.test(label) && label.includes('INFRA-1')),
+      `expected a done-stage (mark-[x]) dispatch for INFRA-1 BEFORE pipeline() was invoked — labels seen before pipeline(): ${JSON.stringify(preInfraStageLabels)}`
+    );
+  }
+);
+
+// M2-blocked-gate (spec.md token-reduction M2): GIVEN an infra task whose
+// own RED dispatch fails (never reaches GREEN), WHEN run() executes, THEN
+// pipeline() SHALL NEVER be invoked at all, and the overall outcome SHALL
+// be a BLOCKED report that mentions the infra task. Today's source always
+// calls pipeline() once with every open task regardless of any individual
+// task's outcome, so this is expected to fail for real.
+test(
+  'M2-blocked-gate: an infra task that fails its own stage chain blocks before pipeline() is ever invoked, and the BLOCKED report names it',
+  async () => {
+    const fullDigest = 'a'.repeat(64);
+    const passLine =
+      `CUSTODY: PASS change=demo spec.recorded=${fullDigest} spec.computed=${fullDigest} ` +
+      'design_ux.recorded=- design_ux.computed=-';
+    const loadRelay = {
+      timestamp: '2026-01-01T00:00:00Z',
+      specStatus: 'approved',
+      designUxExists: false,
+      tasks: [
+        {
+          id: 'INFRA-1',
+          title: 'infra bootstrap probe',
+          marker: 'todo',
+          kind: 'infra',
+          testFile: 'tests/fake_infra.mjs',
+          testFunction: 'fakeInfra',
+          verificationCommand: 'true',
+          targetKind: 'modify'
+        },
+        {
+          id: 'S-A',
+          title: 'scenario A',
+          marker: 'todo',
+          kind: 'scenario',
+          testFile: 'tests/fake_a.mjs',
+          testFunction: 'fakeA',
+          verificationCommand: 'true',
+          targetKind: 'modify'
+        }
+      ],
+      manualChecklist: [],
+      notes: ''
+    };
+
+    let pipelineWasInvoked = false;
+    async function flaggingPipeline(tasks) {
+      pipelineWasInvoked = true;
+      return tasks.map((t) => ({ status: 'done', task: t }));
+    }
+
+    const scriptedResponses = [
+      { verdictLine: passLine, tasksLine: 'TASKS: open=2 wip=0 done=0 manual=0 infra=1 ids=INFRA-1,S-A', exitCode: 0, stderr: '', detail: '' },
+      loadRelay,
+      // The infra task's RED dispatch fails outright.
+      { ok: false, detail: 'infra RED never established', testFileHash: fullDigest }
+    ];
+
+    const { run, calls } = await loadWorkflow(scriptedResponses, {}, { pipelineImpl: flaggingPipeline });
+    const result = await run({ change: 'demo', changeDir: '/confirmed/absolute/STDD/demo' });
+
+    assert.equal(
+      pipelineWasInvoked,
+      false,
+      'pipeline() should never be invoked once the infra task itself is BLOCKED'
+    );
+    assert.equal(
+      result.status,
+      'blocked',
+      `expected the overall outcome to be BLOCKED — got ${JSON.stringify(result)}`
+    );
+    assert.ok(
+      JSON.stringify(result).includes('INFRA-1'),
+      `expected the BLOCKED report to mention the infra task INFRA-1 — got ${JSON.stringify(result)}`
+    );
+  }
+);
+
+// M3a-hash (spec.md token-reduction M3a): GIVEN args.inputsHash is supplied,
+// WHEN run() dispatches the custody-check, load-change, and wip-recovery
+// probe, THEN each of their prompts SHALL contain that literal hash string —
+// today custodyCheck/loadChange/resetWipStage's rerun probe
+// (workflows/stdd-execute.js:501-532, :649-671, :1090-1108) never read
+// args.inputsHash at all, so none of their prompts can possibly contain it.
+test(
+  'M3a-hash: args.inputsHash appears verbatim in the custody, load, and wip-probe prompts',
+  async () => {
+    const fullDigest = 'a'.repeat(64);
+    const passLine =
+      `CUSTODY: PASS change=demo spec.recorded=${fullDigest} spec.computed=${fullDigest} ` +
+      'design_ux.recorded=- design_ux.computed=-';
+    const loadRelay = {
+      timestamp: '2026-01-01T00:00:00Z',
+      specStatus: 'approved',
+      designUxExists: false,
+      tasks: [
+        {
+          id: 'W-1',
+          title: 'wip recovery task',
+          marker: 'wip',
+          kind: 'scenario',
+          testFile: 'tests/fake_wip.mjs',
+          testFunction: 'fakeWip',
+          verificationCommand: 'true',
+          targetKind: 'modify'
+        }
+      ],
+      manualChecklist: [],
+      notes: ''
+    };
+
+    const scriptedResponses = [
+      { verdictLine: passLine, tasksLine: 'TASKS: open=0 wip=1 done=0 manual=0 infra=0 ids=W-1', exitCode: 0, stderr: '', detail: '' },
+      loadRelay,
+      // Undefined -> resetWipStage's `if (!rerun)` branch BLOCKs the task
+      // immediately; the run still completes cleanly without a crash, and
+      // the three prompts under test have already been dispatched by then.
+      undefined,
+      { installed: true, findings: cleanLintFindings(), rawReport: CLEAN_RAW_REPORT }
+    ];
+
+    const { run, calls } = await loadWorkflow(scriptedResponses, { inputsHash: 'testhash1234' }, { pipelineImpl: sequentialPipeline });
+    await run({ change: 'demo', changeDir: '/confirmed/absolute/STDD/demo', inputsHash: 'testhash1234' });
+
+    const custodyCall = calls.find((c) => c.label === 'custody-check');
+    const loadCall = calls.find((c) => c.label === 'load-change');
+    const wipProbeCall = calls.find((c) => /^rerun-/.test((c && c.label) || ''));
+
+    assert.ok(custodyCall, 'expected a custody-check dispatch');
+    assert.ok(loadCall, 'expected a load-change dispatch');
+    assert.ok(wipProbeCall, 'expected a wip-recovery probe dispatch (rerun-...)');
+
+    assert.ok(
+      custodyCall.prompt.includes('testhash1234'),
+      `expected the custody-check prompt to contain the literal inputsHash — got: ${custodyCall.prompt}`
+    );
+    assert.ok(
+      loadCall.prompt.includes('testhash1234'),
+      `expected the load-change prompt to contain the literal inputsHash — got: ${loadCall.prompt}`
+    );
+    assert.ok(
+      wipProbeCall.prompt.includes('testhash1234'),
+      `expected the wip-recovery probe prompt to contain the literal inputsHash — got: ${wipProbeCall.prompt}`
+    );
+  }
+);
+
+// M3a-hash sibling: without args.inputsHash, no prompt should mention it at
+// all, and a minimal happy-path run must still complete unaffected — pinning
+// that M3a is purely additive.
+test(
+  'M3a-hash sibling: without args.inputsHash, no dispatch prompt mentions inputsHash and a minimal happy-path run still works',
+  async () => {
+    const fullDigest = 'a'.repeat(64);
+    const passLine =
+      `CUSTODY: PASS change=demo spec.recorded=${fullDigest} spec.computed=${fullDigest} ` +
+      'design_ux.recorded=- design_ux.computed=-';
+    const loadRelay = {
+      timestamp: '2026-01-01T00:00:00Z',
+      specStatus: 'approved',
+      designUxExists: false,
+      tasks: [
+        {
+          id: 'S-24-demo',
+          title: 'open TDD task',
+          marker: 'todo',
+          kind: 'scenario',
+          testFile: 'tests/fake.mjs',
+          testFunction: 'fake',
+          verificationCommand: 'true',
+          targetKind: 'modify'
+        }
+      ],
+      manualChecklist: [],
+      notes: ''
+    };
+    const scriptedResponses = [
+      { verdictLine: passLine, tasksLine: 'TASKS: open=1 wip=0 done=0 manual=0 infra=0 ids=S-24-demo', exitCode: 0, stderr: '', detail: '' },
+      loadRelay,
+      { ok: true, redOutput: 'AssertionError: expected true', testFileHash: fullDigest, detail: '' },
+      { ok: true, output: 'green', testFileHash: fullDigest, refactorNotes: '', detail: '' },
+      { pass: true, commandOutput: 'ok 1', testFileHash: fullDigest, blockingDetail: '' },
+      { marked: true, markerLine: '- [x] `S-24-demo` open TDD task', detail: '' },
+      { installed: true, findings: cleanLintFindings(), rawReport: CLEAN_RAW_REPORT }
+    ];
+
+    const { run, calls } = await loadWorkflow(scriptedResponses, {}, { pipelineImpl: sequentialPipeline });
+    const result = await run({ change: 'demo', changeDir: '/confirmed/absolute/STDD/demo' });
+
+    assert.notEqual(
+      result.status,
+      'blocked',
+      `a minimal happy-path run without inputsHash should still complete unblocked — got ${JSON.stringify(result)}`
+    );
+
+    const custodyCall = calls.find((c) => c.label === 'custody-check');
+    const loadCall = calls.find((c) => c.label === 'load-change');
+    assert.ok(custodyCall, 'expected a custody-check dispatch');
+    assert.ok(loadCall, 'expected a load-change dispatch');
+    assert.ok(
+      !/inputsHash/i.test(custodyCall.prompt) && !/input-files hash/i.test(custodyCall.prompt),
+      `the custody-check prompt should not mention inputsHash when none was supplied — got: ${custodyCall.prompt}`
+    );
+    assert.ok(
+      !/inputsHash/i.test(loadCall.prompt) && !/input-files hash/i.test(loadCall.prompt),
+      `the load-change prompt should not mention inputsHash when none was supplied — got: ${loadCall.prompt}`
+    );
+  }
+);
+
+// M5-effort (spec.md token-reduction M5): mechanical, non-judgment dispatches
+// (the wip-recovery probe, the marker-reset/marker-done writes, and the lint
+// relay) SHALL carry `effort: 'low'`, while the RED/GREEN/verify/fix stage
+// dispatches — which need real judgment — SHALL carry no `effort` opt at
+// all. Today no call site anywhere in workflows/stdd-execute.js sets
+// `effort` (grep confirms zero matches), so the 'low' assertions below are
+// expected to fail for real; the no-effort assertions on RED/GREEN/verify/
+// fix are expected to already hold and exist here as a guard against a
+// future over-broad fix that adds `effort` everywhere.
+test(
+  'M5-effort: mechanical dispatches (wip probe, marker writes, lint relay) carry effort:"low"; RED/GREEN/verify/fix stage dispatches carry no effort opt',
+  async () => {
+    const fullDigest = 'a'.repeat(64);
+    const passLine =
+      `CUSTODY: PASS change=demo spec.recorded=${fullDigest} spec.computed=${fullDigest} ` +
+      'design_ux.recorded=- design_ux.computed=-';
+    const loadRelay = {
+      timestamp: '2026-01-01T00:00:00Z',
+      specStatus: 'approved',
+      designUxExists: false,
+      tasks: [
+        {
+          id: 'W-1',
+          title: 'wip recovery task',
+          marker: 'wip',
+          kind: 'scenario',
+          testFile: 'tests/fake_wip.mjs',
+          testFunction: 'fakeWip',
+          verificationCommand: 'true',
+          targetKind: 'modify'
+        }
+      ],
+      manualChecklist: [],
+      notes: ''
+    };
+
+    // Consumed in order: custody, load, rerun (non-zero -> reset+redo-RED),
+    // reset, red, green, verify round0 (fail -> triggers one fix round),
+    // fix, verify round1 (pass), done, lint.
+    const scriptedResponses = [
+      { verdictLine: passLine, tasksLine: 'TASKS: open=0 wip=1 done=0 manual=0 infra=0 ids=W-1', exitCode: 0, stderr: '', detail: '' },
+      loadRelay,
+      { exitCode: 1, commandOutput: 'not ok 1 - still red', detail: '' },
+      { reset: true, markerLine: '- [ ] `W-1` wip recovery task', detail: '' },
+      { ok: true, redOutput: 'AssertionError: expected true', testFileHash: fullDigest, detail: '' },
+      { ok: true, output: 'green', testFileHash: fullDigest, refactorNotes: '', detail: '' },
+      { pass: false, commandOutput: 'still failing', testFileHash: fullDigest, blockingDetail: 'nope' },
+      { summary: 'attempted a fix' },
+      { pass: true, commandOutput: 'ok 1', testFileHash: fullDigest, blockingDetail: '' },
+      { marked: true, markerLine: '- [x] `W-1` wip recovery task', detail: '' },
+      { installed: true, findings: cleanLintFindings(), rawReport: CLEAN_RAW_REPORT }
+    ];
+
+    const { run, calls } = await loadWorkflow(scriptedResponses, {}, { pipelineImpl: sequentialPipeline });
+    await run({ change: 'demo', changeDir: '/confirmed/absolute/STDD/demo' });
+
+    function callsMatching(re) {
+      return calls.filter((c) => re.test((c && c.label) || ''));
+    }
+
+    const mechanicalGroups = {
+      'wip probe (rerun-...)': callsMatching(/^rerun-/),
+      'marker-reset write (reset-...)': callsMatching(/^reset-/),
+      'marker-done write (done-...)': callsMatching(/^done-/),
+      'lint relay (stdd-lint)': callsMatching(/^stdd-lint$/)
+    };
+    Object.entries(mechanicalGroups).forEach(([name, matches]) => {
+      assert.ok(matches.length > 0, `expected at least one ${name} dispatch to have happened`);
+      matches.forEach((c) => {
+        assert.equal(
+          c.opts && c.opts.effort,
+          'low',
+          `expected the ${name} dispatch (label "${c.label}") to carry opts.effort === 'low', got opts: ${JSON.stringify(c.opts)}`
+        );
+      });
+    });
+
+    const judgmentGroups = {
+      'RED stage (red-...)': callsMatching(/^red-/),
+      'GREEN stage (green-...)': callsMatching(/^green-/),
+      'verify stage (verify-...)': callsMatching(/^verify-/),
+      'fix stage (fix-...)': callsMatching(/^fix-/)
+    };
+    Object.entries(judgmentGroups).forEach(([name, matches]) => {
+      assert.ok(matches.length > 0, `expected at least one ${name} dispatch to have happened`);
+      matches.forEach((c) => {
+        assert.equal(
+          c.opts && c.opts.effort,
+          undefined,
+          `expected the ${name} dispatch (label "${c.label}") to carry NO opts.effort, got opts: ${JSON.stringify(c.opts)}`
+        );
+      });
+    });
   }
 );

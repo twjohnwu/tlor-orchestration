@@ -6,6 +6,17 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.7.2 (2026-08-08)
+
+- M2: stdd-execute workflow now runs open `[INFRA]` tasks serially through the full stage chain BEFORE fanning out scenario tasks via pipeline(); any BLOCKED infra task halts the run before fan-out (prevents whole-round scaffold waste)
+- M3a: optional `args.inputsHash` — when supplied, embedded into custody/load/wip-probe prompts so `resumeFromRunId` replays invalidate naturally when input files changed; absent → prompts byte-identical to before
+- M3b: stdd-execute SKILL.md — relaunches MUST resume via `{scriptPath, resumeFromRunId}` with `args.inputsHash` computed by the Maia
+- M4: stdd-plan SKILL.md — scenarios sharing a test-file SHOULD be merged into one task (module convergence in Test mapping)
+- M5: mechanical workflow dispatches (marker writes, wip probe, lint relay) now pass `effort: 'low'`
+- M6: stdd-execute SKILL.md — soft quota headroom pre-check before large fan-outs
+- Tests: test-first batch; mjs suite 46→51, pytest 151→153; one pre-existing mjs fixture (S-29 G-01) reordered for infra-first semantics, assertions unchanged
+- Source: `specs/phosphorflux-stdd/token-reduction-proposal.md` (M1 GWT-inlining still proposed, deferred)
+
 ## v0.7.1 (2026-08-07)
 
 - cirdan-shipwright decline gate hardened to an eagle-1.5.1-style step 0 (a supplied criteria list must not be executed) — fixes the acceptance PARTIAL

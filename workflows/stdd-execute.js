@@ -449,6 +449,15 @@ function decisionOf(parsed) {
   return null;
 }
 
+// M3a (token-reduction): an optional caller-supplied hash of the change's
+// input files, threaded verbatim into the custody/load/wip-probe prompts so
+// a fresh dispatch can recognise a rerun against unchanged inputs without
+// re-deriving the hash itself. Purely additive — absent when the caller
+// omits it, never invented.
+function inputsHashOf(parsed) {
+  return typeof parsed.inputsHash === 'string' && parsed.inputsHash ? parsed.inputsHash : undefined;
+}
+
 // --- phase 0: custody gate + load -----------------------------------------
 
 // Why the comparison is not done here: this runtime has no filesystem, so the
@@ -498,10 +507,11 @@ function singleQuoteShell(value) {
   return "'" + String(value).replace(/'/g, "'\\''") + "'";
 }
 
-async function custodyCheck(changeDir) {
+async function custodyCheck(changeDir, inputsHash) {
   return await agent(
     [
       `Run the STDD custody check for the confirmed change directory "${changeDir}" and relay its verdict. You are a relay, not a judge.`,
+      ...(inputsHash ? [`input-files hash: ${inputsHash}`] : []),
       '',
       '1. Find the program, checking these locations IN ORDER with a real existence test ' +
         '(e.g. `test -f`) before running anything — stop at the first one that exists:',
@@ -646,10 +656,11 @@ function readCustody(relay, name) {
   };
 }
 
-async function loadChange(changeDir) {
+async function loadChange(changeDir, inputsHash) {
   return await agent(
     [
       `Read the STDD change at ${changeDir} and return its state. Read-only: do not write or edit any file.`,
+      ...(inputsHash ? [`input-files hash: ${inputsHash}`] : []),
       '',
       'Do exactly this:',
       `1. Read ${changeDir}/spec.md's frontmatter and return its \`status\` field verbatim ("" if absent). Do not recompute or report any fingerprint — a separate program owns the custody comparison.`,
@@ -820,13 +831,17 @@ function manualChecklistBlockers(checklist) {
   return blockers;
 }
 
-// REQ-11/S-16 (spec.md:617-641, tasks.md:349-355): `[INFRA]` tasks are
-// accepted here alongside `scenario` tasks, but this is a DELIBERATE
-// simplification, not an oversight — infra-kind tasks currently flow
-// through the exact same full RED/GREEN/verify/mark-done pipeline as
-// scenario-kind tasks; the `[INFRA]` fast-path (skip straight to
+// REQ-11/S-16 (spec.md:617-641, tasks.md:349-355), updated by M2
+// (token-reduction): `[INFRA]` tasks are accepted here alongside `scenario`
+// tasks so both still count as "needs a TDD loop" — but run() (see the
+// infra-first split around the `openInfraTasks`/`openScenarioTasks` split,
+// phase 'Execute tasks') no longer hands both kinds to pipeline() together.
+// Infra tasks are driven serially, through the same stage chain, BEFORE any
+// scenario task is dispatched, and a blocked infra task stops the run before
+// pipeline() is ever invoked. The `[INFRA]` fast-path (skip straight to
 // verification, no RED/GREEN dispatch rounds) described in
-// stdd-execute/SKILL.md is NOT implemented in this workflow.
+// stdd-execute/SKILL.md is still NOT implemented — infra tasks still go
+// through the full RED/GREEN/verify/mark-done chain, just serially and first.
 function isTddTask(task) {
   return task.kind === 'scenario' || task.kind === 'infra';
 }
@@ -1042,7 +1057,8 @@ async function editMarkerStage(task, index, opts) {
     label: `${opts.dispatchLabel}-${index}-${task.id}`,
     phase: 'Execute tasks',
     schema: opts.schema,
-    agentType: 'dwarf-smith'
+    agentType: 'dwarf-smith',
+    effort: 'low'
   });
 
   if (!response) {
@@ -1091,6 +1107,7 @@ const resetWipStage = stage(
       [
         `STDD interrupt-recovery probe for task ${taskLabel(task)} in ${dir}.`,
         'This task is marked [wip] but is being picked up as open work — the prior run was interrupted before reaching a verified, marked-done state.',
+        ...(task.inputsHash ? [`input-files hash: ${task.inputsHash}`] : []),
         '',
         `1. Re-run \`${task.verificationCommand}\` yourself and quote the output.`,
         '2. Return the exit status of that run, verbatim.',
@@ -1103,7 +1120,8 @@ const resetWipStage = stage(
         phase: 'Execute tasks',
         schema: RERUN_SCHEMA,
         agentType: 'eagle-sentinel',
-        model: 'sonnet'
+        model: 'sonnet',
+        effort: 'low'
       }
     );
 
@@ -1411,7 +1429,8 @@ async function runLint(dir) {
       phase: 'Lint',
       schema: LINT_SCHEMA,
       agentType: 'eagle-sentinel',
-      model: 'sonnet'
+      model: 'sonnet',
+      effort: 'low'
     }
   );
 }
@@ -1541,13 +1560,19 @@ function validateArgs(input) {
     };
   }
 
-  return { blocked: null, name: name, changeDir: changeDirSupplied, decision: decisionOf(parsed) };
+  return {
+    blocked: null,
+    name: name,
+    changeDir: changeDirSupplied,
+    decision: decisionOf(parsed),
+    inputsHash: inputsHashOf(parsed)
+  };
 }
 
 // H5/H6: the custody dispatch + verdict/task-count gate, extracted from
 // run(). Builds the shared ctx (H6, above) as soon as custody exists, and
 // returns it for gateLoad/gateLint/run() to reuse.
-async function gateCustody(changeDir, name) {
+async function gateCustody(changeDir, name, inputsHash) {
   // REQ-18 non-repo-branch precondition, enforced by the workflow itself too
   // (S-26, closes orc K2b — the caller is not the only line of defense): a
   // confirmed changeDir whose spec.md does not exist SHALL BLOCK before any
@@ -1557,7 +1582,7 @@ async function gateCustody(changeDir, name) {
   // BLOCKED return happens before loadChange or any task-stage dispatch, so
   // no write-capable (reset-/red-/green-/fix-/done-) call is ever reached.
   phase('Load & custody gate');
-  const custodyRelay = await custodyCheck(changeDir);
+  const custodyRelay = await custodyCheck(changeDir, inputsHash);
   const custody = readCustody(custodyRelay, name);
   const ctx = { change: name, custodyVerdictLine: custody.verdictLine, fingerprints: custody.fingerprints };
   if (custody.blockers.length > 0) {
@@ -1603,8 +1628,8 @@ async function gateCustody(changeDir, name) {
 // H5: run()'s load gate, extracted — reads tasks.md via loadChange, checks
 // spec status/task shape/manual checklist safety, and cross-checks the task
 // count against the custody script's own TASKS: line.
-async function gateLoad(changeDir, custodyRelay, ctx) {
-  const load = await loadChange(changeDir);
+async function gateLoad(changeDir, custodyRelay, ctx, inputsHash) {
+  const load = await loadChange(changeDir, inputsHash);
   if (!load) {
     return {
       blocked: blockedHere(ctx, 'Load & custody gate', `could not read ${changeDir} — the load dispatch returned nothing`)
@@ -1667,7 +1692,7 @@ async function gateLoad(changeDir, custodyRelay, ctx) {
   }
 
   const tasks = orderedTasks.map(function attach(task) {
-    return Object.assign({}, task, { changeDir: changeDir });
+    return Object.assign({}, task, { changeDir: changeDir, inputsHash: inputsHash });
   });
   const tddTasks = tasks.filter(isTddTask);
   // Includes 'wip' as open, not just 'todo': a task interrupted mid-run is
@@ -1948,8 +1973,9 @@ async function run(input) {
   const name = validated.name;
   const changeDir = validated.changeDir;
   const decision = validated.decision;
+  const inputsHash = validated.inputsHash;
 
-  const custodyGate = await gateCustody(changeDir, name);
+  const custodyGate = await gateCustody(changeDir, name, inputsHash);
   if (custodyGate.blocked) {
     return custodyGate.blocked;
   }
@@ -1957,7 +1983,7 @@ async function run(input) {
   const custodyRelay = custodyGate.custodyRelay;
   const ctx = custodyGate.ctx;
 
-  const loadGate = await gateLoad(changeDir, custodyRelay, ctx);
+  const loadGate = await gateLoad(changeDir, custodyRelay, ctx, inputsHash);
   if (loadGate.blocked) {
     return loadGate.blocked;
   }
@@ -1992,32 +2018,81 @@ async function run(input) {
     });
   } else {
     phase('Execute tasks');
-    if (openTddTasks.length === 0) {
-      log('0 open TDD tasks to run (all done, or a manual-only change)');
+
+    // M2 (token-reduction): infra tasks no longer fan out through pipeline()
+    // alongside scenario tasks — they are driven serially, in tasks.md order,
+    // through the exact same stage chain pipeline() would otherwise use, and
+    // BEFORE pipeline() is ever invoked. An infra task blocking here stops
+    // the run before the (usually much larger) scenario fan-out ever starts,
+    // rather than letting pipeline() burn tokens on scenarios that a broken
+    // infra prerequisite would invalidate anyway.
+    const openInfraTasks = openTddTasks.filter(function isInfra(task) {
+      return task.kind === 'infra';
+    });
+    const openScenarioTasks = openTddTasks.filter(function isScenario(task) {
+      return task.kind !== 'infra';
+    });
+
+    const infraResults = [];
+    for (let index = 0; index < openInfraTasks.length; index += 1) {
+      let prev = await resetWipStage(undefined, openInfraTasks[index], index);
+      prev = await redStage(prev, openInfraTasks[index], index);
+      prev = await greenStage(prev, openInfraTasks[index], index);
+      prev = await verifyStage(prev, openInfraTasks[index], index);
+      prev = await doneStage(prev, openInfraTasks[index], index);
+      infraResults.push(prev);
+    }
+    const infraNormalized = infraResults.map(function normalizeInfra(entry, index) {
+      if (!entry) {
+        return taskBlocked(openInfraTasks[index], 'unknown', 'stage threw; item dropped');
+      }
+      return entry;
+    });
+    const infraBlockedTasks = infraNormalized.filter(function isBlocked(entry) {
+      return entry.status !== 'done';
+    });
+
+    if (infraBlockedTasks.length > 0) {
+      return blockedHere(
+        ctx,
+        'Execute tasks',
+        infraBlockedTasks.map(function describe(entry) {
+          return `infra task ${entry.task && entry.task.id} blocked at stage ${entry.stage}: ${entry.detail}`;
+        }),
+        { blockedTasks: infraBlockedTasks }
+      );
+    }
+
+    if (openScenarioTasks.length === 0) {
+      log('0 open scenario TDD tasks to run (all infra/done, or a manual-only change)');
     } else {
-      taskResults = await pipeline(openTddTasks, resetWipStage, redStage, greenStage, verifyStage, doneStage);
+      taskResults = await pipeline(openScenarioTasks, resetWipStage, redStage, greenStage, verifyStage, doneStage);
     }
 
     // A short result array used to be mapped over while the denominator came
     // from the task list, so 2 results for 3 tasks reported "3/3". Accounting
     // that does not add up blocks instead.
-    if (taskResults.length !== openTddTasks.length) {
+    if (taskResults.length !== openScenarioTasks.length) {
       return blockedHere(
         ctx,
         'Execute tasks',
-        `task accounting is incomplete: the pipeline returned ${taskResults.length} result(s) for ${openTddTasks.length} task(s), so no per-task count can be trusted`
+        `task accounting is incomplete: the pipeline returned ${taskResults.length} result(s) for ${openScenarioTasks.length} task(s), so no per-task count can be trusted`
       );
     }
 
-    const normalized = taskResults.map(function normalize(entry, index) {
+    const scenarioNormalized = taskResults.map(function normalize(entry, index) {
       if (!entry) {
-        return taskBlocked(openTddTasks[index], 'unknown', 'stage threw; item dropped');
+        return taskBlocked(openScenarioTasks[index], 'unknown', 'stage threw; item dropped');
       }
       return entry;
     });
     // Only the terminal 'done' status counts as success. Every other value,
     // including one this script does not know, is blocked — an unexpected
-    // state never falls through to success.
+    // state never falls through to success. The infra results are folded in
+    // here too (all 'done' by construction — the infraBlockedTasks check
+    // above already returned early otherwise) so completedCount/recoveredTasks
+    // account for infra work as well as scenario work.
+    const normalized = infraNormalized.concat(scenarioNormalized);
     blockedTasks = normalized.filter(function isBlocked(entry) {
       return entry.status !== 'done';
     });

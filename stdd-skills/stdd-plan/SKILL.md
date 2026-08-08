@@ -215,6 +215,16 @@ or `[INFRA]` label; TDD tasks use one of the three status marks; every
 or `[MODIFY]` unless the survey was skipped, in which case the omission is
 noted.
 
+- **Module-convergence rule**: scenarios whose Test mapping points at the
+  same test-file SHOULD be merged into one task rather than split one task
+  per scenario — the RED step for that task writes the whole group's
+  scenario tests together in one pass, instead of re-opening the same file
+  once per scenario. Upper bound: one task per test-file. Keeping
+  one-scenario-per-task when several scenarios share a test-file is the
+  exception, not the default, and MUST carry a stated reason (e.g. the
+  scenarios are independently approvable, or their RED/GREEN cycles must
+  land in separate commits).
+
 ## 7. Coverage gate before approval (S-08)
 
 ### Design quality verification (fresh-context, before the gate)

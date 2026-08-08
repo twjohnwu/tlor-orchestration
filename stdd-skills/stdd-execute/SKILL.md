@@ -249,6 +249,27 @@ separate, non-verdict `argparse` error path (bad/unknown flag, or supplying
 both `--change-dir` and the legacy `change`/`--root` together) and prints no
 `CUSTODY:` line at all; never read exit 2 as PASS or FAIL.
 
+**Resume instead of relaunch.** Any relaunch of the workflow — after fixing
+an input file, after hitting a rate-limit, or after any other interruption
+— MUST resume the prior run via `{scriptPath, resumeFromRunId}` rather than
+starting a fresh relaunch from scratch; a bare relaunch throws away the
+already-computed state the prior run held. To make resume safe, the Maia
+computes an input-files hash before each launch (e.g. `shasum
+STDD/<name>/tasks.md spec.md design-*.md`, digested into one value) and
+passes it as `args.inputsHash`: unchanged inputs replay from cache under
+the same `inputsHash`, and changed inputs naturally get a new hash, which
+invalidates stale prompts instead of silently reusing them.
+
+**Quota pre-check before a large fan-out.** Before fanning out more than 10
+scenario tasks at once, do a soft pre-check for 5h quota headroom (read the
+statusline's `rate_limits` field, or run a small cheap probe call) and only
+proceed with the fan-out if there is enough quota left; if not, schedule
+the run for after the quota window resets rather than fanning out into a
+predictable rate-limit failure. This is usage discipline, not something
+enforced in `workflows/stdd-execute.js` — there is no reliable quota API to
+gate on in JS, so the check is advisory and performed by the dispatching
+Maia, not the workflow script.
+
 ## 7. `[INFRA]` / small-task fast path (S-18)
 
 For a task marked `[INFRA]`, or an obviously small single-file change:
