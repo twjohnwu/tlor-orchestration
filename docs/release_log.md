@@ -6,6 +6,10 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.7.4 (2026-08-09)
+
+- noldor-loremaster 1.4.0→1.5.0 — read-only Playwright browser subset (navigate/snapshot/screenshot/network_requests/click-for-pagination) for rendering JS-only SPA pages; hard ban on state-changing interactions.
+
 ## v0.7.3 (2026-08-08)
 
 - M1: the load agent now extracts each task's REQ-section GWT text (verbatim, siblings included) plus a design-be/fe excerpt; RED/GREEN/verify prompts inline them instead of instructing a full spec.md re-read (measured driver: 223.6M cache-read tokens). JS-side `gwtLooksValid` shape validation with per-task fail-open fallback to the old read-it-yourself instructions; verify keeps a soft "the file wins" re-check clause.

@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "tlor",
-      "version": "0.7.3",
+      "version": "0.7.4",
       "source": "./",
       "description": "Orchestration framework for Claude Code: twelve Middle-earth-themed pinned subagent roles, dispatch rules, judgment rubrics, risk tiers, and the /tlor-init setup skill. Roles pin model/effort/tools by design; rules enforce delegation discipline and verification."
     }
