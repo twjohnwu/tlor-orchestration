@@ -6,6 +6,10 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.7.5 (2026-08-09)
+
+- noldor-loremaster 1.6.0 gains browser_close — closes the browser by default when its work is done; delegation-templates §4 adds the Maia-side keep-open switch for multi-dispatch browser batches.
+
 ## v0.7.4 (2026-08-09)
 
 - noldor-loremaster 1.4.0→1.5.0 — read-only Playwright browser subset (navigate/snapshot/screenshot/network_requests/click-for-pagination) for rendering JS-only SPA pages; hard ban on state-changing interactions.
