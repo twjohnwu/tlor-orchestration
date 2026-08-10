@@ -4,6 +4,7 @@
 # (no plugin system needed).
 # Usage: ./install.sh [--dry-run] [--force] [--uninstall] [--with-optional]
 #                      [--stdd-role=RD|PM|UIUX|ALL] [--install-hook]
+#                      [--skills-dest=PATH]
 # Prefer the plugin route when possible:
 #   /plugin marketplace add twjohnwu/tlor-orchestration   then   /plugin install tlor@tlor
 #
@@ -17,6 +18,11 @@
 #   Code reads PreToolUse hooks from settings.json once, at session start —
 #   a resumed/continued session will NOT pick up a hook registered mid-
 #   session. Verify this hook in a brand-new (non-resumed) session only.
+# --skills-dest=PATH: declare the skills install directory once, persisted
+#   to ~/.claude/.tlor-install.conf so later runs need no flag. Must be an
+#   absolute path, and not $HOME or /. Without a declaration, a
+#   ~/.claude/skills symlink resolving outside ~/.claude still aborts the
+#   whole install (deliberate — see ensure_skills_dest_safe below).
 set -euo pipefail
 
 : "${HOME:?HOME is not set — refusing to guess an install location}"
@@ -32,21 +38,19 @@ PLUGIN_JSON="$ROOT/.claude-plugin/plugin.json"
 
 INSTITUTION="$HOME/.claude/institution"
 DEST="$HOME/.claude/agents"
-SKILLS_DEST="$HOME/.claude/skills"
 RULES_DEST="$HOME/.claude/rules"
 HOOKS_DEST="$HOME/.claude/hooks"
 WORKFLOWS_DEST="$HOME/.claude/workflows"
 SCRIPTS_DEST="$HOME/.claude/scripts"
 SETTINGS_JSON="$HOME/.claude/settings.json"
+INSTALL_CONF="$HOME/.claude/.tlor-install.conf"
 MANIFEST="$DEST/.tlor-manifest"
-SKILLS_MANIFEST="$SKILLS_DEST/.tlor-manifest"
 RULES_MANIFEST="$RULES_DEST/.tlor-manifest"
 HOOKS_MANIFEST="$HOOKS_DEST/.tlor-manifest"
 WORKFLOWS_MANIFEST="$WORKFLOWS_DEST/.tlor-manifest"
 SCRIPTS_MANIFEST="$SCRIPTS_DEST/.tlor-manifest"
-STDD_MANIFEST="$SKILLS_DEST/.tlor-stdd-manifest"
 
-DRY=0; FORCE=0; UNINSTALL=0; WITH_OPTIONAL=0; STDD_ROLE=""; INSTALL_HOOK=0
+DRY=0; FORCE=0; UNINSTALL=0; WITH_OPTIONAL=0; STDD_ROLE=""; INSTALL_HOOK=0; SKILLS_DEST_ARG=""
 for a in "$@"; do
   case "$a" in
     --dry-run) DRY=1;;
@@ -55,6 +59,7 @@ for a in "$@"; do
     --with-optional) WITH_OPTIONAL=1;;
     --stdd-role=*) STDD_ROLE="${a#*=}";;
     --install-hook) INSTALL_HOOK=1;;
+    --skills-dest=*) SKILLS_DEST_ARG="${a#*=}";;
     *) echo "unknown arg: $a" >&2; exit 1;;
   esac
 done
@@ -63,6 +68,55 @@ case "$STDD_ROLE" in
   ""|RD|PM|UIUX|ALL) ;;
   *) echo "unknown --stdd-role value: $STDD_ROLE (expected RD|PM|UIUX|ALL)" >&2; exit 1;;
 esac
+
+# Resolve the skills destination: CLI flag > config file > default. The
+# config file (a plain `key=value` line list) is read with grep/cut, never
+# `source`d — it must not be able to execute arbitrary content.
+# SKILLS_DEST_SOURCE tracks where the value came from ("flag"/"config"/
+# "default") so ensure_skills_dest_safe below knows whether the destination
+# was explicitly declared (skip the symlink-outside-~/.claude abort) or is
+# still the undeclared default (keep the abort exactly as before).
+SKILLS_DEST_SOURCE="default"
+SKILLS_DEST_CONFIG=""
+if [ -f "$INSTALL_CONF" ]; then
+  SKILLS_DEST_CONFIG="$(grep -m1 '^skills_dest=' "$INSTALL_CONF" 2>/dev/null | cut -d= -f2-)"
+fi
+if [ -n "$SKILLS_DEST_ARG" ]; then
+  SKILLS_DEST="$SKILLS_DEST_ARG"
+  SKILLS_DEST_SOURCE="flag"
+elif [ -n "$SKILLS_DEST_CONFIG" ]; then
+  SKILLS_DEST="$SKILLS_DEST_CONFIG"
+  SKILLS_DEST_SOURCE="config"
+else
+  SKILLS_DEST="$HOME/.claude/skills"
+fi
+
+if [ "$SKILLS_DEST_SOURCE" != "default" ]; then
+  case "$SKILLS_DEST" in
+    /*) ;;
+    *) echo "--skills-dest must be an absolute path, got: $SKILLS_DEST" >&2; exit 1;;
+  esac
+  if [ "$SKILLS_DEST" = "$HOME" ] || [ "$SKILLS_DEST" = "/" ]; then
+    echo "--skills-dest must not be \$HOME or / itself, got: $SKILLS_DEST" >&2
+    exit 1
+  fi
+fi
+
+if [ "$SKILLS_DEST_SOURCE" = "flag" ] && [ "$DRY" -ne 1 ]; then
+  # Persist the declared destination so a later run with no flag still finds
+  # it — create the conf file if absent, replace an existing skills_dest=
+  # line rather than appending a duplicate, and preserve any other keys.
+  mkdir -p "$HOME/.claude"
+  if [ -f "$INSTALL_CONF" ] && grep -q '^skills_dest=' "$INSTALL_CONF"; then
+    sed -i.bak-tlor "s|^skills_dest=.*|skills_dest=$SKILLS_DEST|" "$INSTALL_CONF"
+    rm -f "$INSTALL_CONF.bak-tlor"
+  else
+    printf 'skills_dest=%s\n' "$SKILLS_DEST" >> "$INSTALL_CONF"
+  fi
+fi
+
+SKILLS_MANIFEST="$SKILLS_DEST/.tlor-manifest"
+STDD_MANIFEST="$SKILLS_DEST/.tlor-stdd-manifest"
 
 # S-33 profile table (config-driven, per specs/stdd-integration.md S-33):
 # maps a 視角 to its STDD skill dir subset. RD/PM/UIUX subsets are recorded
@@ -171,6 +225,10 @@ ensure_institution_symlink() {
 # inside ~/.claude, not specifically under institution/. Anything outside
 # aborts rather than silently writing skill files through it.
 ensure_skills_dest_safe() {
+  if [ "$SKILLS_DEST_SOURCE" != "default" ]; then
+    echo "skills dest declared: $SKILLS_DEST (source: $SKILLS_DEST_SOURCE)"
+    return
+  fi
   local target="$SKILLS_DEST"
   if [ -L "$target" ]; then
     local resolved

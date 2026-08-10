@@ -365,6 +365,64 @@ MERGED_TASK_ID_FORMAT_RE = re.compile(
 )
 
 
+EN_INSTALLATION_DOC = REPO_ROOT / "docs" / "en" / "installation.md"
+ZH_INSTALLATION_DOC = REPO_ROOT / "docs" / "zh-TW" / "installation.md"
+INSTALL_SH = REPO_ROOT / "install.sh"
+
+
+def _flag_literals_from_install_sh_arg_case_block():
+    """Extract every flag literal (e.g. `--force`, `--stdd-role=`) from
+    install.sh's argument-parsing `case "$a" in ... esac` block, excluding
+    the catch-all `*)` fallback branch. `--stdd-role=*` is trimmed to
+    `--stdd-role=` since that trailing `*` is a shell glob, not doc text."""
+    text = INSTALL_SH.read_text(encoding="utf-8")
+    block_match = re.search(r'case "\$a" in(.*?)\n\s*esac', text, re.DOTALL)
+    assert block_match, (
+        'install.sh: could not find the argument-parsing `case "$a" in ... '
+        "esac` block"
+    )
+    flags = []
+    for line in block_match.group(1).splitlines():
+        line = line.strip()
+        m = re.match(r"(--[\w=*-]+)\)", line)
+        if not m:
+            continue
+        token = m.group(1)
+        if token == "*":
+            continue
+        flags.append(token.rstrip("*"))
+    return flags
+
+
+def test_every_install_sh_flag_literal_is_documented_in_both_language_docs():
+    """Guard test binding install.sh's recognized flags to the installation
+    docs.
+
+    GIVEN install.sh's argument-parsing `case` block (install.sh:51-59) lists
+      every flag the script recognizes
+    WHEN comparing each flag literal against `docs/en/installation.md` and
+      `docs/zh-TW/installation.md`
+    THEN every flag SHALL appear in BOTH docs — an added flag (e.g. a future
+      `--skills-dest=PATH`) that isn't documented in both languages would
+      otherwise go unnoticed.
+    """
+    flags = _flag_literals_from_install_sh_arg_case_block()
+    assert flags, "no flag literals extracted from install.sh's case block"
+
+    en_text = EN_INSTALLATION_DOC.read_text(encoding="utf-8")
+    zh_text = ZH_INSTALLATION_DOC.read_text(encoding="utf-8")
+
+    for flag in flags:
+        assert flag in en_text, (
+            f"{flag!r} (from install.sh's argument-parsing case block) is "
+            "missing from docs/en/installation.md"
+        )
+        assert flag in zh_text, (
+            f"{flag!r} (from install.sh's argument-parsing case block) is "
+            "missing from docs/zh-TW/installation.md"
+        )
+
+
 def test_stdd_plan_skill_states_the_merged_task_id_line_format():
     """M4-doc (M1 batch): stdd-plan/SKILL.md documents the merged-task id
     line format.

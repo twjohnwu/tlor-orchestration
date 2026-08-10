@@ -387,3 +387,8 @@ tlor-orchestration initialization complete:
   involved. Base rule files remain plugin-owned and are always overwritten
   unconditionally, with no backup (Step 4); this asymmetry is intentional,
   not an oversight.
+- `install.sh --skills-dest=PATH` declares the skills install directory once
+  (must be absolute, not `$HOME`/`/`); the declaration persists to
+  `~/.claude/.tlor-install.conf` so later runs need no flag — see
+  [docs/en/installation.md](../../docs/en/installation.md) for the full
+  contract.

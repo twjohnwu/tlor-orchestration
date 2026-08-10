@@ -125,7 +125,7 @@ exists; check the repo's releases/version badge yourself.
 
 ```bash
 git clone https://github.com/twjohnwu/tlor-orchestration.git
-cd tlor-orchestration && ./install.sh          # --dry-run / --force / --uninstall / --with-optional / --stdd-role=ALL / --install-hook
+cd tlor-orchestration && ./install.sh          # --dry-run / --force / --uninstall / --with-optional / --stdd-role=ALL / --install-hook / --skills-dest=PATH
 ```
 
 Copies agents to `~/.claude/agents/`, rules to `~/.claude/rules/`, hook
@@ -148,6 +148,16 @@ STDD test-file guard (`hooks/stdd_test_guard.py`). Default NOT installed.
 once, at session start — a resumed/continued session will NOT pick up a
 hook registered mid-session. Verify this hook in a brand-new (non-resumed)
 session only.
+
+**`--skills-dest=PATH`** — declare the skills install directory once. `PATH`
+must be an absolute path, and not `$HOME` or `/` itself. The declaration
+persists to `~/.claude/.tlor-install.conf` (a plain `skills_dest=PATH` line,
+read with `grep`/`cut`, never sourced), so a later run with no flag still
+installs to the same place. Without a declaration (no flag, no config line),
+a `~/.claude/skills` symlink resolving outside `~/.claude` still aborts the
+whole install — that safety default is deliberate and unchanged; an explicit
+`--skills-dest` declaration is how you opt out of it for a skills directory
+you keep elsewhere on purpose.
 
 **Lightweight users** (plugin only, no `/tlor-init`): see the CLAUDE.md
 snippet in [roles.md](roles.md) to get dispatch discipline without the full

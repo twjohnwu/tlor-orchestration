@@ -110,7 +110,7 @@ plugin-only 路徑放在一起權衡。
 
 ```bash
 git clone https://github.com/twjohnwu/tlor-orchestration.git
-cd tlor-orchestration && ./install.sh          # --dry-run / --force / --uninstall / --with-optional / --stdd-role=ALL / --install-hook
+cd tlor-orchestration && ./install.sh          # --dry-run / --force / --uninstall / --with-optional / --stdd-role=ALL / --install-hook / --skills-dest=PATH
 ```
 
 複製 agents 到 `~/.claude/agents/`、rules 到 `~/.claude/rules/`、hook 腳本到
@@ -130,6 +130,15 @@ guard（`hooks/stdd_test_guard.py`）。預設不安裝。**誠實提醒**：Cla
 Code 只在 session 啟動時讀取一次 `settings.json` 裡的 PreToolUse
 hook——在既有或 `--continue`/`--resume` 的 session 中執行
 `--install-hook` 不會讓 hook 在那個 session 生效；請只在全新 session 中驗證。
+
+**`--skills-dest=PATH`** — 一次性宣告 skills 安裝目錄。`PATH` 必須是絕對
+路徑，且不能是 `$HOME` 或 `/` 本身。宣告會持久化到
+`~/.claude/.tlor-install.conf`（一行純文字 `skills_dest=PATH`，用
+`grep`/`cut` 讀取，絕不 `source`），所以之後不帶旗標重跑也會裝到同一個
+位置。沒有宣告時（沒旗標、conf 也沒有這一行），`~/.claude/skills` 若是
+指向 `~/.claude` 之外的 symlink，仍會中止整個安裝——這個安全預設是刻意
+且不變的；明確宣告 `--skills-dest` 就是你選擇跳出這個預設、為刻意放在
+別處的 skills 目錄開後門的方式。
 
 **輕量使用者**（只裝 plugin、不跑 `/tlor-init`）：見 [roles.md](roles.md)
 的 CLAUDE.md snippet，不必完整安裝 rules 也能有派工紀律。
