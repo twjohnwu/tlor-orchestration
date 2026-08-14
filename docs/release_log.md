@@ -15,6 +15,12 @@ release first — new sections go at the top.
 - agents/orc-saboteur.md 1.5.0: its council seat is executed by codex when available (`codex exec --sandbox read-only`), with a pre-adoption check; discard falls back to self-review without retry; engine labels distinguish codex vs self output; the council protocol itself is unchanged; rivendell-council SKILL.md notes the engine label
 - agents/dwarf-smith.md 1.5.0: Codex-first execution mirroring gondor-builder 1.5.0 — `workspace-write` sandbox, per-file recipe review, flag-don't-improvise extended to codex output, provenance labels
 - agents/cirdan-shipwright.md 0.2.0: codex pre-scan added after the hard step-0 role-fit check — findings are leads only, the verdict stays cirdan's
+- erebor-ledger: new `## Codex delegation` report section — Codex rollout
+  adapter (`--codex-home`), window+cwd attribution with ambiguous/
+  unattributed disclosure, official rate-card credits pricing
+  (`references/codex-rate-card.json`, null-until-verified), per-role
+  no-codex historical median baseline (estimate), `used_percent` snapshot;
+  never merged into existing totals.
 
 ## v0.7.6 (2026-08-10)
 

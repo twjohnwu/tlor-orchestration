@@ -565,6 +565,52 @@ at least one zero-dispatch role (twelve roles rarely all fire in the same
 window); if a real run ever shows none, that is a signal to double-check
 the discovery source before trusting it, not a thing to celebrate silently.
 
+## Codex delegation (`--codex-home`, `references/codex-rate-card.json`)
+
+tlor roles (gondor-builder, dwarf-smith, ...) may delegate execution to the
+Codex CLI (`codex exec`). That work leaves no token trace in Claude
+transcripts, so the report carries a separate `## Codex delegation` section
+— placed after `## Zero-dispatch roles`, before `## Quota-headroom figures`
+— computed from `<codex-home>/sessions/**/rollout-*.jsonl` (plus
+`archived_sessions/` when present; `--codex-home` overrides the default
+`~/.codex`; a missing sessions directory reduces the section to a single
+"skipped" line). `auth.json` and everything else under the Codex home is
+never read.
+
+**Numbers in this section are NEVER merged into any table or total above**:
+Codex models use a different tokenizer, so token volumes and costs are not
+comparable with Claude figures — the section is a standalone report.
+
+- **Attribution**: a Codex session is attributed to a tlor role when its
+  `session_meta.timestamp` falls inside a window opened by a `codex exec`
+  Bash call in that role's subagent transcript (window = call timestamp →
+  end of that transcript) AND the session's `cwd` matches the dispatch's.
+  Multi-window matches are disclosed as `ambiguous` (never force-assigned);
+  sessions with no matching window (codex-companion, manual use) are
+  disclosed as `unattributed` with count and token totals. Both lines print
+  even at zero.
+- **Pricing** comes from `references/codex-rate-card.json`: credits/MTok
+  (input / cached-read / output) transcribed from the official rate card;
+  cache writes are not billed per the official statement. USD figures, when
+  present, come from the `usd_secondary` field and are always labeled
+  `(secondary source)`. A model with `null` rates (or no longest-prefix
+  match) renders `N/A` plus a warning — the script never guesses a price or
+  substitutes another model's.
+- **Baseline comparison (estimate)**: for each role with codex-assisted
+  dispatches, the same role's no-codex dispatches inside the same filter
+  window supply a per-dispatch API-equiv cost median + IQR; estimated
+  saving = that median minus the codex-assisted dispatch's own wrapper
+  (Claude-side) cost. Fewer than 3 baseline dispatches → `insufficient
+  baseline (n=X) — no estimate`. The old same-token-volume counterfactual
+  is NOT used here (cross-tokenizer, invalid). Codex credits are never
+  netted against these USD estimates.
+- **`used_percent` snapshot**: the section reports the first and last
+  observed Codex rate-limit `used_percent` in the window.
+- **Disclaimers (mandatory, verbatim in every run)**: experimental schema
+  (token_count records exist only since 2025-09), cross-tokenizer
+  non-comparability, baseline-is-an-estimate, credits-official /
+  USD-secondary, cache-writes-not-billed.
+
 ## Pricing (`references/model-prices.json`)
 
 Config-driven, not hardcoded in the script. Matching is **longest-prefix
@@ -641,6 +687,10 @@ dropped, and a comparison run pasted without its comparison table:
       section is in the output; figure 4 is present only when a calibration
       point exists (config or `--calibration-ceiling-usd`) — its total
       absence in that case is correct, not a bug.
+- [ ] **Codex delegation section present**: the `## Codex delegation`
+      section is in the output — either its full tables + disclosures +
+      disclaimer block, or the single "skipped" line when no Codex home
+      exists; its numbers appear in NO other table or total.
 
 ## Non-goals
 
