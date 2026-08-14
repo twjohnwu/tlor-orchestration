@@ -692,14 +692,14 @@ def test_codex_delegation_unattributed(tmp_path):
     assert "| gondor-builder | gpt-5.4 |" not in section
 
 
-def test_codex_terra_pricing_is_na_and_warned(tmp_path):
+def test_codex_unknown_model_pricing_is_na_and_warned(tmp_path):
     cwd = "/work/project"
     make_session(tmp_path, "p", "s", [orchestrator_line("2026-07-20T10:00:00Z", 1)], dispatches=[
         ("g", "gondor-builder", [codex_bash("2026-07-20T10:01:00Z", cwd), assistant("2026-07-20T10:03:00Z", "end", "end", SONNET, usage())])])
-    home = tmp_path / "codex"; write_rollout(home, "terra", "2026-07-20T10:02:00Z", cwd, model="gpt-5.6-terra")
+    home = tmp_path / "codex"; write_rollout(home, "terra", "2026-07-20T10:02:00Z", cwd, model="gpt-9.9-unknown")
     report = run_report_codex(tmp_path, home)
-    assert "| gondor-builder | gpt-5.6-terra | 1 | 0 | 0 | 0 | 0 | 0 | N/A | — |" in delegation_section(report)
-    assert "Codex model 'gpt-5.6-terra' has unknown credits pricing" in report.split("## Warnings", 1)[1]
+    assert "| gondor-builder | gpt-9.9-unknown | 1 | 0 | 0 | 0 | 0 | 0 | N/A | — |" in delegation_section(report)
+    assert "Codex model 'gpt-9.9-unknown' has unknown credits pricing" in report.split("## Warnings", 1)[1]
 
 
 def test_codex_baseline_estimate(tmp_path):
