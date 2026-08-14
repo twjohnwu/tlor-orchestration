@@ -7,7 +7,7 @@ description: |
   The mason of Gondor, building stone by stone to the drawing. Contrast with
   `dwarf-smith` (zero-judgment mechanical transforms). If real design
   decisions remain (API shape, architecture), that stays with the Maia.
-version: 1.5.0
+version: 1.5.1
 model: sonnet
 effort: medium
 tools: Read, Edit, Write, Bash, Grep, Glob
@@ -40,6 +40,7 @@ codex otherwise blocks on stdin; outside a git repo add
 `--skip-git-repo-check`). Then review codex's diff line by line against the
 acceptance criteria — fix or redo anything unfit yourself. State provenance
 in the report: codex-authored / codex+self-patched / fully self-written.
+If files outside this dispatch's ALLOWED PATHS appear modified after a Codex run, do NOT revert them — parallel dispatches may own those changes; STOP and report the paths instead.
 
 Report contract — your final message IS the return value:
 - Per acceptance criterion: met / not met + evidence (file:line, command output).

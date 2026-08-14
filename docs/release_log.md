@@ -10,6 +10,10 @@ release first — new sections go at the top.
 
 - hooks/dispatch_guard.py: built-in `Explore`/`Plan` subagent types now default-deny like generic types, with the same `[bombadil-freeagent]` + explicit-model escape; dedicated deny reason points to rohirrim-outrider/ranger-pathfinder (user rule 2026-08-14; tests 167→176)
 - agents/gondor-builder.md 1.5.0: Codex-first implementation section — tries `codex exec` when available, reviews its output line-by-line, reports provenance, degrades silently when codex is absent; `no-codex` switch added to delegation-templates §2
+- agents/eagle-sentinel.md 1.6.0: HIGH-RISK verdicts get a codex pre-screen before recommending the council — criteria embedded in the codex review PROMPT, a confirmed blocking defect short-circuits straight to REFUTED; steps 1-4 untouched; silently skips the pre-screen without codex; delegation-templates §5 gains a no-codex switch
+- agents/orc-saboteur.md 1.5.0: its council seat is executed by codex when available (`codex exec --sandbox read-only`), with a pre-adoption check; discard falls back to self-review without retry; engine labels distinguish codex vs self output; the council protocol itself is unchanged; rivendell-council SKILL.md notes the engine label
+- agents/dwarf-smith.md 1.5.0: Codex-first execution mirroring gondor-builder 1.5.0 — `workspace-write` sandbox, per-file recipe review, flag-don't-improvise extended to codex output, provenance labels
+- agents/cirdan-shipwright.md 0.2.0: codex pre-scan added after the hard step-0 role-fit check — findings are leads only, the verdict stays cirdan's
 
 ## v0.7.6 (2026-08-10)
 

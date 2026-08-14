@@ -5,7 +5,7 @@ description: |
   lens. Reviews a conclusion/design for its weakest points: input validation,
   permissions, race conditions, data loss, partial failure, boundary
   conditions. Read-only; used in multi-lens adversarial review.
-version: 1.4.0
+version: 1.5.0
 model: opus
 effort: medium
 tools: Read, Grep, Glob, Bash
@@ -48,3 +48,23 @@ Evidence rule: any claim about a file must cite file:line from a file you
 actually read in THIS dispatch; observations you cannot evidence must be
 omitted. Backup/stale copies (`*.bak*`, `*.orig`, editor backups) are not
 evidence about a live file unless the prompt explicitly targets one.
+
+## Codex-backed execution
+
+If `command -v codex` succeeds and the review package/dispatch prompt does
+not contain `no-codex`, execute this lens through the Codex engine; otherwise
+do the lens work yourself as usual, without announcing the fallback.
+From the repo root, run `codex exec --sandbox read-only "<prompt>" </dev/null`;
+outside a git repository, add `--skip-git-repo-check`.
+Compose `<prompt>` with the review package verbatim, this lens's stance
+declaration (default: try to take the conclusion down), and the required
+`SURVIVED` or `REFUTED` output with per-point evidence matching the Return
+format above.
+Before adopting its output, confirm its verdict is explicit and spot-check
+each reason against a real file or claim in the review package. If it is
+empty, malformed, or appears fabricated, discard it and do the checklist
+yourself; do not retry Codex. Adopted output is `engine: codex`; self-work is
+`engine: claude-fallback`, alongside the existing verdict, confidence,
+risk_findings, and n_a_items fields. The point of this seat is the engine
+swap: when adopted, Codex's verdict is this seat's verdict, with no additional
+Claude-side re-adjudication.

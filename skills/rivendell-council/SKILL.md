@@ -63,6 +63,8 @@ lenses, whose default stance is to overturn it.
    | orc-saboteur | … | … |
    | hobbit-gardener | … | … |
 
+   The Lens column may label an Orc seat executed via Codex as `orc-saboteur (codex)`; the three-seat, majority-survival council protocol is unchanged.
+
    Plus one line: `Adversarial result: N/3 survived → confirmed / blocked (reason)`.
 
 ## Never
