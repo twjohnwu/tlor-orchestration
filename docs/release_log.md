@@ -8,6 +8,7 @@ release first — new sections go at the top.
 
 ## v0.7.7 (2026-08-14)
 
+- `bombadil-freeagent` is promoted from a prompt marker to the real named agent type in agents/bombadil-freeagent.md (no model/tools pinned; explicit per-call model required). hooks/dispatch_guard.py now unconditionally denies `general-purpose`/`claude`/`explore`/`plan` (no marker escape) and instead requires `subagent_type: bombadil-freeagent`, an explicit model, and a `no-role-fits reason: ...` line; rules/dispatch.md, skills/tlor-init/SKILL.md, and tests now match.
 - hooks/dispatch_guard.py: built-in `Explore`/`Plan` subagent types now default-deny like generic types, with the same `[bombadil-freeagent]` + explicit-model escape; dedicated deny reason points to rohirrim-outrider/ranger-pathfinder (user rule 2026-08-14; tests 167→176)
 - agents/gondor-builder.md 1.5.0: Codex-first implementation section — tries `codex exec` when available, reviews its output line-by-line, reports provenance, degrades silently when codex is absent; `no-codex` switch added to delegation-templates §2
 - agents/eagle-sentinel.md 1.6.0: HIGH-RISK verdicts get a codex pre-screen before recommending the council — criteria embedded in the codex review PROMPT, a confirmed blocking defect short-circuits straight to REFUTED; steps 1-4 untouched; silently skips the pre-screen without codex; delegation-templates §5 gains a no-codex switch

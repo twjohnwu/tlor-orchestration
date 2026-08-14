@@ -303,10 +303,11 @@ Present available hooks with clear descriptions:
    - Activated by setting `TLOR_VERIFY_GATE=1` in your environment
    - Requires Python 3
 
-3. **dispatch_guard** (PreToolUse): Denies Agent dispatches with
-   `subagent_type: general-purpose` or `claude` unless the prompt contains the
-   literal marker `[bombadil-freeagent]` AND an explicit `model` parameter is passed.
-   Redirects naming slips to the pinned roles (dispatch.md §3).
+3. **dispatch_guard** (PreToolUse): Unconditionally denies Agent dispatches
+   with `subagent_type: general-purpose`, `claude`, `explore`, or `plan`.
+   The named `subagent_type: bombadil-freeagent` is allowed only with an
+   explicit `model` parameter and a `no-role-fits reason: ...` line in the
+   prompt. Redirects naming slips to the pinned roles (dispatch.md §3).
    - Activated by setting `TLOR_DISPATCH_GUARD=1` in your environment
    - Requires Python 3
 

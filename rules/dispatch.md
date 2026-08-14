@@ -85,27 +85,30 @@ and then ALWAYS pass `model` explicitly.
 | Implement against a clear spec (local judgment OK) | `gondor-builder` (sonnet/medium) | generic subagent + mid-tier model |
 | Routine read-back verification | `eagle-sentinel` + `model: sonnet` override | generic subagent + mid-tier model |
 | High-risk verification | `eagle-sentinel` (opus/medium); panel: `elf-archer`/`orc-saboteur`/`hobbit-gardener` | generic subagent + top-tier model |
-| Open-ended design/production-readiness review of a diff — no criteria list, no stated conclusion | `cirdan-shipwright` (opus/medium) | generic subagent + top-tier model, `[bombadil-freeagent]` marker required by dispatch_guard |
+| Open-ended design/production-readiness review of a diff — no criteria list, no stated conclusion | `cirdan-shipwright` (opus/medium) | `subagent_type: bombadil-freeagent` with an explicit model AND effort plus a `no-role-fits reason: ...` line, required by dispatch_guard |
 | External-system READ via session MCP tools (task trackers, docs stores) | `mirror-of-galadriel` (haiku/low) | none — needs MCP tools, no safe generic substitute |
 | External-system WRITE via session MCP tools | `palantir-stone` (sonnet/medium) — **T1 note**: outward-facing writes; the dispatch MUST enumerate every mutation (target gid+title, expected-before, literal value), max 10 per dispatch; per risk-tiers T1, the Maia MUST obtain the user's explicit confirmation of the exact mutation enumeration BEFORE dispatching. Create items carry the service, a literal `operation: create` marker, container gid+name, literal task name, every literal field value (or "no other fields"), `expected: absent`; max 25 create per dispatch (updates stay 10); create and update never mix in one dispatch; a RETRY dispatch marks each retried create item `retry-of: <gid \| none (stopped pre-write) \| unknown (create call ran, no gid)>`, and each retried comment `retry-of: comment (prior outcome <label>)`. | none — needs MCP tools, no safe generic substitute |
-| No pinned role fits the task's shape (verify against the whole table first — a naming slip is not a missing role) | generic subagent with `[bombadil-freeagent]` in the prompt + an explicit `model` AND `effort`, both chosen by the Maia per §3b's judgment-vs-volume inputs, with the choice and the no-role-fits reason stated in the dispatch prompt itself | (this row IS the fallback) |
+| No pinned role fits the task's shape (verify against the whole table first — a naming slip is not a missing role) | `subagent_type: bombadil-freeagent` with an explicit per-call `model` AND a chosen `effort`, both selected by the Maia per §3b's judgment-vs-volume inputs and stated in the dispatch prompt, plus a `no-role-fits reason: ...` line | (this row IS the fallback) |
 | Design decisions, ambiguous debugging, writing plans | stays with the Maia, or generic subagent + top-tier model | — |
 
 Given criteria → eagle-sentinel; given a conclusion to attack → rivendell-council
 panel; given only a diff → cirdan-shipwright.
 
-**Escape-hatch discipline (`[bombadil-freeagent]`).** Self-check the whole
-table before reaching for this marker — the last transcript audit found 54%
+**Escape-hatch discipline (`bombadil-freeagent`).** Self-check the whole
+table before dispatching this named role — the last transcript audit found 54%
 of 65 generic leaks were mis-named eagle-shaped dispatches; a naming slip is
-not a missing role. Every legitimate use states the no-role-fits reason in
-the dispatch prompt itself, so read-backs and future audits can verify it.
+not a missing role. Every legitimate use dispatches to `subagent_type:
+bombadil-freeagent`, passes an explicit `model`, chooses and states an
+`effort`, and includes a `no-role-fits reason: ...` line in the dispatch
+prompt itself, so read-backs and future audits can verify it.
 The SECOND occurrence of the same unfit task shape stops going generic —
 propose minting a role instead (roster changes are maintenance ask-first,
 user-decided; `cirdan-shipwright` is the precedent). The Maia picks both
 `model` AND `effort` per §3b (judgment-heavy up, volume-heavy down) — this
 is the only row pinning neither, so both must be explicit. Honest note:
-dispatch_guard mechanically checks the marker + model only; effort is a
-rule-layer requirement, not hook-enforced.
+dispatch_guard mechanically checks subagent_type + model + the
+`no-role-fits` text only; effort is a rule-layer requirement, not
+hook-enforced.
 
 - A per-call `model` parameter OVERRIDES a role's pinned frontmatter — use it
   to downgrade eagle-sentinel for routine read-backs, or to downgrade the

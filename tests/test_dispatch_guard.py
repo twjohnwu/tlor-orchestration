@@ -2,9 +2,9 @@
 """Black-box tests for hooks/dispatch_guard.py.
 
 Opt-in PreToolUse hook (TLOR_DISPATCH_GUARD=1): denies Agent/Task dispatches
-whose subagent_type is a guarded escape hatch (including built-in types)
-unless the prompt carries the literal marker "[bombadil-freeagent]" AND an
-explicit `model` parameter is passed.
+whose generic and built-in types are unconditionally denied. The named
+"bombadil-freeagent" type requires an explicit `model` parameter and a
+"no-role-fits" reason in its prompt.
 """
 from conftest import HOOKS_DIR
 
@@ -68,10 +68,12 @@ def test_model_but_no_marker_denied(run_hook):
     assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
-def test_marker_and_model_allowed(run_hook):
+def test_general_purpose_marker_and_model_denied(run_hook):
     result = _run(run_hook, _payload(subagent_type="general-purpose", prompt="do it [bombadil-freeagent]", model="opus"))
     assert result.returncode == 0
-    assert result.decision is None
+    decision = result.decision
+    assert decision is not None
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
 def test_old_marker_no_longer_recognized_denied(run_hook):
@@ -114,16 +116,20 @@ def test_plan_type_denied(run_hook):
     assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
-def test_explore_marker_and_model_allowed(run_hook):
+def test_explore_marker_and_model_denied(run_hook):
     result = _run(run_hook, _payload(subagent_type="explore", prompt="do it [bombadil-freeagent]", model="sonnet"))
     assert result.returncode == 0
-    assert result.decision is None
+    decision = result.decision
+    assert decision is not None
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
-def test_plan_marker_and_model_allowed(run_hook):
+def test_plan_marker_and_model_denied(run_hook):
     result = _run(run_hook, _payload(subagent_type="plan", prompt="do it [bombadil-freeagent]", model="sonnet"))
     assert result.returncode == 0
-    assert result.decision is None
+    decision = result.decision
+    assert decision is not None
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
 def test_explore_fake_marker_denied(run_hook):
@@ -150,7 +156,7 @@ def test_explore_deny_reason_mentions_roles_and_escape(run_hook):
     reason = decision["hookSpecificOutput"]["permissionDecisionReason"]
     assert "rohirrim-outrider" in reason
     assert "ranger-pathfinder" in reason
-    assert "[bombadil-freeagent]" in reason
+    assert "bombadil-freeagent" in reason
 
 
 def test_plan_deny_reason_mentions_roles_and_escape(run_hook):
@@ -161,7 +167,48 @@ def test_plan_deny_reason_mentions_roles_and_escape(run_hook):
     reason = decision["hookSpecificOutput"]["permissionDecisionReason"]
     assert "rohirrim-outrider" in reason
     assert "ranger-pathfinder" in reason
-    assert "[bombadil-freeagent]" in reason
+    assert "bombadil-freeagent" in reason
+
+
+def test_bombadil_freeagent_with_model_and_reason_allowed(run_hook):
+    result = _run(run_hook, _payload(
+        subagent_type="bombadil-freeagent",
+        model="opus",
+        prompt="no-role-fits reason: web scraping via a custom browser tool",
+    ))
+    assert result.returncode == 0
+    assert result.decision is None
+
+
+def test_bombadil_freeagent_reason_without_model_denied(run_hook):
+    result = _run(run_hook, _payload(
+        subagent_type="bombadil-freeagent",
+        prompt="no-role-fits reason: web scraping via a custom browser tool",
+    ))
+    assert result.returncode == 0
+    decision = result.decision
+    assert decision is not None
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_bombadil_freeagent_model_without_reason_denied(run_hook):
+    result = _run(run_hook, _payload(
+        subagent_type="bombadil-freeagent", model="opus", prompt="web scraping via a custom browser tool",
+    ))
+    assert result.returncode == 0
+    decision = result.decision
+    assert decision is not None
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_bombadil_freeagent_reason_is_case_insensitive(run_hook):
+    result = _run(run_hook, _payload(
+        subagent_type="bombadil-freeagent",
+        model="opus",
+        prompt="No-Role-Fits reason: web scraping via a custom browser tool",
+    ))
+    assert result.returncode == 0
+    assert result.decision is None
 
 
 def test_malformed_stdin_fails_open(run_hook):
