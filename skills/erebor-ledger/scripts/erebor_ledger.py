@@ -135,6 +135,9 @@ DEFAULT_CONFIG_PATH = os.path.expanduser("~/.claude/erebor-ledger.json")
 PRICE_TABLE_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "references", "model-prices.json"
 )
+CODEX_RATE_CARD_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "references", "codex-rate-card.json"
+)
 # Repo-relative agents/ dir next to this skill's plugin root (skills/erebor-ledger/scripts/ -> repo root/agents).
 PLUGIN_AGENTS_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "agents"
@@ -181,6 +184,12 @@ def load_price_table(path: str = PRICE_TABLE_PATH) -> dict:
         data = json.load(f)
     data.pop("_meta", None)
     return data
+
+
+def load_codex_rate_card(path: str = CODEX_RATE_CARD_PATH) -> dict:
+    """Read the separate, flat Codex credits rate card (read-only)."""
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 def load_ledger_config(path: str = DEFAULT_CONFIG_PATH) -> dict:
@@ -1389,6 +1398,219 @@ def build_report(
 
 
 # --------------------------------------------------------------------------
+# Codex delegation (kept separate from all Claude totals above)
+# --------------------------------------------------------------------------
+
+def _iter_jsonl(path: str):
+    try:
+        f = open(path, "r", encoding="utf-8")
+    except OSError:
+        return
+    with f:
+        for line in f:
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(rec, dict):
+                yield rec
+
+
+def _walk_objects(value):
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from _walk_objects(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk_objects(child)
+
+
+def _codex_tokens(value: dict) -> dict:
+    return {
+        "input": value.get("input_tokens", 0) or 0,
+        "cached": value.get("cached_input_tokens", 0) or 0,
+        "cache_write": value.get("cache_write_input_tokens", 0) or 0,
+        "output": value.get("output_tokens", 0) or 0,
+        "reasoning": value.get("reasoning_output_tokens", 0) or 0,
+        "total": value.get("total_tokens", 0) or 0,
+    }
+
+
+def _read_codex_session(path: str, warnings: list) -> dict | None:
+    meta = {}
+    models: list[str] = []
+    maximum = {k: 0 for k in ("input", "cached", "cache_write", "output", "reasoning", "total")}
+    used = []
+    for rec in _iter_jsonl(path):
+        if rec.get("type") == "session_meta" and isinstance(rec.get("payload"), dict):
+            meta = rec["payload"]
+        for obj in _walk_objects(rec):
+            if obj.get("type") == "turn_context" and isinstance(obj.get("payload"), dict):
+                model = obj["payload"].get("model")
+                if isinstance(model, str):
+                    models.append(model)
+            # turn_context is normally a top-level record, while the usage
+            # shape may occur in any future nested event shape.
+            usage = obj.get("total_token_usage")
+            if isinstance(usage, dict):
+                tok = _codex_tokens(usage)
+                for key in maximum:
+                    maximum[key] = max(maximum[key], tok[key])
+            if "used_percent" in obj:
+                used.append(obj["used_percent"])
+    if not meta:
+        return None
+    distinct = sorted(set(models))
+    if len(distinct) > 1:
+        warnings.append(
+            "WARNING: Codex rollout " + os.path.basename(path)
+            + " has multiple turn_context models: " + ", ".join(distinct)
+        )
+    return {"path": path, "name": os.path.basename(path), "timestamp": meta.get("timestamp"),
+            "cwd": meta.get("cwd"), "originator": meta.get("originator"),
+            "model": models[-1] if models else None, "tokens": maximum,
+            "used_first": used[0] if used else None, "used_last": used[-1] if used else None}
+
+
+def _codex_dispatch_data(root, project_filter, since, until, month, since_dt, until_dt, price_table, today, price_as_of, warnings, months=None):
+    """Build filtered Claude dispatch windows and separate per-role costs.
+
+    This pass deliberately applies the report window while it scans dispatches,
+    so historical codex calls outside this report cannot create a window here.
+    """
+    roles = set(discover_tlor_roles())
+    windows, costs = [], defaultdict(lambda: {"codex": [], "plain": []})
+    active_months = months or [month]
+    def in_window(ts):
+        return any(_record_in_window(ts, since, until, m, since_dt, until_dt) for m in active_months)
+    winners = {}
+    for active_month in active_months:
+        part, _ = collect_dedup_winners(root, project_filter, since, until, active_month, since_dt, until_dt)
+        winners.update(part)
+    for _project, project_dir in find_project_dirs(root, project_filter):
+        for session_id, _main in find_main_sessions(project_dir):
+            for agent_file, meta_file in find_subagent_files(project_dir, session_id):
+                meta = load_agent_meta(meta_file, warnings)
+                role = meta["agentType"]
+                if role not in roles:
+                    continue
+                all_records = list(_iter_jsonl(agent_file))
+                last_ts = last_cwd = None
+                for rec in all_records:
+                    if rec.get("timestamp"):
+                        last_ts = rec.get("timestamp")
+                    if rec.get("cwd"):
+                        last_cwd = rec.get("cwd")
+                raw = [(line, rec, ts, model, usage_blob) for line, rec, ts, model, usage_blob
+                       in _iter_raw_assistant_records(agent_file) if in_window(ts)]
+                if not raw:
+                    continue
+                raw_for_dedup = [(model, usage_to_tokens(usage_blob, warnings, agent_file), record_dedup_key(rec), line, ts[:10] if ts else None)
+                                 for line, rec, ts, model, usage_blob in raw]
+                full = dedup_against_winners(raw_for_dedup, agent_file, winners)
+                actual = 0.0
+                for model, tok, _dup, record_date in full:
+                    price = resolve_price(model, price_table, price_as_of or record_date or today)
+                    if price is not None:
+                        actual += cost_for_tokens(tok, price)
+                codex_calls = []
+                for _line, rec, ts, _model, _usage in _iter_raw_assistant_records(agent_file):
+                    if not in_window(ts):
+                        continue
+                    for block in (rec.get("message") or {}).get("content") or []:
+                        inp = block.get("input") if isinstance(block, dict) else None
+                        if (isinstance(block, dict) and block.get("type") == "tool_use"
+                                and block.get("name") == "Bash" and isinstance(inp, dict)
+                                and isinstance(inp.get("command"), str) and "codex exec" in inp["command"]):
+                            codex_calls.append((ts, rec.get("cwd") or last_cwd))  # fallback is this transcript's final cwd.
+                costs[role]["codex" if codex_calls else "plain"].append(actual)
+                for start, cwd in codex_calls:
+                    if start and last_ts and cwd:
+                        windows.append({"role": role, "start": start, "end": last_ts, "cwd": cwd})
+    return windows, costs
+
+
+def _codex_price(model, tokens, card):
+    models = card.get("models", {})
+    key = max((k for k in models if model and model.lower().startswith(k.lower())), key=len, default=None)
+    entry = models.get(key) if key else None
+    rates = entry.get("credits_per_mtok") if entry else None
+    if rates is None:
+        return None, entry
+    credits = ((tokens["input"] - tokens["cached"]) / 1_000_000 * rates["input"]
+               + tokens["cached"] / 1_000_000 * rates["cached_input"]
+               + tokens["output"] / 1_000_000 * rates["output"])
+    return credits, entry
+
+
+def render_codex_delegation(root, codex_home, project_filter, since, until, month, since_dt, until_dt, price_table, today, price_as_of, warnings, months=None):
+    home = os.path.abspath(os.path.expanduser(codex_home))
+    sessions_dir = os.path.join(home, "sessions")
+    if not os.path.isdir(sessions_dir):
+        return "## Codex delegation\n\nCodex home " + home + " has no sessions directory — Codex delegation reporting skipped.\n"
+    card = load_codex_rate_card()
+    windows, costs = _codex_dispatch_data(root, project_filter, since, until, month, since_dt, until_dt, price_table, today, price_as_of, warnings, months)
+    def in_window(ts):
+        return any(_record_in_window(ts, since, until, active_month, since_dt, until_dt) for active_month in (months or [month]))
+    paths = []
+    for base in (sessions_dir, os.path.join(home, "archived_sessions")):
+        if os.path.isdir(base):
+            for dirpath, _dirs, files in os.walk(base):
+                paths.extend(os.path.join(dirpath, n) for n in files if n.startswith("rollout-") and n.endswith(".jsonl"))
+    matched, ambiguous, unattributed = defaultdict(lambda: {"count": 0, "tokens": {k: 0 for k in ("input", "cached", "cache_write", "output", "reasoning", "total")}, "credits": 0.0, "na": False, "entry": None}), [], []
+    observed = []
+    warned_models = set()
+    for path in sorted(paths):
+        s = _read_codex_session(path, warnings)
+        if not s or not in_window(s["timestamp"]):
+            continue
+        candidates = [w for w in windows if w["start"] <= s["timestamp"] <= w["end"] and (s["cwd"] == w["cwd"] or (isinstance(s["cwd"], str) and s["cwd"].startswith(w["cwd"] + "/")))]
+        observed.append(s)
+        if len(candidates) != 1:
+            (ambiguous if len(candidates) > 1 else unattributed).append(s)
+            continue
+        key = (candidates[0]["role"], s["model"] or "(no model)")
+        row = matched[key]; row["count"] += 1
+        for k in row["tokens"]: row["tokens"][k] += s["tokens"][k]
+        credits, entry = _codex_price(s["model"], s["tokens"], card)
+        row["entry"] = entry
+        if credits is None:
+            row["na"] = True
+            if s["model"] not in warned_models:
+                warnings.append(f"WARNING: Codex model '{s['model']}' has unknown credits pricing — cost N/A")
+                warned_models.add(s["model"])
+        else: row["credits"] += credits
+    def bucket(items): return len(items), sum(s["tokens"]["total"] for s in items)
+    lines = ["## Codex delegation", "", "| tlor role | Codex model | Sessions | input | cached | cache_write | output | reasoning | Credits | USD (secondary) |", "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |"]
+    ordered = sorted(matched.items(), key=lambda kv: (kv[1]["na"], -(kv[1]["credits"] if not kv[1]["na"] else 0), kv[0][0], kv[0][1]))
+    for (role, model), row in ordered:
+        c = "N/A" if row["na"] else f"{row['credits']:.2f}"
+        usd = "—"
+        if row["entry"] and row["entry"].get("usd_secondary") is not None and not row["na"]:
+            usd = f"${row['credits'] * row['entry']['usd_secondary']:.2f} (secondary source)"
+        t = row["tokens"]
+        lines.append(f"| {role} | {model} | {row['count']} | {fmt_int(t['input'])} | {fmt_int(t['cached'])} | {fmt_int(t['cache_write'])} | {fmt_int(t['output'])} | {fmt_int(t['reasoning'])} | {c} | {usd} |")
+    ac, at = bucket(ambiguous); uc, ut = bucket(unattributed)
+    files = sorted(s["name"] for s in ambiguous)
+    lines += ["", f"Ambiguous (multi-window match, not attributed): {ac} sessions, {fmt_int(at)} tokens" + (" (files: " + ", ".join(files) + ")" if files else ""), f"Unattributed (no matching tlor dispatch window): {uc} sessions, {fmt_int(ut)} tokens", "", "| tlor role | codex-assisted dispatches | baseline n | baseline median (API-equiv) | IQR | wrapper actual median | est. saving/dispatch | est. total saving |", "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
+    for role in sorted(r for r, v in costs.items() if v["codex"]):
+        base, assisted = sorted(costs[role]["plain"]), sorted(costs[role]["codex"])
+        if len(base) < 3:
+            lines.append(f"| {role} | {len(assisted)} | insufficient baseline (n={len(base)}) — no estimate | — | — | — | — | — |")
+            continue
+        def percentile(values, p):
+            i = p / 100 * (len(values) - 1); lo = int(i); hi = min(lo + 1, len(values) - 1)
+            return values[lo] + (values[hi] - values[lo]) * (i - lo)
+        median, q1, q3, wrapper = percentile(base, 50), percentile(base, 25), percentile(base, 75), percentile(assisted, 50)
+        lines.append(f"| {role} | {len(assisted)} | {len(base)} | {fmt_money(median)} | {fmt_money(q3-q1)} | {fmt_money(wrapper)} | {fmt_money(median-wrapper)} | {fmt_money(sum(median-x for x in assisted))} |")
+    first = next((s["used_first"] for s in sorted(observed, key=lambda x: x["timestamp"] or "") if s["used_first"] is not None), None)
+    last = next((s["used_last"] for s in sorted(observed, key=lambda x: x["timestamp"] or "", reverse=True) if s["used_last"] is not None), None)
+    lines += ["", f"used_percent snapshot: {first} -> {last}" if first is not None else "used_percent snapshot: N/A (no rate_limits data observed)", "", "Disclaimers: Codex rollout schema is experimental (token_count records exist only since 2025-09; format still evolving).", "Codex tokens use a different tokenizer and are NEVER merged into any Claude total or headroom figure above.", "Baseline comparison is an ESTIMATE from historical same-role no-codex medians, not a measurement.", "Credits are transcribed from the official rate card; any USD figure is from a secondary source. Cache writes are not billed per the official statement.", ""]
+    return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
 # Rendering
 # --------------------------------------------------------------------------
 
@@ -1985,6 +2207,7 @@ def render_report(
     excluded: dict | None = None,
     period_months: float | None = None,
     period_cycles: float | None = None,
+    codex_section: str | None = None,
 ) -> str:
     lines = _report_header(
         excluded if excluded is not None else new_excluded_state(), filter_desc
@@ -1996,6 +2219,8 @@ def render_report(
             ordered_tlor_roles(), dispatched_roles(groups["fable"], groups["opus"])
         )
     )
+    if codex_section is not None:
+        lines.append(codex_section)
     lines.append(
         render_quota_headroom_figures(
             groups, subscription_usd, calibration_ceiling_usd, period_months, period_cycles
@@ -2051,6 +2276,10 @@ def main(argv=None):
             "advanced/testing only: override the transcripts root directory "
             f"(default: {DEFAULT_ROOT})"
         ),
+    )
+    parser.add_argument(
+        "--codex-home",
+        help="advanced/testing only: override Codex home (default: ~/.codex)",
     )
     parser.add_argument(
         "--detail-others",
@@ -2141,6 +2370,7 @@ def main(argv=None):
         return 1
 
     root = os.path.expanduser(args.root) if args.root else DEFAULT_ROOT
+    codex_home = os.path.expanduser(args.codex_home) if args.codex_home else os.path.expanduser("~/.codex")
     price_table = load_price_table()
     today = datetime.now().strftime("%Y-%m-%d")
 
@@ -2174,6 +2404,7 @@ def main(argv=None):
             f"--cycle {args.cycle} -> {since_dt.isoformat()} .. {until_dt.isoformat()} (UTC;"
             " quota-cycle window, reset boundary Thursday 05:00 UTC / 13:00 UTC+8, observed not published)"
         )
+        codex_section = render_codex_delegation(root, codex_home, args.project, None, None, None, since_dt, until_dt, price_table, today, args.price_as_of, warnings)
         print(
             render_report(
                 groups,
@@ -2185,6 +2416,7 @@ def main(argv=None):
                 excluded,
                 period_months,
                 period_cycles,
+                codex_section,
             )
         )
         return 0
@@ -2203,6 +2435,7 @@ def main(argv=None):
             root, args.project, args.since, args.until, None, price_table, today,
             price_as_of=args.price_as_of,
         )
+        codex_section = render_codex_delegation(root, codex_home, args.project, args.since, args.until, None, None, None, price_table, today, args.price_as_of, warnings)
         print(
             render_report(
                 groups,
@@ -2214,6 +2447,7 @@ def main(argv=None):
                 excluded,
                 period_months,
                 period_cycles,
+                codex_section,
             )
         )
         return 0
@@ -2226,6 +2460,7 @@ def main(argv=None):
         groups, warnings, excluded = build_report(
             root, args.project, None, None, months[0], price_table, today, price_as_of=args.price_as_of
         )
+        codex_section = render_codex_delegation(root, codex_home, args.project, None, None, months[0], None, None, price_table, today, args.price_as_of, warnings)
         print(
             render_report(
                 groups,
@@ -2237,6 +2472,7 @@ def main(argv=None):
                 excluded,
                 period_months,
                 period_cycles,
+                codex_section,
             )
         )
         return 0
@@ -2272,6 +2508,12 @@ def main(argv=None):
     for m in months:
         combined_dispatched |= dispatched_roles(month_groups[m]["fable"], month_groups[m]["opus"])
     sections.append(render_zero_dispatch_section(ordered_tlor_roles(), combined_dispatched))
+    # Codex sessions are computed once for this multi-month run, rather than
+    # being split into the Fable/Opus or per-month Claude presentation groups.
+    codex_warnings: list[str] = []
+    codex_section = render_codex_delegation(root, codex_home, args.project, None, None, None, None, None, price_table, today, args.price_as_of, codex_warnings, months)
+    sections.append(codex_section)
+    all_warnings.extend(codex_warnings)
 
     merged_fable = merge_groups_for_headroom(*[month_groups[m]["fable"] for m in months])
     merged_opus = merge_groups_for_headroom(*[month_groups[m]["opus"] for m in months])

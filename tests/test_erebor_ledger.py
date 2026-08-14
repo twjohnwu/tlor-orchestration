@@ -631,3 +631,93 @@ def test_unknown_role_key_raises_instead_of_silent_zero_row():
     g.roles[known_key].dispatches = 3
     with pytest.raises(KeyError):
         _ = g.roles[m.RoleKey("gondor-builder", "sonnet-5", "TYPO")]
+
+
+# --------------------------------------------------------------------------
+# Codex delegation report (black-box fixtures)
+# --------------------------------------------------------------------------
+
+def codex_bash(ts, cwd, command="codex exec --full-auto x"):
+    rec = assistant(ts, "msg-codex-bash", "req-codex-bash", SONNET, usage())
+    rec["cwd"] = cwd
+    rec["message"]["content"] = [{"type": "tool_use", "name": "Bash", "input": {"command": command}}]
+    return rec
+
+
+def write_rollout(home, ident, ts, cwd, model="gpt-5.4", inp=0, cached=0, cache_write=0, out=0, reasoning=0, total=None, used=(10, 20)):
+    total = inp + out if total is None else total
+    records = [
+        {"type": "session_meta", "payload": {"timestamp": ts, "cwd": cwd, "originator": "Claude Code", "model": None}},
+        {"type": "turn_context", "payload": {"model": model, "effort": "medium"}},
+        {"type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": inp, "cached_input_tokens": cached, "cache_write_input_tokens": cache_write, "output_tokens": out, "reasoning_output_tokens": reasoning, "total_tokens": total}}}},
+        {"type": "rate_limits", "payload": {"used_percent": used[0]}},
+        {"type": "rate_limits", "payload": {"used_percent": used[1]}},
+    ]
+    write_jsonl(home / "sessions" / "2026" / "07" / "20" / f"rollout-{ident}.jsonl", records)
+
+
+def run_report_codex(root, home, *extra):
+    return run_report(root, "--codex-home", str(home), *extra)
+
+
+def delegation_section(report):
+    return report.split("## Codex delegation", 1)[1].split("## Quota-headroom figures", 1)[0]
+
+
+def test_codex_delegation_normal_attribution(tmp_path):
+    cwd = "/work/project"
+    make_session(tmp_path, "p", "s", [orchestrator_line("2026-07-20T10:00:00Z", 1)], dispatches=[
+        ("g", "gondor-builder", [codex_bash("2026-07-20T10:01:00Z", cwd), assistant("2026-07-20T10:03:00Z", "end", "end", SONNET, usage())])])
+    home = tmp_path / "codex"
+    write_rollout(home, "normal", "2026-07-20T10:02:00Z", cwd, inp=1_000_000, cached=200_000, cache_write=123, out=500_000, reasoning=100, total=1_500_000)
+    section = delegation_section(run_report_codex(tmp_path, home))
+    assert "| gondor-builder | gpt-5.4 | 1 | 1,000,000 | 200,000 | 123 | 500,000 | 100 | 238.75 | — |" in section
+
+
+def test_codex_delegation_ambiguous_window_is_not_attributed(tmp_path):
+    cwd = "/work/project"
+    make_session(tmp_path, "p", "s", [orchestrator_line("2026-07-20T10:00:00Z", 1)], dispatches=[
+        ("a", "gondor-builder", [codex_bash("2026-07-20T10:01:00Z", cwd), assistant("2026-07-20T10:04:00Z", "ea", "ea", SONNET, usage())]),
+        ("b", "gondor-builder", [codex_bash("2026-07-20T10:01:30Z", cwd), assistant("2026-07-20T10:04:00Z", "eb", "eb", SONNET, usage())])])
+    home = tmp_path / "codex"; write_rollout(home, "amb", "2026-07-20T10:02:00Z", cwd, total=9)
+    section = delegation_section(run_report_codex(tmp_path, home))
+    assert "Ambiguous (multi-window match, not attributed): 1 sessions, 9 tokens (files: rollout-amb.jsonl)" in section
+    assert "| gondor-builder | gpt-5.4 |" not in section
+
+
+def test_codex_delegation_unattributed(tmp_path):
+    home = tmp_path / "codex"; write_rollout(home, "none", "2026-07-20T10:02:00Z", "/elsewhere", total=77)
+    section = delegation_section(run_report_codex(tmp_path, home))
+    assert "Unattributed (no matching tlor dispatch window): 1 sessions, 77 tokens" in section
+    assert "| gondor-builder | gpt-5.4 |" not in section
+
+
+def test_codex_terra_pricing_is_na_and_warned(tmp_path):
+    cwd = "/work/project"
+    make_session(tmp_path, "p", "s", [orchestrator_line("2026-07-20T10:00:00Z", 1)], dispatches=[
+        ("g", "gondor-builder", [codex_bash("2026-07-20T10:01:00Z", cwd), assistant("2026-07-20T10:03:00Z", "end", "end", SONNET, usage())])])
+    home = tmp_path / "codex"; write_rollout(home, "terra", "2026-07-20T10:02:00Z", cwd, model="gpt-5.6-terra")
+    report = run_report_codex(tmp_path, home)
+    assert "| gondor-builder | gpt-5.6-terra | 1 | 0 | 0 | 0 | 0 | 0 | N/A | — |" in delegation_section(report)
+    assert "Codex model 'gpt-5.6-terra' has unknown credits pricing" in report.split("## Warnings", 1)[1]
+
+
+def test_codex_baseline_estimate(tmp_path):
+    cwd = "/work/project"
+    dispatches = []
+    for i, out in enumerate((100_000, 200_000, 300_000)):
+        dispatches.append((f"plain{i}", "gondor-builder", [assistant(f"2026-07-20T10:0{i}:00Z", f"p{i}", f"p{i}", SONNET, usage(out=out))]))
+    dispatches.append(("codex", "gondor-builder", [codex_bash("2026-07-20T10:10:00Z", cwd), assistant("2026-07-20T10:11:00Z", "ca", "ca", SONNET, usage(out=50_000))]))
+    make_session(tmp_path, "p", "s", [orchestrator_line("2026-07-20T10:00:00Z", 1)], dispatches=dispatches)
+    home = tmp_path / "codex"; write_rollout(home, "baseline", "2026-07-20T10:10:30Z", cwd)
+    section = delegation_section(run_report_codex(tmp_path, home))
+    assert "| gondor-builder | 1 | 3 | $2.00 | $1.00 | $0.50 | $1.50 | $1.50 |" in section
+
+
+def test_codex_missing_home_has_only_skip_line_and_keeps_report(tmp_path):
+    make_session(tmp_path, "p", "s", [orchestrator_line("2026-07-20T10:00:00Z", 1, ["gondor-builder"])], dispatches=[
+        ("gondor-builder", "gondor-builder", [assistant("2026-07-20T10:01:00Z", "x", "x", SONNET, usage(out=9))])])
+    missing = tmp_path / "missing-codex-home"
+    report = run_report_codex(tmp_path, missing)
+    assert delegation_section(report) == f"\n\nCodex home {missing} has no sessions directory — Codex delegation reporting skipped.\n\n"
+    assert cell(report, "gondor-builder", "output") == "9"
