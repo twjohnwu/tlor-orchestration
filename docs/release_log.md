@@ -6,6 +6,11 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.7.7 (2026-08-14)
+
+- hooks/dispatch_guard.py: built-in `Explore`/`Plan` subagent types now default-deny like generic types, with the same `[bombadil-freeagent]` + explicit-model escape; dedicated deny reason points to rohirrim-outrider/ranger-pathfinder (user rule 2026-08-14; tests 167→176)
+- agents/gondor-builder.md 1.5.0: Codex-first implementation section — tries `codex exec` when available, reviews its output line-by-line, reports provenance, degrades silently when codex is absent; `no-codex` switch added to delegation-templates §2
+
 ## v0.7.6 (2026-08-10)
 
 - `install.sh --skills-dest=PATH` lets the user declare the skills install directory once (absolute path, not `$HOME`/`/`); persists to `~/.claude/.tlor-install.conf` (grep/cut-read, never sourced) so later runs need no flag. Declaring it (flag or config) skips `ensure_skills_dest_safe`'s symlink-outside-`~/.claude` abort for that run; the undeclared default still aborts exactly as before.

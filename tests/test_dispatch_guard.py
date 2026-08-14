@@ -2,7 +2,7 @@
 """Black-box tests for hooks/dispatch_guard.py.
 
 Opt-in PreToolUse hook (TLOR_DISPATCH_GUARD=1): denies Agent/Task dispatches
-whose subagent_type is a generic escape hatch ("general-purpose" or "claude")
+whose subagent_type is a guarded escape hatch (including built-in types)
 unless the prompt carries the literal marker "[bombadil-freeagent]" AND an
 explicit `model` parameter is passed.
 """
@@ -88,6 +88,80 @@ def test_claude_type_denied(run_hook):
     decision = result.decision
     assert decision is not None
     assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_explore_type_denied(run_hook):
+    result = _run(run_hook, _payload(subagent_type="Explore"))
+    assert result.returncode == 0
+    decision = result.decision
+    assert decision is not None
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_explore_lowercase_denied(run_hook):
+    result = _run(run_hook, _payload(subagent_type="explore"))
+    assert result.returncode == 0
+    decision = result.decision
+    assert decision is not None
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_plan_type_denied(run_hook):
+    result = _run(run_hook, _payload(subagent_type="Plan"))
+    assert result.returncode == 0
+    decision = result.decision
+    assert decision is not None
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_explore_marker_and_model_allowed(run_hook):
+    result = _run(run_hook, _payload(subagent_type="explore", prompt="do it [bombadil-freeagent]", model="sonnet"))
+    assert result.returncode == 0
+    assert result.decision is None
+
+
+def test_plan_marker_and_model_allowed(run_hook):
+    result = _run(run_hook, _payload(subagent_type="plan", prompt="do it [bombadil-freeagent]", model="sonnet"))
+    assert result.returncode == 0
+    assert result.decision is None
+
+
+def test_explore_fake_marker_denied(run_hook):
+    result = _run(run_hook, _payload(subagent_type="explore", prompt="do it [generic]", model="sonnet"))
+    assert result.returncode == 0
+    decision = result.decision
+    assert decision is not None
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_explore_marker_no_model_denied(run_hook):
+    result = _run(run_hook, _payload(subagent_type="explore", prompt="do it [bombadil-freeagent]"))
+    assert result.returncode == 0
+    decision = result.decision
+    assert decision is not None
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_explore_deny_reason_mentions_roles_and_escape(run_hook):
+    result = _run(run_hook, _payload(subagent_type="explore"))
+    assert result.returncode == 0
+    decision = result.decision
+    assert decision is not None
+    reason = decision["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "rohirrim-outrider" in reason
+    assert "ranger-pathfinder" in reason
+    assert "[bombadil-freeagent]" in reason
+
+
+def test_plan_deny_reason_mentions_roles_and_escape(run_hook):
+    result = _run(run_hook, _payload(subagent_type="Plan"))
+    assert result.returncode == 0
+    decision = result.decision
+    assert decision is not None
+    reason = decision["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "rohirrim-outrider" in reason
+    assert "ranger-pathfinder" in reason
+    assert "[bombadil-freeagent]" in reason
 
 
 def test_malformed_stdin_fails_open(run_hook):

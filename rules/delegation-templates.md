@@ -50,6 +50,9 @@ NON-GOALS: {{explicitly out of scope — no drive-by refactors/fixes}}.
 ALLOWED PATHS: read {{globs}}; write {{globs}} — anything else is out of scope.
 STOP CONDITIONS: an out-of-scope file needs changing, any deletion, or a
 secret/credential encountered → STOP and report; do not improvise.
+{{Optional: "no-codex" — forbid the Codex-first step; the agent implements
+directly. Omit it and gondor-builder tries Codex CLI first when available
+(role default).}}
 ```
 
 ## 3. Refactor / batch change  (role: dwarf-smith; `model: haiku` override if the recipe is trivially exact)
