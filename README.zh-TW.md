@@ -42,6 +42,7 @@ install.sh／tlor-init 的環境，也能透過 plugin 自己的安裝目錄
 - [安裝](docs/zh-TW/installation.md) — 兩種安裝方式、所有權模型、安裝旗標
 - [維護](docs/zh-TW/maintenance.md) — 備註、誠實限制、發布流程
 - [歷史](docs/zh-TW/history.md) — 專案更名沿革與版本重置
+- [STDD reviews](docs/zh-TW/stdd-reviews/statusline.md) — 各專案的完整週期回顧與 token 核算
 - [Release log](docs/release_log.md) — 完整逐版本紀錄（僅英文）
 
 ## 授權與致敬

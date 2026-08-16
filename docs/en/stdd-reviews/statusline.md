@@ -2,7 +2,7 @@
 
 [← Back to README](../../../README.md)
 
-English only — this report has no zh-TW mirror. Written 2026-08-15.
+Written 2026-08-15.
 
 STDD (spec-test-driven development) is this workspace's opt-in pipeline for
 high-stakes changes: `explore → uiux → spec → plan → execute`, with
