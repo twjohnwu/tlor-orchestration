@@ -135,13 +135,11 @@ S-19):
   - Accepts Dispatch A's quoted RED output as the RED evidence (RED
     evidence = Dispatch A's quote + the main session's checkpoint at that
     time). It is **not** required to reproduce RED.
-  - Independently recomputes the test file's current fingerprint (from the
-    fingerprint passed through the dispatch prompt in step 2, not from any
-    file) and compares it to confirm the test file has not been touched
-    since the RED checkpoint. Mismatch → treat as a violation, send back
-    for redo. (The fingerprint is a suggested mechanism, not the only valid
-    implementation — the actual requirement is "confirm the test file
-    wasn't tampered with".)
+  - Leaves deterministic test-file fingerprint comparison to the per-change
+    mechanical gate in section 4a, while retaining S-14's substantive rule
+    that the test must not be tampered with after RED. A mismatch still sends
+    the task back for redo; the verifier does not spend prompt tokens parsing
+    or comparing the hashes itself.
   - Actually re-runs the verification command and confirms GREEN.
   - Passes the task's spec GIVEN/WHEN/THEN into its own acceptance
     criteria (carried in the dispatch prompt for every dispatch, per
@@ -169,8 +167,55 @@ S-19):
     plus `stdd-lint`'s post-hoc comparison guard them (see
     `STDD/specs/stdd-spec.md` S-05, `STDD/spec.md` REQ-09). Do not imply
     this skill closes that gap; it doesn't, by design.
+  - This is not in tension with 4a's spec/design-ux body-hash comparison
+    (check 4, below): that check catches a body edited **after** approval
+    without re-baselining the frontmatter fingerprint that recorded it — a
+    real, mechanical trip-wire. It cannot catch body and frontmatter
+    **forged together in the same edit**, which is exactly the "zero
+    mechanical protection" case above. The two passages describe different
+    threat models, not a contradiction.
 - The `[INFRA]` fast path (step 7) still always runs the verifier — it only
   skips the multi-round RED/GREEN dispatch split, not verification.
+
+## 4a. Per-change mechanical gate (S-14 deterministic layer)
+
+After RED completes and the orchestrator holds the test fingerprint(s), the
+orchestrator dispatches `dwarf-smith` (when tlor-orchestration is installed;
+otherwise a generic subagent with `model: sonnet` stated explicitly) to
+instantiate `templates/mechanical_check.sh.tmpl` in the change's own
+`scripts/` directory, together with its test-fingerprint ledger and scope
+allowlist. The dispatch prompt supplies the fingerprint(s), expected test
+count, allowlist contents, test command/count parser, and relative artifact
+paths **VERBATIM** as the recipe; it follows the Dispatch A/B prompt style in
+steps 2–3 and reads its created files back. The orchestrator MUST NOT WRITE
+these files itself: `rules/dispatch.md` §1 requires that “the commander does
+no field work.”
+
+Before Dispatch B in step 3, before every fix-round dispatch in step 4, and
+before every independent-verifier dispatch in step 4, run the generated script
+from the change directory. A `MECH …: FAIL` / non-zero result blocks that
+dispatch rather than spending it. This is a token-saving gate: stable failures
+in fingerprints, result counts, changed-file scope, or frozen document hashes
+are settled cheaply before a judgment-capable agent is called.
+
+The independent verifier's acceptance criteria consequently drop mechanical
+fingerprint comparison, test-count comparison, scope-allowlist comparison, and
+spec/design-ux body-hash comparison. It retains only judgment work: whether the
+test asserts the intended GIVEN/WHEN/THEN behavior, whether implementation is
+correct, and whether regressions or design concerns require action. This is the
+point at which the token saving is realized: the verifier no longer repeats
+deterministic parsing and comparison inside its prompt.
+
+This script is a new deterministic layer **on top of**, not a replacement for,
+the S-14 fingerprint firewall and its `stdd-lint` fallback. Under step 6's
+plan-drift protocol, or whenever a legitimate RED redo changes the baseline,
+dispatch another agent to re-baseline the ledger; never rewrite the ledger
+inline from the orchestrator.
+
+**Honest limit:** the script reads the artifacts itself, but its output is still
+relayed by a dispatched agent on the workflow path. That custody limitation is
+the same class as step 8's relay limits; a strict exit-code/output relay reduces
+but does not eliminate misreporting risk.
 
 ## 5. Task-boundary spec re-check (S-13)
 

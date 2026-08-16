@@ -25,6 +25,13 @@ b. No invented requirement appears in the design that isn't traceable back
 c. SOLID + DRY review, and GoF pattern-adoption reasonableness: a pattern is
    only justified by a repeated structure or a predictable point of
    variation (S-43) — not introduced as a quota or "because it's available".
+d. Replacement-type change (a rewrite or port whose acceptance bar is
+   "behaves exactly like the predecessor")? An executable oracle MUST exist
+   before the first task runs — a golden-diff harness against the frozen
+   predecessor, or, for UI surfaces where no diff oracle is possible, a
+   screen-mapping table. Walkthrough rounds scale with oracle-less surface
+   area: a rewrite reviewed without one took eight patch releases; the same
+   pipeline with a golden-diff oracle needed zero.
 
 The verifier judges each judgment item CONFIRMED or REFUTED per artifact;
 REFUTED items go back to the producing step (design artifacts, step 4, or

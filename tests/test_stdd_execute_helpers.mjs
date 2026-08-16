@@ -175,6 +175,8 @@ async function loadWorkflow(scriptedResponses = [], args = {}, options = {}) {
     'custodyCheck',
     'resetWipStage',
     'redStage',
+    'greenStage',
+    'gateMechanical',
     'doneStage',
     'reconcileTaskCount',
     'reorderTasksToTasksLine',
@@ -3909,5 +3911,118 @@ test(
       loadCall.prompt.includes('design-be.md') && loadCall.prompt.includes('design-fe.md'),
       'the load-change prompt should instruct reading design-be.md/design-fe.md (if present) for the design excerpt'
     );
+  }
+);
+
+// Mechanical gate (gateMechanical/greenStage) — closes a gap flagged by an
+// independent verifier of the just-landed STDD mechanical gate: the gate's
+// blocking behavior was previously proven only by an ad-hoc stub script, not
+// by this committed suite. Three cases per the optional per-change
+// `scripts/mechanical_check.sh` relay (workflows/stdd-execute.js:622-643,
+// wired into greenStage at :1414-1417):
+//   (a) relay reports a non-zero exit -> greenStage BLOCKs and never reaches
+//       the GREEN dispatch;
+//   (b) relay reports exit 0 -> greenStage proceeds to the GREEN dispatch;
+//   (c) task.mechanicalCheckPresent !== true -> the gate is skipped
+//       entirely (no mechanical-check relay dispatched at all), and
+//       greenStage still proceeds to the GREEN dispatch.
+const MECHANICAL_GATE_TASK = {
+  id: 'S-MECH',
+  title: 'mechanical gate probe',
+  kind: 'scenario',
+  testFile: 'tests/fake.mjs',
+  testFunction: 'fake',
+  verificationCommand: 'true',
+  targetKind: 'modify',
+  changeDir: 'STDD/fix-execute-review-findings'
+};
+const MECHANICAL_GATE_PREV = {
+  task: MECHANICAL_GATE_TASK,
+  status: 'red',
+  redHash: 'a'.repeat(64),
+  redOutput: 'AssertionError: expected true'
+};
+
+test(
+  'gateMechanical/greenStage: a non-zero mechanical_check.sh exit BLOCKs and the GREEN dispatch is never made',
+  async () => {
+    const scriptedResponses = [
+      // mechanical-check relay: script present, non-zero exit.
+      { present: true, exitCode: 1, stdout: 'FAIL: forbidden pattern found', detail: '' }
+      // No GREEN-dispatch response is scripted — if greenStage tried to make
+      // that call anyway, the stubbed agent() would just return `undefined`
+      // for it, which the assertions below catch via the call count, not
+      // via a thrown error.
+    ];
+    const task = Object.assign({}, MECHANICAL_GATE_TASK, { mechanicalCheckPresent: true });
+
+    const { greenStage, calls } = await loadWorkflow(scriptedResponses, {});
+    const result = await greenStage(MECHANICAL_GATE_PREV, task, 0);
+
+    assert.equal(calls.length, 1, 'a blocking mechanical gate must never reach the GREEN dispatch');
+    assert.ok(
+      /^mechanical-green-/.test((calls[0] && calls[0].label) || ''),
+      `the single dispatch made should be the mechanical-check relay; got label: ${calls[0] && calls[0].label}`
+    );
+    assert.equal(result.status, 'blocked', 'a non-zero mechanical_check.sh exit should BLOCK the task');
+    assert.match(
+      result.detail,
+      /mechanical_check\.sh failed \(exit 1\)/,
+      'the blocked detail should name the mechanical_check.sh failure and its exit code'
+    );
+  }
+);
+
+test(
+  'gateMechanical/greenStage: a zero mechanical_check.sh exit lets greenStage proceed to the GREEN dispatch',
+  async () => {
+    const scriptedResponses = [
+      // mechanical-check relay: script present, exit 0.
+      { present: true, exitCode: 0, stdout: 'ok', detail: '' },
+      // GREEN dispatch response, consumed only if gateMechanical let it through.
+      { ok: true, output: 'green', testFileHash: MECHANICAL_GATE_PREV.redHash, refactorNotes: '', detail: '' }
+    ];
+    const task = Object.assign({}, MECHANICAL_GATE_TASK, { mechanicalCheckPresent: true });
+
+    const { greenStage, calls } = await loadWorkflow(scriptedResponses, {});
+    const result = await greenStage(MECHANICAL_GATE_PREV, task, 0);
+
+    assert.equal(calls.length, 2, 'a passing mechanical gate should still be followed by the GREEN dispatch');
+    assert.ok(
+      /^mechanical-green-/.test((calls[0] && calls[0].label) || ''),
+      'the first call should be the mechanical-check relay'
+    );
+    assert.ok(
+      /^green-/.test((calls[1] && calls[1].label) || ''),
+      `the second call should be the GREEN dispatch; got label: ${calls[1] && calls[1].label}`
+    );
+    assert.notEqual(result.status, 'blocked', 'a zero-exit mechanical gate should not block the task');
+  }
+);
+
+test(
+  'gateMechanical/greenStage: mechanicalCheckPresent:false skips the gate entirely — no relay dispatch at all',
+  async () => {
+    const scriptedResponses = [
+      // Only the GREEN dispatch response is scripted; if gateMechanical
+      // dispatched a mechanical-check relay anyway, it would consume this
+      // response instead, and the label assertion below would fail.
+      { ok: true, output: 'green', testFileHash: MECHANICAL_GATE_PREV.redHash, refactorNotes: '', detail: '' }
+    ];
+    const task = Object.assign({}, MECHANICAL_GATE_TASK, { mechanicalCheckPresent: false });
+
+    const { greenStage, calls } = await loadWorkflow(scriptedResponses, {});
+    const result = await greenStage(MECHANICAL_GATE_PREV, task, 0);
+
+    assert.equal(calls.length, 1, 'mechanicalCheckPresent:false should skip the gate — exactly one dispatch (GREEN)');
+    assert.ok(
+      !/^mechanical-/.test((calls[0] && calls[0].label) || ''),
+      `no mechanical-check relay should be dispatched when mechanicalCheckPresent is not true; got label: ${calls[0] && calls[0].label}`
+    );
+    assert.ok(
+      /^green-/.test((calls[0] && calls[0].label) || ''),
+      `the single dispatch made should be the GREEN dispatch; got label: ${calls[0] && calls[0].label}`
+    );
+    assert.notEqual(result.status, 'blocked', 'skipping the gate should not itself block the task');
   }
 );

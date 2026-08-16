@@ -168,6 +168,16 @@ const LOAD_SCHEMA = {
     timestamp: { type: 'string', description: 'output of: date -u +%Y-%m-%dT%H:%M:%SZ' },
     specStatus: { type: 'string', description: 'spec.md frontmatter status, verbatim; "" if absent' },
     designUxExists: { type: 'boolean' },
+    // Optional for compatibility with an un-upgraded loader. A current loader
+    // checks this once; absence means the optional fast path is unavailable.
+    mechanicalCheckPresent: {
+      type: 'boolean',
+      description: 'whether scripts/mechanical_check.sh exists in this change directory'
+    },
+    mechanicalCheckDetail: {
+      type: 'string',
+      description: '"not present" when absent; otherwise a read-only check detail'
+    },
     tasks: {
       type: 'array',
       items: {
@@ -299,6 +309,21 @@ const RERUN_SCHEMA = {
     exitCode: { type: 'number', description: 'the exit status of re-running task.verificationCommand, verbatim' },
     commandOutput: { type: 'string', description: 'the actual command output, trimmed to the relevant lines' },
     detail: { type: 'string' }
+  }
+};
+
+// Optional, per-change fast path. This is deliberately distinct from the
+// stdd-lint authority: it only relays a generated change-local script, and
+// never derives or mirrors any of stdd-lint's catalogued checks.
+const MECHANICAL_CHECK_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['present', 'exitCode', 'stdout', 'detail'],
+  properties: {
+    present: { type: 'boolean', description: 'false only when scripts/mechanical_check.sh is absent' },
+    exitCode: { type: 'number', description: 'the script exit status; 0 when absent' },
+    stdout: { type: 'string', description: 'the last at most 30 stdout lines, relayed verbatim; "not present" when absent' },
+    detail: { type: 'string', description: 'only a command-launch failure explanation; "" otherwise' }
   }
 };
 
@@ -568,6 +593,55 @@ async function custodyCheck(changeDir, inputsHash) {
   );
 }
 
+// The runtime has no filesystem access. A cheap read-only relay therefore
+// checks for the optional generated script and, only when present, runs it
+// from the change directory. Its tail is evidence for the BLOCKED task shape.
+async function mechanicalCheck(task, index, dispatchStage) {
+  const dir = dirOf(task);
+  return await agent(
+    [
+      `Run the optional STDD per-change mechanical gate for task ${taskLabel(task)} in ${dir}. You are a relay, not a judge.`,
+      '',
+      `1. Test whether ${singleQuoteShell(`${dir}/scripts/mechanical_check.sh`)} exists and is a regular file.`,
+      '2. If it is absent, return present=false, exitCode=0, stdout="not present", detail="". This is an adopted-gradually fast path, not stdd-lint; do not run or recreate any stdd-lint check.',
+      `3. If it is present, run exactly: \`cd ${singleQuoteShell(dir)} && bash scripts/mechanical_check.sh\`. Capture its exit status immediately, then return present=true, that exitCode, and only the last 30 stdout lines in stdout verbatim (or "" if there was none). Put command-launch trouble, if any, in detail.`,
+      '',
+      'Make NO edits in this dispatch. Do not create the script, its ledger, its allowlist, or any other file.',
+      REPORT_CONTRACT
+    ].join('\n'),
+    {
+      label: `mechanical-${dispatchStage}-${index}-${task.id}`,
+      phase: 'Execute tasks',
+      schema: MECHANICAL_CHECK_SCHEMA,
+      agentType: 'rohirrim-outrider',
+      effort: 'low'
+    }
+  );
+}
+
+async function gateMechanical(task, index, dispatchStage) {
+  // loadChange performs the cheap existence dispatch once. Older loaders do
+  // not return this optional field, so preserve gradual adoption as a no-op.
+  if (task.mechanicalCheckPresent !== true) {
+    return null;
+  }
+  const relay = await mechanicalCheck(task, index, dispatchStage);
+  if (!relay) {
+    return taskBlocked(task, dispatchStage, 'mechanical gate dispatch returned nothing');
+  }
+  if (relay.present === false && relay.exitCode === 0) {
+    return null;
+  }
+  if (relay.present !== true) {
+    return taskBlocked(task, dispatchStage, 'mechanical gate returned an invalid presence result');
+  }
+  if (relay.exitCode !== 0) {
+    const output = relay.stdout || relay.detail || '(no script output relayed)';
+    return taskBlocked(task, dispatchStage, `mechanical_check.sh failed (exit ${relay.exitCode}): ${output}`);
+  }
+  return null;
+}
+
 // The custody gate, in JavaScript: strict grammar validation of the relayed
 // line, then agreement between the verdict word and the exit status. Anything
 // that is not an exact PASS is a blocker — a malformed, truncated, multi-line
@@ -697,6 +771,7 @@ async function loadChange(changeDir, inputsHash) {
       '5. Return the output of `date -u +%Y-%m-%dT%H:%M:%SZ` as the timestamp.',
       `6. For each scenario/infra task, also capture \`gwt\`: the verbatim text of the \`### REQ-XX:\` section(s) in ${changeDir}/spec.md that contain this task's scenario id(s) (a sibling scenario under the same REQ heading may ride along). Copy it verbatim — do not summarize, paraphrase or reformat it. Leave gwt as "" if you cannot confidently locate it.`,
       `7. For each scenario/infra task, also capture \`designExcerpt\`: read ${changeDir}/design-be.md and ${changeDir}/design-fe.md if either exists, and copy verbatim — do not summarize or paraphrase — any paragraph(s) that cite this task's scenario id(s) or their REQ id, capped at roughly 40 lines (add one truncation note line if you cut it short). Report the literal string "none" if neither file exists or nothing in them matches.`,
+      `8. Test whether ${changeDir}/scripts/mechanical_check.sh exists as a regular file. Return mechanicalCheckPresent=true when it does. When it does not, return mechanicalCheckPresent=false and mechanicalCheckDetail="not present". This is only the optional per-change fast path; do not run stdd-lint or create any file.`,
       '',
       'Report a field verbatim or as "" — never invent, normalize or repair a value. For marker, apply the mapping in step 3 above and only fall back to the raw bracket text for an other bracket token outside those three. If a task\'s kind is something other than the listed values, report what is actually there rather than the nearest legal value; the caller blocks on an unrecognised marker or kind instead of guessing.',
       REPORT_CONTRACT
@@ -1336,6 +1411,10 @@ const greenStage = stage(
     // redStage — GREEN never had a "go read spec.md" instruction to fall
     // back to, so an invalid/missing gwt here just omits the block, with no
     // second fallback log (redStage already logged it once for this task).
+    const mechanicalBlock = await gateMechanical(task, index, 'green');
+    if (mechanicalBlock) {
+      return mechanicalBlock;
+    }
     const gwtBlock = gwtInlineBlock(task, dirOf(task));
     const green = await agent(
       [
@@ -1394,6 +1473,10 @@ async function verifyOnce(task, index, round) {
   // redStage/greenStage, with a soft re-check sentence — a checker acting
   // on stale/mis-copied inlined text is worse than one that re-reads the
   // file, so it is told the file wins if the two ever disagree.
+  const mechanicalBlock = await gateMechanical(task, index, 'verify');
+  if (mechanicalBlock) {
+    return { pass: false, mechanicalBlocked: mechanicalBlock.detail, commandOutput: '' };
+  }
   const gwtBlock = gwtInlineBlock(task, dirOf(task));
   const scenarioStep = gwtBlock
     ? `3. ${gwtBlock}\nIf in doubt, re-check against the file — the file wins.`
@@ -1427,9 +1510,16 @@ const verifyStage = stage(
   },
   async function verifyBody(prev, task, index) {
     let verdict = await verifyOnce(task, index, 0);
+    if (verdict && verdict.mechanicalBlocked) {
+      return taskBlocked(task, 'verify', verdict.mechanicalBlocked);
+    }
 
     // The round cap is this loop bound. There is no path to a third fix round.
     for (let round = 1; round <= MAX_FIX_ROUNDS && !(verdict && verdict.pass); round += 1) {
+      const mechanicalBlock = await gateMechanical(task, index, 'fix');
+      if (mechanicalBlock) {
+        return mechanicalBlock;
+      }
       const fix = await agent(
         [
           `Fix round ${round} of at most ${MAX_FIX_ROUNDS} for STDD task ${taskLabel(task)} in ${dirOf(task)}.`,
@@ -1451,6 +1541,9 @@ const verifyStage = stage(
 
       log(`task ${task.id}: fix round ${round}/${MAX_FIX_ROUNDS} — ${(fix && fix.summary) || 'no summary'}`);
       verdict = await verifyOnce(task, index, round);
+      if (verdict && verdict.mechanicalBlocked) {
+        return taskBlocked(task, 'verify', verdict.mechanicalBlocked);
+      }
     }
 
     if (!verdict || !verdict.pass) {
@@ -1821,7 +1914,11 @@ async function gateLoad(changeDir, custodyRelay, ctx, inputsHash) {
   }
 
   const tasks = orderedTasks.map(function attach(task) {
-    return Object.assign({}, task, { changeDir: changeDir, inputsHash: inputsHash });
+    return Object.assign({}, task, {
+      changeDir: changeDir,
+      inputsHash: inputsHash,
+      mechanicalCheckPresent: load.mechanicalCheckPresent === true
+    });
   });
   const tddTasks = tasks.filter(isTddTask);
   // Includes 'wip' as open, not just 'todo': a task interrupted mid-run is
