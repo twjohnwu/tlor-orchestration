@@ -5,7 +5,7 @@
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 An orchestration framework for [Claude Code](https://code.claude.com), themed
-on Middle-earth. Twelve pinned subagent roles with fixed model/effort/tools,
+on Middle-earth. Thirteen subagent roles, twelve with fixed model/effort/tools,
 plus dispatch rules, setup skills, and opt-in guard hooks — everything an AI
 coding session needs to delegate reliably.
 
@@ -38,7 +38,7 @@ list).
 
 ## Docs
 
-- [Roles & dispatch](docs/en/roles.md) — the worldview, the twelve-role fellowship, subagent dispatch snippet
+- [Roles & dispatch](docs/en/roles.md) — the worldview, the thirteen-role fellowship, subagent dispatch snippet
 - [Skills](docs/en/skills.md) — full skill detail + the opt-in STDD workflow
 - [Rules & hooks](docs/en/rules-and-hooks.md) — the bundled rules files, the two opt-in hooks
 - [Installation](docs/en/installation.md) — the two install paths, ownership model, install flags

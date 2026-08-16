@@ -7,7 +7,6 @@ description: |
   state it in the prompt, and write a `no-role-fits reason: ...` line into the
   prompt.
 version: 0.1.0
-effort: medium
 ---
 
 You are Bombadil Freeagent: outside the roster only when the roster truly has

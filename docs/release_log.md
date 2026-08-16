@@ -6,6 +6,12 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.7.8 (2026-08-16)
+
+- STDD execute gains a per-change mechanical gate: `stdd-skills/stdd-execute/templates/mechanical_check.sh.tmpl` generalizes the four checks proven on a real change (test-file fingerprints, test count, scope allowlist vs `git status`, spec/design-ux body-hash vs frontmatter fingerprints), one PASS/FAIL line each plus a debug log. A DISPATCHED subagent instantiates it after RED — the orchestrator never writes those files itself; the script runs before every GREEN/fix/verify dispatch and a FAIL blocks that dispatch instead of spending it; verifier prompts drop the mechanical items and keep judgment work only. `workflows/stdd-execute.js` gates on its exit code without reimplementing stdd-lint's checks (3 new tests cover block/proceed/skip).
+- `stdd-skills/stdd-plan/references/design-review-checklist.md`: replacement-type changes must have an executable oracle (golden diff, or a screen-mapping table for UI surfaces) before the first task runs.
+- `scripts/lint_agents_frontmatter.py` learns the unpinned-role case: `bombadil-freeagent` must NOT declare `model`/`tools` (the dispatcher passes `model` per call and dispatch_guard enforces it), and the linter now fails if it ever does. The role count is synced to thirteen across tlor-init, dispatch.md, README, installation.md, and erebor-ledger; `agents/bombadil-freeagent.md` drops its `effort:` pin to match the rule that this role pins neither.
+
 ## v0.7.7 (2026-08-14)
 
 - `bombadil-freeagent` is promoted from a prompt marker to the real named agent type in agents/bombadil-freeagent.md (no model/tools pinned; explicit per-call model required). hooks/dispatch_guard.py now unconditionally denies `general-purpose`/`claude`/`explore`/`plan` (no marker escape) and instead requires `subagent_type: bombadil-freeagent`, an explicit model, and a `no-role-fits reason: ...` line; rules/dispatch.md, skills/tlor-init/SKILL.md, and tests now match.

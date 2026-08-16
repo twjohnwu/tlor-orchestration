@@ -15,6 +15,13 @@ REQUIRED_FIELDS = ["name", "description", "model", "tools"]
 ALLOWED_MODELS = {"haiku", "sonnet", "opus"}
 ALLOWED_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 
+# Roles that deliberately pin NOTHING: the dispatcher must pass `model`
+# per call (hooks/dispatch_guard.py enforces it) and the role gets every
+# tool. A pinned default here would silently serve a dispatcher who
+# forgot to choose — the exact failure the design prevents. For these,
+# `model`/`tools` must be ABSENT; their presence is the violation.
+UNPINNED_ROLES = {"bombadil-freeagent"}
+
 
 def parse_frontmatter(text: str) -> dict:
     """Return {key: raw_value_str} for top-level frontmatter keys."""
@@ -59,9 +66,22 @@ def main() -> int:
             errors.append(f"{rel}: missing or malformed frontmatter block")
             continue
 
-        for required in REQUIRED_FIELDS:
-            if required not in fields or not fields[required]:
-                errors.append(f"{rel}: missing required field '{required}'")
+        if path.stem in UNPINNED_ROLES:
+            for required in ("name", "description"):
+                if required not in fields or not fields[required]:
+                    errors.append(f"{rel}: missing required field '{required}'")
+            for forbidden in ("model", "tools"):
+                if forbidden in fields:
+                    errors.append(
+                        f"{rel}: field '{forbidden}' must be ABSENT — this role "
+                        "deliberately pins neither model nor tools; the "
+                        "dispatcher must pass `model` per call "
+                        "(dispatch_guard.py enforces it)"
+                    )
+        else:
+            for required in REQUIRED_FIELDS:
+                if required not in fields or not fields[required]:
+                    errors.append(f"{rel}: missing required field '{required}'")
 
         model = fields.get("model", "")
         if model and model not in ALLOWED_MODELS:

@@ -65,7 +65,7 @@ relocated by hand. Apply this 3-branch check to each of
 (Project/repo level installs use plain directories — this institution layout
 is a `~/.claude/` concept only.)
 
-Then install the 12 agent role definitions from the plugin's `agents/`
+Then install the 13 agent role definitions from the plugin's `agents/`
 directory to `<target>/agents/`:
 
 - rohirrim-outrider.md
@@ -80,6 +80,7 @@ directory to `<target>/agents/`:
 - mirror-of-galadriel.md
 - palantir-stone.md
 - cirdan-shipwright.md
+- bombadil-freeagent.md
 
 **Agent files use backup-and-overwrite, not a silent unconditional
 overwrite.** Agent frontmatter supports no import mechanism, so a user's

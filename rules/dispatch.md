@@ -1,5 +1,5 @@
 ---
-description: Role dispatch and delegation rules for the twelve pinned tlor-orchestration roles
+description: Role dispatch and delegation rules for the thirteen tlor-orchestration roles
 managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
 audience: all
 ---

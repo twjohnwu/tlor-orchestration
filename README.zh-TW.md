@@ -4,7 +4,7 @@
 [![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftwjohnwu%2Ftlor-orchestration%2Fmain%2F.claude-plugin%2Fplugin.json&query=%24.version&label=version&color=blue)](https://github.com/twjohnwu/tlor-orchestration/blob/main/.claude-plugin/plugin.json)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-一個中土世界主題的 Claude Code 編排框架。十二個固定職責的 subagent 角色，
+一個中土世界主題的 Claude Code 編排框架。十三個 subagent 角色（其中十二個固定職責），
 加上派工規則、設定 skill、選配 guard hook——AI coding session 可靠委派
 所需的一切。
 
@@ -36,7 +36,7 @@ install.sh／tlor-init 的環境，也能透過 plugin 自己的安裝目錄
 
 ## 文件
 
-- [角色與派工](docs/zh-TW/roles.md) — 世界觀、十二角色遠征隊名冊、subagent 派工 snippet
+- [角色與派工](docs/zh-TW/roles.md) — 世界觀、十三角色遠征隊名冊、subagent 派工 snippet
 - [Skills](docs/zh-TW/skills.md) — 完整 skill 細節＋選配的 STDD 工作流程
 - [Rules 與 Hooks](docs/zh-TW/rules-and-hooks.md) — 附帶的 rules 檔案、兩個選配 hooks
 - [安裝](docs/zh-TW/installation.md) — 兩種安裝方式、所有權模型、安裝旗標
