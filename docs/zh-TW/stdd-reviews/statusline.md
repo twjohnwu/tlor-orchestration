@@ -15,7 +15,7 @@ dogfood 過兩次，兩次都是 *replacement-type* 專案，驗收門檻皆為�
   TypeScript 重寫（2026-07-30 to 08-03）。
   已發布的 audit trail：[phosphorflux `docs/tlor-stdd/`](https://github.com/twjohnwu/phosphorflux/tree/main/docs/tlor-stdd)。
 - **D2** — `phosphorflux` → `phosphorpulse`：同一個 tool 的 Rust 重寫
-  （byte-parity renderer，接著是整合 Codex CLI 的全螢幕 TUI；2026-08-14/15）。
+  （位元組級一致(byte-parity)的 renderer，接著是整合 Codex CLI 的全螢幕 TUI；2026-08-14/15）。
   已發布的 audit trail：[phosphorpulse `docs/tlor-stdd/`](https://github.com/twjohnwu/phosphorpulse/tree/main/docs/tlor-stdd)。
 
 本報告比較兩次執行：各 pipeline stage 的 token 支出、兩次執行揭露的返工
@@ -25,11 +25,11 @@ dogfood 過兩次，兩次都是 *replacement-type* 專案，驗收門檻皆為�
 
 | | D1（TS 重寫） | D2a（Rust renderer） | D2b（Rust TUI） |
 |---|---|---|---|
-| Requirements / scenarios | 11 / 27 | 9 / 17 | 9 / 17 |
+| Requirements / 情境(scenario) | 11 / 27 | 9 / 17 | 9 / 17 |
 | Tasks | 39 items（收斂為 8 TDD + 4 INFRA） | 12 | 12 |
-| Spec panel verdicts | 11/11 REFUTED → revised | several REFUTED（包括一個本會讓整個 execute phase 失效的 golden-nondeterminism 問題） | several REFUTED in v1（例如一個融合的 TextMate-scope 設計缺陷） |
+| Spec panel verdicts | 11/11 REFUTED → revised | several REFUTED（包括一個本會讓整個 execute phase 失效的黃金樣本的非決定性(golden-nondeterminism)問題） | several REFUTED in v1（例如一個融合的 TextMate-scope 設計缺陷） |
 | Fix rounds inside execute | 6 rounds，跨 4 個 tasks（每個 task 最多 2 次） | 一個 task 有 5 rounds（單一最昂貴點） | 3 次經核准的 single-round fixes |
-| Post-execute walkthrough | 8 個 patch releases，8 個 failure classes | 8 個 review rounds | 14 個 review rounds + 9 個 user-driven walkthrough rounds |
+| Post-execute 走查(walkthrough) | 8 個 patch releases，8 個 failure classes | 8 個 review rounds | 14 個 review rounds + 9 個使用者驅動走查輪次 |
 
 ## 2. Token 核算
 
@@ -71,7 +71,7 @@ context floor（其中約 ~21k 是 auto-loaded rules corpus）；Codex CLI 外�
 wrapper 又加了 ~13k，因此無論 task 大小，每次 builder dispatch 的 floor 都是
 46,428-token。
 
-### D2b — TUI（+9 walkthrough rounds，~2.33M subagent tokens）
+### D2b — TUI（+9 走查輪次，~2.33M subagent tokens）
 
 | Stage | Direct Codex CLI calls | Claude dispatches | Tokens |
 |---|---:|---:|---:|
@@ -79,8 +79,8 @@ wrapper 又加了 ~13k，因此無論 task 大小，每次 builder dispatch 的 
 | execute verification | — | 14 | ~925k |
 | review（14 rounds + 13 fix rounds） | ~27 | 1 | ~69k |
 | documentation（bilingual README/guides） | ~4 | 5 | ~300k |
-| walkthrough fixes（9 rounds） | ~22 | 0 | ≈0 |
-| walkthrough verification + research | — | 12 | ~880k |
+| 走查修正（9 rounds） | ~22 | 0 | ≈0 |
+| 走查驗證 + research | — | 12 | ~880k |
 | framework maintenance | — | 3 | ~156k |
 | **Total** | **~79** | **35** | **≈2.33M** |
 
@@ -92,17 +92,17 @@ wrapper，將 builder 端從每 dispatch ~46k 降到 ~0——估計在 ~79 calls
 
 ## 3. 兩次執行共同的返工模式
 
-1. **Parity 細節會在 execute 後才浮現——除非已有 oracle。** D1 最昂貴的
-   教訓：前身全程皆可執行，卻直到多輪人工目視後才建立 golden-diff oracle。
-   D2a 採用 golden-first，其 renderer 需要 *zero* walkthrough rounds——17 個
-   scenarios 在首次使用者接觸時便通過。D2b 的九輪 walkthrough 全落在沒有
-   oracle 的表面（TUI visuals、keybindings、i18n）。經驗法則：
-   **walkthrough rounds ≈ oracle-less surface area**。
+1. **Parity 細節會在 execute 後才浮現——除非已有判準(oracle)。** D1 最昂貴的
+   教訓：前身全程皆可執行，卻直到多輪人工目視後才建立黃金樣本比對(golden diff)判準。
+   D2a 採用黃金樣本優先，其 renderer 需要 *zero* 走查輪次——17 個
+   情境在首次使用者接觸時便通過。D2b 的九輪走查全落在沒有
+   判準的表面（TUI visuals、keybindings、i18n）。經驗法則：
+   **走查輪次 ≈ 無判準的表面積**。
 2. **若任由它們自行認證，tests 就會認證自己。** D1：一個 synthetic fixture
    在同一個 field 三次產生 false greens。D2：一個 test 將 implementation 與
    自身比較（compile-time tautology），另一個把錯誤的 move semantics 編成
    expectation。Green tests 對 parity 證明不了什麼；只有 fresh-context review
-   對照獨立 oracle（frozen predecessor 的 source）才能抓到這些問題。
+   對照獨立判準（frozen predecessor 的 source）才能抓到這些問題。
 3. **Prose 禁令擋不住機械式違規。** 即使每份 prompt 都有明確禁令，D2 中
    repo-wide formatter sweep 仍穿透三次獨立 dispatches。持久的修正是 script，
    不是更強的文字：任何 verifier dispatch 前現在都會執行 mechanical-check
@@ -118,11 +118,11 @@ wrapper，將 builder 端從每 dispatch ~46k 降到 ~0——估計在 ~79 calls
 | Improvement | Origin | Status |
 |---|---|---|
 | Test-file fingerprint firewall（sha256 經 prompts 傳遞，不經 files） | D1 | 全程於 D2 強制；抓到一次真實違規與三次 formatter leaks |
-| 適用 replacement-type changes 的 Golden/oracle-first | D1 lesson | 在 D2a 驗證（zero renderer walkthrough rounds） |
+| 適用 replacement-type changes 的黃金樣本/判準優先 | D1 lesson | 在 D2a 驗證（zero renderer 走查輪次） |
 | Dispatch checklist（10 條 field-proven clauses：stub warm-up、piped stdio、sandbox limits、regression attribution、…） | 從 D2a 的 5-round rework 提煉 | 全程套用於 D2b |
 | 供 builders 使用的 Direct CLI invocation（繞過 ~46k/dispatch agent wrapper） | D2a measurement | 用於 D2b 全部；兩個 invocation pitfalls（write-mode flag、shell quoting）回饋至 recipe |
 | Sanctioned-fix procedure（經授權的 locked-test amendments，附 re-baselined fingerprints） | D2a | used 4 times in D2b，每次皆有 evidence 與 re-verification |
-| 鏡像 reference implementation 時強制 source-line citations | D2b walkthrough round 3 | builders 不得憑記憶重塑 UI layers |
+| 鏡像 reference implementation 時強制 source-line citations | D2b 第 3 輪走查 | builders 不得憑記憶重塑 UI layers |
 | Mechanical-check script（fingerprints / test counts / scope allowlist / spec hashes） | D2b | 以 fail-then-pass validation 落地 |
 
 ## 5. 建議與待辦事項
@@ -133,7 +133,7 @@ wrapper，將 builder 端從每 dispatch ~46k 降到 ~0——估計在 ~79 calls
    allowlist、spec hashes；PASS/FAIL + debug log）。在每次 GREEN/fix/verify 前
    執行；verifiers 只保留 judgment work。預期：每個 verification round 節省
    15–25k，並立即攔截 formatter-leak-class violations。
-2. **將 walkthrough 正式化為 pipeline stage。** 兩次執行皆證明，對於
+2. **將走查正式化為 pipeline stage。** 兩次執行皆證明，對於
    replacement-type changes，「execute complete」≠「acceptable」：D1 需要 8 個
    patch releases，D2b 需要 9 rounds。將
    report → adjudicate-against-oracle → batched-fix → mechanical-check →
@@ -146,8 +146,8 @@ wrapper，將 builder 端從每 dispatch ~46k 降到 ~0——估計在 ~79 calls
 4. **縮減 per-dispatch context floor**（open decision）：選項包括為 subagents
    條件式載入 rules、corpus distillation，或每角色選擇退出 inheritance。在
    D2b 的 35 Claude dispatches 下，完全實現能為每個 change 節省 ≈700k。
-5. **Generalize oracle-first**：「一個 replacement-type change 必須在其第一個
-   task 之前擁有 executable oracle（golden diff 或 screen mapping）」應納入
+5. **將判準優先普遍化**：「一個 replacement-type change 必須在其第一個
+   task 之前擁有可執行的判準（黃金樣本比對或 screen mapping）」應納入
    plan-stage design checklist——D1 已為此付費，D2a 已驗證。
 
 ## 方法論
@@ -156,5 +156,5 @@ wrapper，將 builder 端從每 dispatch ~46k 降到 ~0——估計在 ~79 calls
 per-dispatch harness telemetry（`subagent_tokens`、exact values）；以及從
 session record 統計的 direct-call counts（±3）。所有 figures 在發布前皆由
 fresh-context reviewer 對照 primary sources 重新驗證；它抓到的兩個 errors
-（一個 scenario count 與一個 percentage）已修正。兩次執行的 metrics
+（一個情境數與一個 percentage）已修正。兩次執行的 metrics
 刻意不合併為單一 total，因為其 units 不同。
