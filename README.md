@@ -44,6 +44,7 @@ list).
 - [Installation](docs/en/installation.md) — the two install paths, ownership model, install flags
 - [Maintenance](docs/en/maintenance.md) — notes, honest limits, releasing
 - [History](docs/en/history.md) — project rename history and the versioning reset
+- [STDD reviews](docs/en/stdd-reviews/statusline.md) — per-project full-cycle retrospectives with token accounting
 - [Release log](docs/release_log.md) — full version-by-version history (English only)
 
 ## License & homage
