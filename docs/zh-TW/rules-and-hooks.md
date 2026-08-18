@@ -39,23 +39,25 @@
 
 ## Hooks（選配）
 
-兩個 hook **預設皆關閉**——透過環境變數啟用。`install.sh` 會複製 hook
-腳本，但不接線或啟用它們（不寫 `hooks.json`、不設環境變數）——要接線請走
-plugin 安裝。
+四個 hook **預設皆靜默**——前三個靠環境變數啟用，第四個靠註冊安裝。任何內部
+錯誤一律 fail-open（放行，不擋工作）。`install.sh` 會複製 hook 腳本，但不接線
+也不啟用（不寫 `hooks.json`、不設環境變數）——要接線請走 plugin 安裝。
 
-### institution_guard（PreToolUse）
+| Hook | 事件 | 說明 | env key |
+|---|---|---|---|
+| `institution_guard` | PreToolUse | 擋主 session 直接 Edit/Write 制度檔（`~/.claude/institution/`、`rules/`、`agents/`，以及任何位置的 `CLAUDE.md`／`AGENTS.md`）——執行「指揮官不下場」；subagent 的編輯一律放行 | `TLOR_INSTITUTION_GUARD=1` |
+| `dispatch_guard` | PreToolUse | 擋派工到 `general-purpose`／`claude`／`explore`／`plan`；`bombadil-freeagent` 需同時帶明確 `model` 參數與 prompt 內的 `no-role-fits` 字樣才放行 | `TLOR_DISPATCH_GUARD=1` |
+| `verify_gate` | Stop | 攔「沒有證據的完成宣稱」：本輪改了程式碼卻沒跑測試指令，擋回一次要求補 fail-then-pass 證據 | `TLOR_VERIFY_GATE=1` |
+| `stdd_test_guard` | PreToolUse | STDD 執行期保護：`tasks.md` 中 `[wip]` 任務所引用的測試檔，在該任務標成 `[x]` 前不得再被 Edit/Write | 無啟用 env；由 `install.sh --install-hook` 註冊進 `settings.json` |
 
-擋主 session 直接編輯 rules/CLAUDE.md/AGENTS.md——執行「指揮官不下場」。
-subagent 的編輯一律放行。Python 優先，bash fallback。
+三則補充：
 
-啟用：`export TLOR_INSTITUTION_GUARD=1`
-
-### verify_gate（Stop）
-
-攔「沒有證據的完成宣稱」：若本輪修改了程式碼卻沒跑測試，擋回一次要求補
-fail-then-pass 證據。任何內部錯誤一律 fail-open。
-
-啟用：`export TLOR_VERIFY_GATE=1`
+- **PreToolUse 三者是串接的**：`hooks.json` 只掛 `pre_tool_use.sh` 一支，它先跑
+  `institution_guard.py`，**有輸出就短路**，沒有才輪到 `dispatch_guard.py`。
+- **bash fallback 需要 jq**：偵測不到 `python3` 時退回 `institution_guard.sh`，
+  它依賴 `jq`；缺 `jq` 會靜默放行（不報錯、不擋）。
+- **`TLOR_STDD_ALLOW_TEST_REWRITE=1` 是繞過，不是開關**：它單次解除
+  `stdd_test_guard` 的封鎖（plan-drift 復原用），不會啟用任何 hook。
 
 ### Session-snapshot 誠實提醒
 

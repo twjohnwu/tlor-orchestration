@@ -42,25 +42,31 @@ what makes the files load.
 
 ## Hooks (opt-in)
 
-Both hooks are **OFF by default** — enable via environment variables.
+All four hooks are **silent by default** — the first three are enabled by an
+environment variable, the fourth by registration. Every one of them fails open
+on an internal error (the call goes through; work is never blocked by a bug).
 `install.sh` copies the hook scripts but does not wire or activate them
 (no `hooks.json`, no env vars); use the plugin route for that.
 
-### institution_guard (PreToolUse)
+| Hook | Event | What it does | Env key |
+|---|---|---|---|
+| `institution_guard` | PreToolUse | Blocks the main session from Edit/Write on institution files (`~/.claude/institution/`, `rules/`, `agents/`, and any `CLAUDE.md`/`AGENTS.md` anywhere) — enforces "the commander doesn't do field work"; subagent edits pass through | `TLOR_INSTITUTION_GUARD=1` |
+| `dispatch_guard` | PreToolUse | Denies dispatches to `general-purpose`/`claude`/`explore`/`plan`; `bombadil-freeagent` passes only when it carries both an explicit `model` parameter and a `no-role-fits` mention in the prompt | `TLOR_DISPATCH_GUARD=1` |
+| `verify_gate` | Stop | Catches "done" claims with no evidence: if code files were edited this turn and no test command was run, it blocks the turn once, asking for fail-then-pass evidence | `TLOR_VERIFY_GATE=1` |
+| `stdd_test_guard` | PreToolUse | STDD execute-phase protection: a test file cited by a `[wip]` task in `tasks.md` cannot be edited or rewritten until that task is marked `[x]` | none — registered into `settings.json` by `install.sh --install-hook` |
 
-Blocks the main session from directly editing rules/CLAUDE.md/AGENTS.md
-files — enforces "the commander doesn't do field work." Subagent edits
-pass through. Python-first with bash fallback.
+Three notes:
 
-Enable: `export TLOR_INSTITUTION_GUARD=1`
-
-### verify_gate (Stop)
-
-Catches "done" claims with no evidence: if code files were edited this turn
-and no test command was run, it blocks the turn once, asking for fail-then-pass
-evidence. Fails open on any internal error.
-
-Enable: `export TLOR_VERIFY_GATE=1`
+- **The three PreToolUse hooks are chained.** `hooks.json` wires only
+  `pre_tool_use.sh`, which runs `institution_guard.py` first and
+  **short-circuits if it produced output**; `dispatch_guard.py` runs only when
+  it did not.
+- **The bash fallback needs jq.** With no `python3` present the guard falls
+  back to `institution_guard.sh`, which depends on `jq`; without `jq` it
+  silently passes everything through.
+- **`TLOR_STDD_ALLOW_TEST_REWRITE=1` is a bypass, not a switch.** It lifts
+  `stdd_test_guard`'s block for one call (plan-drift recovery); it enables
+  nothing.
 
 ### Session-snapshot caveat
 
