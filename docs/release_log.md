@@ -6,6 +6,20 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.7.9 (2026-08-20)
+
+- `bombadil-freeagent` gains pinned defaults `model: sonnet` / `effort: medium`
+  (user decision), reversing v0.7.8's "pins neither": the harness supports
+  effort only in agent frontmatter — the Agent tool has no per-call effort
+  parameter — so the old "the Maia chooses and states an effort" requirement
+  never affected what actually ran (dispatches silently inherited the session
+  effort, and the UI showed no effort). `model` stays overridable per call for
+  up/downgrades. `hooks/dispatch_guard.py` accordingly stops requiring an
+  explicit `model` parameter for this role and keeps only the `no-role-fits`
+  prompt check; `scripts/lint_agents_frontmatter.py`'s rule for this role
+  inverts — `model`+`effort` must now be PRESENT and `tools` absent.
+  dispatch.md §3 and roles.md (en/zh-TW) reworded to match.
+
 ## v0.7.8 (2026-08-16)
 
 - STDD execute gains a per-change mechanical gate: `stdd-skills/stdd-execute/templates/mechanical_check.sh.tmpl` generalizes the four checks proven on a real change (test-file fingerprints, test count, scope allowlist vs `git status`, spec/design-ux body-hash vs frontmatter fingerprints), one PASS/FAIL line each plus a debug log. A DISPATCHED subagent instantiates it after RED — the orchestrator never writes those files itself; the script runs before every GREEN/fix/verify dispatch and a FAIL blocks that dispatch instead of spending it; verifier prompts drop the mechanical items and keep judgment work only. `workflows/stdd-execute.js` gates on its exit code without reimplementing stdd-lint's checks (3 new tests cover block/proceed/skip).

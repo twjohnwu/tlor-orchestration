@@ -24,7 +24,7 @@
 | `mirror-of-galadriel` | Seeing-glass of Lothlórien | haiku / low | Read-only lookup into EXTERNAL systems via session MCP tools (task trackers, docs stores) — looks, never touches |
 | `palantir-stone` | The palantír | sonnet / medium | The ONLY role that WRITES to external systems via session MCP tools; executes dispatch-enumerated mutations verbatim, never decides what to write |
 | `cirdan-shipwright` | Círdan the Shipwright | opus / medium | Open-ended design/production-readiness review of a bare diff — no criteria list, no stated conclusion to attack; criteria-bound work stays with `eagle-sentinel`, conclusion-attack work goes to the panel below |
-| `bombadil-freeagent` | Tom Bombadil | (none — per-call) | The free agent outside the roster, for task shapes no pinned role covers. Pins neither model nor effort: the dispatcher passes an explicit `model`, chooses an `effort`, and states a `no-role-fits reason:` in the prompt — `hooks/dispatch_guard.py` enforces the first and last. A second occurrence of the same unfit shape should mint a role instead |
+| `bombadil-freeagent` | Tom Bombadil | sonnet / medium | The free agent outside the roster, for task shapes no pinned role covers. Pinned defaults sonnet/medium — pass a per-call `model` to up/downgrade (effort has no per-call mechanism); every dispatch states a `no-role-fits reason:` in the prompt — `hooks/dispatch_guard.py` enforces it. A second occurrence of the same unfit shape should mint a role instead |
 
 ### The adversarial review panel (rivendell-council lenses)
 

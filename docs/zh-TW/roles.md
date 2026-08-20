@@ -23,7 +23,7 @@
 | `mirror-of-galadriel` | 凱蘭崔爾之鏡 | haiku / low | 唯讀查詢外部系統（任務追蹤、文件庫），透過 session 的 MCP 工具——只看，不動手 |
 | `palantir-stone` | 真知晶石 | sonnet / medium | 唯一能透過 session MCP 工具**寫入**外部系統的角色；照派工列舉的內容逐字執行，自己不判斷寫什麼 |
 | `cirdan-shipwright` | 造船者刻爾丹 | opus / medium | 開放式的 diff 設計／production-readiness 審查——沒有準則清單、沒有結論可攻；有準則的活留給 `eagle-sentinel`，攻結論的活交給下方的抗辯審查小組 |
-| `bombadil-freeagent` | 湯姆·龐巴迪 | （無——每次派工指定） | 名冊之外的自由角色，用於現有角色都不合的任務形狀。不釘 model 也不釘 effort:派工方必須顯式傳 `model`、自行選定 `effort`，並在 prompt 寫出 `no-role-fits reason:`——第一與第三項由 `hooks/dispatch_guard.py` 強制。同一種不合形狀出現第二次,就該鑄造新角色而不是再用它 |
+| `bombadil-freeagent` | 湯姆·龐巴迪 | sonnet / medium | 名冊之外的自由角色，用於現有角色都不合的任務形狀。預設 pin sonnet/medium——可用 per-call `model` 升降級（effort 沒有 per-call 機制）；每次派工必須在 prompt 寫 `no-role-fits reason:`——由 `hooks/dispatch_guard.py` 強制。同一種不合形狀出現第二次，就該鑄造新角色而不是再用它 |
 
 ### 抗辯審查小組（rivendell-council 鏡頭）
 

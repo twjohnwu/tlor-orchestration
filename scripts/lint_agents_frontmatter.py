@@ -15,12 +15,15 @@ REQUIRED_FIELDS = ["name", "description", "model", "tools"]
 ALLOWED_MODELS = {"haiku", "sonnet", "opus"}
 ALLOWED_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 
-# Roles that deliberately pin NOTHING: the dispatcher must pass `model`
-# per call (hooks/dispatch_guard.py enforces it) and the role gets every
-# tool. A pinned default here would silently serve a dispatcher who
-# forgot to choose — the exact failure the design prevents. For these,
-# `model`/`tools` must be ABSENT; their presence is the violation.
-UNPINNED_ROLES = {"bombadil-freeagent"}
+# Roles that get every tool (the free-agent property) but still pin a
+# model/effort default: the Agent tool has no per-call `effort` parameter,
+# so effort MUST be pinned in frontmatter or every dispatch silently gets
+# the harness default. `model` stays pinned too (dispatcher may still
+# override it per call — dispatch_guard.py no longer requires that
+# override). `tools` must stay ABSENT: pinning `tools` would take away the
+# full-toolbox property that defines the role. For these, `model`/`effort`
+# must be PRESENT and valid; `tools` must be ABSENT.
+DEFAULTS_PINNED_FULL_TOOLBOX_ROLES = {"bombadil-freeagent"}
 
 
 def parse_frontmatter(text: str) -> dict:
@@ -66,18 +69,17 @@ def main() -> int:
             errors.append(f"{rel}: missing or malformed frontmatter block")
             continue
 
-        if path.stem in UNPINNED_ROLES:
-            for required in ("name", "description"):
+        if path.stem in DEFAULTS_PINNED_FULL_TOOLBOX_ROLES:
+            for required in ("name", "description", "model", "effort"):
                 if required not in fields or not fields[required]:
                     errors.append(f"{rel}: missing required field '{required}'")
-            for forbidden in ("model", "tools"):
-                if forbidden in fields:
-                    errors.append(
-                        f"{rel}: field '{forbidden}' must be ABSENT — this role "
-                        "deliberately pins neither model nor tools; the "
-                        "dispatcher must pass `model` per call "
-                        "(dispatch_guard.py enforces it)"
-                    )
+            if "tools" in fields:
+                errors.append(
+                    f"{rel}: field 'tools' must be ABSENT — this role "
+                    "deliberately gets every tool; pinning `tools` would "
+                    "take away the full-toolbox property that defines the "
+                    "role"
+                )
         else:
             for required in REQUIRED_FIELDS:
                 if required not in fields or not fields[required]:

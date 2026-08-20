@@ -3,8 +3,9 @@
 
 Opt-in PreToolUse hook (TLOR_DISPATCH_GUARD=1): denies Agent/Task dispatches
 whose generic and built-in types are unconditionally denied. The named
-"bombadil-freeagent" type requires an explicit `model` parameter and a
-"no-role-fits" reason in its prompt.
+"bombadil-freeagent" type requires a "no-role-fits" reason in its prompt;
+an explicit `model` parameter is an optional per-call override now that the
+role pins model/effort in its own frontmatter.
 """
 from conftest import HOOKS_DIR
 
@@ -180,15 +181,13 @@ def test_bombadil_freeagent_with_model_and_reason_allowed(run_hook):
     assert result.decision is None
 
 
-def test_bombadil_freeagent_reason_without_model_denied(run_hook):
+def test_bombadil_freeagent_without_model_allowed_when_reason_present(run_hook):
     result = _run(run_hook, _payload(
         subagent_type="bombadil-freeagent",
         prompt="no-role-fits reason: web scraping via a custom browser tool",
     ))
     assert result.returncode == 0
-    decision = result.decision
-    assert decision is not None
-    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert result.decision is None
 
 
 def test_bombadil_freeagent_model_without_reason_denied(run_hook):

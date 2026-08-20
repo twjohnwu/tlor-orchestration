@@ -306,9 +306,10 @@ Present available hooks with clear descriptions:
 
 3. **dispatch_guard** (PreToolUse): Unconditionally denies Agent dispatches
    with `subagent_type: general-purpose`, `claude`, `explore`, or `plan`.
-   The named `subagent_type: bombadil-freeagent` is allowed only with an
-   explicit `model` parameter and a `no-role-fits reason: ...` line in the
-   prompt. Redirects naming slips to the pinned roles (dispatch.md §3).
+   The named `subagent_type: bombadil-freeagent` is allowed only with a
+   `no-role-fits reason: ...` line in the prompt (model/effort now pinned in
+   the role's frontmatter; a per-call `model` override stays optional).
+   Redirects naming slips to the pinned roles (dispatch.md §3).
    - Activated by setting `TLOR_DISPATCH_GUARD=1` in your environment
    - Requires Python 3
 
