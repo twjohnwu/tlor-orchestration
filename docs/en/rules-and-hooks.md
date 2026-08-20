@@ -40,6 +40,29 @@ The routing table `/tlor-init` generates just documents this directory for
 tools that read AGENTS.md but don't know about `.claude/rules/` — it isn't
 what makes the files load.
 
+## Agent docs (agent_doc/, lazy-load)
+
+Role-specific, conditionally-triggered reference docs. A dispatched subagent
+Reads them only when its trigger fires (a codex-capable machine, a JS-only
+page, a HIGH-RISK verdict), so the text costs nothing in every other
+dispatch. Division of labor in one line: rules/ holds what EVERY context
+must know; agent_doc/ holds what one role needs sometimes.
+
+| Sublayer | Owner | Install behavior |
+|---|---|---|
+| `agent_doc/*.md` | plugin | overwritten on every install/upgrade |
+| `agent_doc/customize/` | user | copied only if absent (behind `--with-optional`), survives uninstall; a same-named file here is read IN ADDITION to the base file and wins where they disagree |
+
+| Doc | Read by | Trigger |
+|---|---|---|
+| `codex-cli.md` | any role calling the Codex CLI | before composing a codex invocation |
+| `builder-codex.md` | gondor-builder, dwarf-smith | codex present and the dispatch does not say `no-codex` |
+| `eagle-codex-prescreen.md` | eagle-sentinel | HIGH-RISK verdict + codex present + no `no-codex` |
+| `noldor-browser.md` | noldor-loremaster | WebFetch returns a JS-only shell; also holds the bot-verifier (CAPTCHA) leave-the-browser-open protocol |
+
+`institution_guard` protects `~/.claude/agent_doc/` the same way it protects
+rules/ and agents/: main-session edits are denied, dispatched subagents pass.
+
 ## Hooks (opt-in)
 
 All four hooks are **silent by default** — the first three are enabled by an

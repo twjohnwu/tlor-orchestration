@@ -11,6 +11,51 @@ coding session needs to delegate reliably.
 
 繁體中文說明請見 [README.zh-TW.md](README.zh-TW.md).
 
+## The fellowship at a glance
+
+```mermaid
+flowchart TD
+    M["Maia — main session<br/>decomposes, dispatches, integrates"]
+
+    subgraph SEARCH["Search"]
+        RO["rohirrim-outrider<br/>haiku · targeted lookup"]
+        RP["ranger-pathfinder<br/>sonnet · broad sweep"]
+    end
+    subgraph RESEARCH["Research"]
+        NL["noldor-loremaster<br/>sonnet · web/docs, browser fallback"]
+    end
+    subgraph BUILD["Build"]
+        GB["gondor-builder<br/>sonnet · implement to spec"]
+        DS["dwarf-smith<br/>sonnet · mechanical transforms"]
+    end
+    subgraph VERIFY["Verify"]
+        ES["eagle-sentinel<br/>opus · criteria verification"]
+        CS["cirdan-shipwright<br/>opus · open-ended diff review"]
+    end
+    subgraph MCP["External systems (MCP)"]
+        MG["mirror-of-galadriel<br/>haiku · read-only"]
+        PS["palantir-stone<br/>sonnet · enumerated writes"]
+    end
+    subgraph PANEL["Adversarial panel (high-risk verdicts)"]
+        EA["elf-archer<br/>opus · correctness lens"]
+        OSB["orc-saboteur<br/>opus · security/failure lens"]
+        HG["hobbit-gardener<br/>opus · simplicity lens"]
+    end
+    BF["bombadil-freeagent<br/>sonnet/medium pinned · no-role-fits escape hatch"]
+    CX["Codex CLI<br/>external one-shot builder (optional)"]
+
+    M --> SEARCH
+    M --> RESEARCH
+    M --> BUILD
+    M --> VERIFY
+    M --> MCP
+    M --> BF
+    ES -. recommends .-> PANEL
+    M -- convenes --> PANEL
+    BUILD -. "codex-first when installed" .-> CX
+    ES -. "HIGH-RISK pre-screen" .-> CX
+```
+
 ## Skills at a glance
 
 ### Autoloaded (installed automatically with the plugin/agents)
@@ -40,7 +85,7 @@ list).
 
 - [Roles & dispatch](docs/en/roles.md) — the worldview, the thirteen-role fellowship, subagent dispatch snippet
 - [Skills](docs/en/skills.md) — full skill detail + the opt-in STDD workflow
-- [Rules & hooks](docs/en/rules-and-hooks.md) — the bundled rules files, the two opt-in hooks
+- [Rules & hooks](docs/en/rules-and-hooks.md) — the bundled rules files, the agent_doc lazy-load layer, the four opt-in hooks
 - [Installation](docs/en/installation.md) — the two install paths, ownership model, install flags
 - [Maintenance](docs/en/maintenance.md) — notes, honest limits, releasing
 - [History](docs/en/history.md) — project rename history and the versioning reset

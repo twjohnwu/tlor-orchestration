@@ -10,6 +10,51 @@
 
 English version: [README.md](README.md).
 
+## 團隊一覽
+
+```mermaid
+flowchart TD
+    M["Maia — 主 session<br/>拆解、派工、整合"]
+
+    subgraph SEARCH["搜尋"]
+        RO["rohirrim-outrider<br/>haiku · 定點查找"]
+        RP["ranger-pathfinder<br/>sonnet · 廣域掃描"]
+    end
+    subgraph RESEARCH["研究"]
+        NL["noldor-loremaster<br/>sonnet · 網路/文件查證,瀏覽器後援"]
+    end
+    subgraph BUILD["實作"]
+        GB["gondor-builder<br/>sonnet · 照 spec 實作"]
+        DS["dwarf-smith<br/>sonnet · 機械式批次改動"]
+    end
+    subgraph VERIFY["驗證"]
+        ES["eagle-sentinel<br/>opus · 對準則驗收"]
+        CS["cirdan-shipwright<br/>opus · 開放式 diff 審查"]
+    end
+    subgraph MCP["外部系統(MCP)"]
+        MG["mirror-of-galadriel<br/>haiku · 唯讀查詢"]
+        PS["palantir-stone<br/>sonnet · 列舉式寫入"]
+    end
+    subgraph PANEL["抗辯審查小組(高風險判定)"]
+        EA["elf-archer<br/>opus · 正確性鏡頭"]
+        OSB["orc-saboteur<br/>opus · 安全/失效鏡頭"]
+        HG["hobbit-gardener<br/>opus · 簡潔性鏡頭"]
+    end
+    BF["bombadil-freeagent<br/>pin sonnet/medium · no-role-fits 逃生艙"]
+    CX["Codex CLI<br/>外部單發 builder（選配）"]
+
+    M --> SEARCH
+    M --> RESEARCH
+    M --> BUILD
+    M --> VERIFY
+    M --> MCP
+    M --> BF
+    ES -. 建議召集 .-> PANEL
+    M -- 召集 --> PANEL
+    BUILD -. "有裝 codex 才走 codex-first" .-> CX
+    ES -. "HIGH-RISK 預審" .-> CX
+```
+
 ## Skills 一覽
 
 ### 自動載入（隨 plugin/agents 一起安裝）
@@ -38,7 +83,7 @@ install.sh／tlor-init 的環境，也能透過 plugin 自己的安裝目錄
 
 - [角色與派工](docs/zh-TW/roles.md) — 世界觀、十三角色遠征隊名冊、subagent 派工 snippet
 - [Skills](docs/zh-TW/skills.md) — 完整 skill 細節＋選配的 STDD 工作流程
-- [Rules 與 Hooks](docs/zh-TW/rules-and-hooks.md) — 附帶的 rules 檔案、兩個選配 hooks
+- [Rules 與 Hooks](docs/zh-TW/rules-and-hooks.md) — 附帶的 rules 檔案、agent_doc 懶載入層、四個選配 hooks
 - [安裝](docs/zh-TW/installation.md) — 兩種安裝方式、所有權模型、安裝旗標
 - [維護](docs/zh-TW/maintenance.md) — 備註、誠實限制、發布流程
 - [歷史](docs/zh-TW/history.md) — 專案更名沿革與版本重置

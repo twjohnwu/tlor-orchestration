@@ -37,6 +37,28 @@
 只是幫不懂 `.claude/rules/`、只讀 AGENTS.md 的工具記錄這個目錄——不是它讓
 檔案載入的。
 
+## Agent docs（agent_doc/，懶載入）
+
+角色專屬、條件觸發的參考文件。被派工的 subagent 只在觸發條件成立時才
+Read（機器上有 codex、頁面只有 JS 殼、判定進入 HIGH-RISK），其餘派工
+一個字都不用付。分工判準一句話：rules/ 放**每個 context 都必須知道**的，
+agent_doc/ 放**某個角色偶爾需要**的。
+
+| 子層 | 擁有者 | 安裝行為 |
+|---|---|---|
+| `agent_doc/*.md` | plugin | 每次 install/升級都覆寫 |
+| `agent_doc/customize/` | 使用者 | 只在不存在時複製（需 `--with-optional`），uninstall 後存活；同名檔會**疊加**在 base 檔之上讀取，衝突處以 customize 為準 |
+
+| 文件 | 讀者 | 觸發條件 |
+|---|---|---|
+| `codex-cli.md` | 任何要呼叫 Codex CLI 的角色 | 組 codex 呼叫之前 |
+| `builder-codex.md` | gondor-builder、dwarf-smith | 機器上有 codex 且派工沒寫 `no-codex` |
+| `eagle-codex-prescreen.md` | eagle-sentinel | HIGH-RISK 判定 + 有 codex + 沒寫 `no-codex` |
+| `noldor-browser.md` | noldor-loremaster | WebFetch 只拿到 JS 空殼；也收錄 bot-verifier（CAPTCHA）留窗協議 |
+
+`institution_guard` 對 `~/.claude/agent_doc/` 的保護與 rules/、agents/ 相同：
+主 session 直接編輯會被 deny，被派工的 subagent 放行。
+
 ## Hooks（選配）
 
 四個 hook **預設皆靜默**——前三個靠環境變數啟用，第四個靠註冊安裝。任何內部
