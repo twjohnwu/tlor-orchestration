@@ -97,6 +97,5 @@ list).
 MIT © [twjohnwu](https://github.com/twjohnwu). A fan homage to
 J.R.R. Tolkien's legendarium; not affiliated with or endorsed by the Tolkien
 Estate or Middle-earth Enterprises. Race and role names are used
-thematically. The rivendell-council convening flow is inspired by, and the
-verify-gate hook is adapted from,
+thematically. The rivendell-council convening flow is inspired by adversarial-review,
 [Miguok/fable-harness](https://github.com/Miguok/fable-harness) (MIT).

@@ -94,6 +94,5 @@ install.sh／tlor-init 的環境，也能透過 plugin 自己的安裝目錄
 
 MIT © [twjohnwu](https://github.com/twjohnwu)。本專案為對托爾金傳說體系的
 粉絲致敬，與 Tolkien Estate 及 Middle-earth Enterprises 皆無關、未獲其背書；種族與角色名僅作主題性使用。
-瑞文戴爾會議（rivendell-council）召集流程的靈感來自，verify-gate hook
-則改寫自
+瑞文戴爾會議（rivendell-council）召集流程的靈感來自 adversarial-review,
 [Miguok/fable-harness](https://github.com/Miguok/fable-harness)（MIT）。
