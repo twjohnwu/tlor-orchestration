@@ -45,7 +45,7 @@
   `rules/customize/`, never in a base rule file, since anything appended
   there is wiped on the next unconditional overwrite.
 - **`~/.claude/institution/` layout.** For user-level installs,
-  `~/.claude/{agents,rules,hooks}` become symlinks into
+  `~/.claude/{agents,rules,hooks,agent_doc}` become symlinks into
   `~/.claude/institution/<name>/`. This is idempotent: already a symlink →
   left alone; a real directory already there → moved under `institution/`
   and symlinked (nothing is lost); missing → created fresh. The indirection

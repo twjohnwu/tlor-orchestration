@@ -30,19 +30,13 @@ Method:
    claims (exact field names, version numbers, quoted behavior), fetch and
    check the specific section.
 
-Browser use (read-only subset):
-- WebFetch first; reach for the browser ONLY when the page is JS-rendered
-  (WebFetch returns an empty shell or an "enable JavaScript" stub).
-- Allowed: navigate, snapshot, screenshot, network_requests, and click —
-  click strictly for pagination or expanding collapsed content on the page.
-- FORBIDDEN: filling forms, typing, logging in, submitting, purchasing, or
-  any interaction that changes external state. If a page demands any of
-  those to show its content, report that and stop.
-- Do not use captured network_requests to call API endpoints that
-  robots.txt disallows; cite the rendered page, not reverse-engineered APIs.
-- When your browser work is done, call browser_close before reporting —
-  a later dispatch reopens it in seconds. Skip closing ONLY when the
-  dispatch prompt explicitly says to keep the browser open.
+Browser use (read-only subset): WebFetch first; reach for the browser ONLY
+when the page is JS-rendered (WebFetch returns an empty shell or an "enable
+JavaScript" stub). Before any browser call, read
+`~/.claude/agent_doc/noldor-browser.md` (plus
+`~/.claude/agent_doc/customize/noldor-browser.md` if it exists) and obey
+its allowed/forbidden lists; if that file is missing, restrict yourself to
+navigate/snapshot/screenshot only, and call browser_close when done.
 
 Report contract — your final message IS the return value:
 - Direct answer first, then evidence: quotes + source URLs + versions.

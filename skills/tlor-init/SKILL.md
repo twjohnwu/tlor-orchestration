@@ -54,7 +54,8 @@ Do NOT cross-contaminate levels. User-level install does not touch project files
 For a **User level** install only (`~/.claude/`), first make the layout
 idempotent so this and future installs never clobber a directory the user
 relocated by hand. Apply this 3-branch check to each of
-`~/.claude/agents`, `~/.claude/rules`, `~/.claude/hooks`:
+`~/.claude/agents`, `~/.claude/rules`, `~/.claude/hooks`,
+`~/.claude/agent_doc`:
 
 1. **Already a symlink** → skip, nothing to do.
 2. **A real directory exists** → move it to `~/.claude/institution/<name>/`,
@@ -128,6 +129,16 @@ None of these 6 files carry a `## Lessons` section of their own — they're
 overwritten unconditionally on every upgrade, so anything appended there
 would be wiped. Recurring workflow lessons instead go in
 `rules/customize/lessons.md` (see Step 5).
+
+Same unconditional-overwrite treatment applies to `agent_doc/*.md` — the
+plugin's lazy-load layer of role-specific, conditionally-triggered
+reference docs a subagent Reads at dispatch time instead of carrying
+inline in its body (e.g. `builder-codex.md`, `codex-cli.md`). Copy every
+`agent_doc/*.md` file from the plugin bundle to `<target>/agent_doc/` as
+an unconditional overwrite, same as the 6 rule files above — no version
+stamp, since these are plain reference docs, not the rules/ frontmatter
+contract. Never touches `agent_doc/customize/` — that's the user's
+landing zone, handled in Step 7.
 
 ### Step 5: Offer optional rules
 
@@ -218,6 +229,13 @@ auto-load location — any `.md` file placed there, `customize/` included,
 loads automatically at session start, no routing wiring needed, just drop the
 file in. The routing table's catch-all row (Step 8) documents this for
 readers of AGENTS.md; it is not what makes the file load.
+
+Ensure `<target>/agent_doc/customize/` exists the same way — `agent_doc/`'s
+own landing zone, never overwritten once a file exists there (copy-if-absent
+only, mirroring the rules/customize/ rule just above). Unlike rules/, files
+here are not auto-loaded — they are Read on demand by a role that names them
+(e.g. `agent_doc/customize/builder-codex.md`, read alongside the base
+`agent_doc/builder-codex.md` if it exists).
 
 ### Step 8: Set up CLAUDE.md + AGENTS.md routing
 
@@ -365,6 +383,7 @@ tlor-orchestration initialization complete:
   Agents:    N installed (M updated-with-backup, K unchanged)
   Rules:     N installed (M updated, K skipped)
   Optional:  N installed (rules/customize/)
+  Agent docs: N installed (M skipped in agent_doc/customize/)
   STDD:      role=RD/PM/UIUX/ALL/skip (N skills installed)
   CLAUDE.md: created / updated / skipped
   AGENTS.md: created / updated / skipped

@@ -3,9 +3,10 @@
 Institution guard — an OPT-IN PreToolUse hook (silent unless TLOR_INSTITUTION_GUARD=1).
 
 Blocks the main session from directly editing institution files: everything
-under ~/.claude/institution/ (rules, agents, hooks — real paths), the
-~/.claude/rules/ and ~/.claude/agents/ symlink aliases, and CLAUDE.md /
-AGENTS.md router files anywhere. These edits must be dispatched to a
+under ~/.claude/institution/ (rules, agents, hooks, agent_doc — real
+paths), the ~/.claude/rules/, ~/.claude/agents/, and ~/.claude/agent_doc/
+symlink aliases, and CLAUDE.md / AGENTS.md router files anywhere. These
+edits must be dispatched to a
 subagent per dispatch.md §1. Subagent calls (identified by agent_id) are
 allowed through. Project-level .claude/rules|agents dirs outside the home
 ~/.claude are intentionally NOT matched (installer default: home-level only).
@@ -24,6 +25,7 @@ INSTITUTION_PREFIXES = (
     HOME + "/.claude/institution/",  # real paths: rules/, agents/, hooks/, ...
     HOME + "/.claude/rules/",        # symlink alias
     HOME + "/.claude/agents/",       # symlink alias
+    HOME + "/.claude/agent_doc/",    # symlink alias
 )
 
 ROUTER_FILE_PATTERNS = (
@@ -80,7 +82,7 @@ def main():
                 "permissionDecision": "deny",
                 "permissionDecisionReason": (
                     "Institution file: the main session must not edit "
-                    "~/.claude institution files (rules/agents/hooks) or "
+                    "~/.claude institution files (rules/agents/hooks/agent_doc) or "
                     "CLAUDE.md/AGENTS.md inline. Author the full new text "
                     "as a recipe and dispatch it to a subagent "
                     "(dispatch.md §1). This does not block dispatched "

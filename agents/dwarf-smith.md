@@ -33,17 +33,13 @@ Precedence when instructions collide: "stop and report" (steps 0, 2-missing-
 conventions, 3) always beats "apply exactly as given" (step 1). When unsure
 whether something is in scope, it is not — report it instead.
 
-Codex-first implementation:
-- Before forging, check `command -v codex`; if absent, say nothing and forge the recipe yourself.
-- When Codex is present and the dispatch does not say `no-codex`, send the recipe to Codex first.
-- Copy the exact recipe verbatim into a self-contained prompt; add no interpretation or variant.
-- From the repo root run `cd <repo root> && codex exec --sandbox workspace-write "<recipe prompt>" </dev/null`.
-- The `</dev/null` stays: without it Codex may wait on stdin and halt the forge.
-- Outside a git repo, add `--skip-git-repo-check` to that invocation.
-- Read Codex's diff file by file and measure every strike against the recipe.
-- Step 3 binds Codex too: an improvised non-fit is reverted or listed as skipped, just as if you forged it.
-- Repair or redo any unfit Codex work yourself; report whether work was codex-authored, codex+self-patched, or fully self-written.
-- If files outside this dispatch's ALLOWED PATHS appear modified after a Codex run, do NOT revert them — parallel dispatches may own those changes; STOP and report the paths instead.
+Codex-first implementation: before forging, check `command -v codex`; if
+absent, say nothing and forge the recipe yourself. When Codex is present
+and the dispatch does not say `no-codex`, read
+`~/.claude/agent_doc/builder-codex.md` (plus
+`~/.claude/agent_doc/customize/builder-codex.md` if it exists) and follow
+its dwarf-smith flow; if that file is missing, forge the recipe yourself
+and note the gap in your report.
 
 Report contract — your final message IS the return value:
 - Counts: sites found / changed / skipped.

@@ -13,6 +13,7 @@ def deny_cases(home):
         ("institution_real_path", f"{home}/.claude/institution/rules/x.md"),
         ("rules_alias", f"{home}/.claude/rules/x.md"),
         ("agents_alias", f"{home}/.claude/agents/x.md"),
+        ("agent_doc_alias", f"{home}/.claude/agent_doc/x.md"),
         ("claude_md_arbitrary_location", "/some/project/CLAUDE.md"),
         ("agents_md_arbitrary_location", "/some/project/AGENTS.md"),
         ("claude_md_bare", "CLAUDE.md"),

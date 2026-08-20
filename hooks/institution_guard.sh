@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Institution guard — bash fallback (active only when TLOR_INSTITUTION_GUARD=1).
 # Blocks main session from editing institution files: everything under
-# ~/.claude/institution/ (real paths), the ~/.claude/rules/ and
-# ~/.claude/agents/ symlink aliases, and CLAUDE.md/AGENTS.md anywhere.
+# ~/.claude/institution/ (real paths), the ~/.claude/rules/,
+# ~/.claude/agents/, and ~/.claude/agent_doc/ symlink aliases, and
+# CLAUDE.md/AGENTS.md anywhere.
 # Subagents (agent_id present) pass through. Fail-open on any error.
 [ "${TLOR_INSTITUTION_GUARD}" = "1" ] || exit 0
 set -uo pipefail
@@ -21,8 +22,8 @@ agent_id=$(printf '%s' "$input" | jq -r '.agent_id // empty' 2>/dev/null) || exi
 home="${HOME}"
 # Check institution file patterns (home-anchored prefixes + router files anywhere)
 case "$file" in
-  "${home}/.claude/institution/"*|"${home}/.claude/rules/"*|"${home}/.claude/agents/"*|*/CLAUDE.md|CLAUDE.md|*/AGENTS.md|AGENTS.md)
-    jq -n '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:"Institution file: the main session must not edit ~/.claude institution files (rules/agents/hooks) or CLAUDE.md/AGENTS.md inline. Author the full new text as a recipe and dispatch it to a subagent (dispatch.md §1). This does not block dispatched subagents."}}'
+  "${home}/.claude/institution/"*|"${home}/.claude/rules/"*|"${home}/.claude/agents/"*|"${home}/.claude/agent_doc/"*|*/CLAUDE.md|CLAUDE.md|*/AGENTS.md|AGENTS.md)
+    jq -n '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:"Institution file: the main session must not edit ~/.claude institution files (rules/agents/hooks/agent_doc) or CLAUDE.md/AGENTS.md inline. Author the full new text as a recipe and dispatch it to a subagent (dispatch.md §1). This does not block dispatched subagents."}}'
     exit 0
     ;;
 esac

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# install.sh — copy TLOR agent roles, skills, rules, hooks, workflows, and
-# scripts into ~/.claude/
+# install.sh — copy TLOR agent roles, skills, rules, hooks, agent_doc,
+# workflows, and scripts into ~/.claude/
 # (no plugin system needed).
 # Usage: ./install.sh [--dry-run] [--force] [--uninstall] [--with-optional]
 #                      [--stdd-role=RD|PM|UIUX|ALL] [--install-hook]
@@ -34,6 +34,7 @@ HOOKS_SRC="$ROOT/hooks"
 WORKFLOWS_SRC="$ROOT/workflows"
 SCRIPTS_SRC="$ROOT/scripts"
 STDD_SKILLS_SRC="$ROOT/stdd-skills"
+AGENT_DOC_SRC="$ROOT/agent_doc"
 PLUGIN_JSON="$ROOT/.claude-plugin/plugin.json"
 
 INSTITUTION="$HOME/.claude/institution"
@@ -42,6 +43,7 @@ RULES_DEST="$HOME/.claude/rules"
 HOOKS_DEST="$HOME/.claude/hooks"
 WORKFLOWS_DEST="$HOME/.claude/workflows"
 SCRIPTS_DEST="$HOME/.claude/scripts"
+AGENT_DOC_DEST="$HOME/.claude/agent_doc"
 SETTINGS_JSON="$HOME/.claude/settings.json"
 INSTALL_CONF="$HOME/.claude/.tlor-install.conf"
 MANIFEST="$DEST/.tlor-manifest"
@@ -49,6 +51,7 @@ RULES_MANIFEST="$RULES_DEST/.tlor-manifest"
 HOOKS_MANIFEST="$HOOKS_DEST/.tlor-manifest"
 WORKFLOWS_MANIFEST="$WORKFLOWS_DEST/.tlor-manifest"
 SCRIPTS_MANIFEST="$SCRIPTS_DEST/.tlor-manifest"
+AGENT_DOC_MANIFEST="$AGENT_DOC_DEST/.tlor-manifest"
 
 DRY=0; FORCE=0; UNINSTALL=0; WITH_OPTIONAL=0; STDD_ROLE=""; INSTALL_HOOK=0; SKILLS_DEST_ARG=""
 for a in "$@"; do
@@ -160,6 +163,24 @@ CUSTOMIZE_SRC="$RULES_SRC/customize"
 CUSTOMIZE_FILES=""
 if [ "$WITH_OPTIONAL" -eq 1 ]; then
   CUSTOMIZE_FILES=$(cd "$CUSTOMIZE_SRC" && ls ./*.md 2>/dev/null | sed 's|^\./||')
+fi
+
+# agent_doc/: role-specific, conditionally-triggered reference docs a
+# subagent Reads at dispatch time instead of carrying inline in its body
+# (lazy-load layer). Same two-sublayer split as rules/: base `agent_doc/*.md`
+# is plugin-owned (installed below), `agent_doc/customize/*.md` is the
+# user's own landing zone (copy-if-absent, gated by --with-optional exactly
+# like rules/customize/). Tolerate the directory not existing at all yet
+# (e.g. an older checkout) — `AGENT_DOCS`/`AGENT_DOC_CUSTOMIZE_FILES` stay
+# empty rather than aborting the whole install under `set -e`.
+AGENT_DOC_CUSTOMIZE_SRC="$AGENT_DOC_SRC/customize"
+AGENT_DOCS=""
+if [ -d "$AGENT_DOC_SRC" ]; then
+  AGENT_DOCS=$(cd "$AGENT_DOC_SRC" && ls ./*.md 2>/dev/null | sed 's|^\./||')
+fi
+AGENT_DOC_CUSTOMIZE_FILES=""
+if [ "$WITH_OPTIONAL" -eq 1 ] && [ -d "$AGENT_DOC_CUSTOMIZE_SRC" ]; then
+  AGENT_DOC_CUSTOMIZE_FILES=$(cd "$AGENT_DOC_CUSTOMIZE_SRC" && ls ./*.md 2>/dev/null | sed 's|^\./||')
 fi
 
 # Idempotent institution layout: ~/.claude/{agents,rules,hooks} become
@@ -281,10 +302,10 @@ inject_version() {
 }
 
 if [ "$UNINSTALL" -eq 1 ]; then
-  # Per-asset-type uninstall policy (REQ-10/S-15) — the eight loops below
-  # (agents, skills, rules, hooks, workflows, scripts, STDD skills, the
-  # stdd_test_guard hook) intentionally do NOT all behave the same way; this
-  # is a stated decision, not accidental drift:
+  # Per-asset-type uninstall policy (REQ-10/S-15) — the nine loops below
+  # (agents, skills, rules, hooks, workflows, scripts, agent_doc, STDD
+  # skills, the stdd_test_guard hook) intentionally do NOT all behave the
+  # same way; this is a stated decision, not accidental drift:
   #   agents            -> .bak backup of customized files, then `rm` (this
   #                        is the only asset type the user commonly hand-
   #                        edits per-role, so a silent hand-edit loss would
@@ -309,6 +330,11 @@ if [ "$UNINSTALL" -eq 1 ]; then
   #                        one file installed, `stdd_custody_check.py`, is a
   #                        plugin-owned runtime dependency of workflows/
   #                        stdd-execute.js, not user-editable content)
+  #   agent_doc         -> `rm`, no backup, plus an `rmdir` of the now-empty
+  #                        `customize/` dir — identical treatment to rules
+  #                        (agent_doc/customize/ is the user's own landing
+  #                        zone by the same convention, never touched by the
+  #                        remove loop itself)
   #   STDD skills       -> `rm -rf`, no backup, but scoped strictly to what
   #                        our own $STDD_MANIFEST recorded (never a guessed
   #                        subset) — same "bundled, not hand-edited" rationale
@@ -398,9 +424,10 @@ if [ "$UNINSTALL" -eq 1 ]; then
           ;;
       esac
     done < <(if [ -n "$remove_src" ]; then cat "$remove_src"; else printf '%s\n' $fallback; fi)
-    if [ "$label" = "rules" ]; then
-      # rules/customize/ is the user's own landing zone (never removed by
-      # the loop above) — only the now-empty directory shell is cleared.
+    if [ "$label" = "rules" ] || [ "$label" = "agent_doc" ]; then
+      # rules/customize/ and agent_doc/customize/ are the user's own landing
+      # zones (never removed by the loop above) — only the now-empty
+      # directory shell is cleared.
       [ -d "$dest/customize" ] && rmdir "$dest/customize" 2>/dev/null || true
     fi
     if [ "$DRY" -eq 0 ] && [ -f "$manifest" ]; then rm "$manifest"; fi
@@ -412,6 +439,7 @@ if [ "$UNINSTALL" -eq 1 ]; then
   uninstall_asset hooks     "$HOOKS_DEST"     "$HOOKS_MANIFEST"     file_plain  $HOOK_FILES
   uninstall_asset workflows "$WORKFLOWS_DEST" "$WORKFLOWS_MANIFEST" file_plain  $WORKFLOWS
   uninstall_asset scripts   "$SCRIPTS_DEST"   "$SCRIPTS_MANIFEST"   file_plain  $SCRIPTS
+  uninstall_asset agent_doc "$AGENT_DOC_DEST" "$AGENT_DOC_MANIFEST" file_plain  $AGENT_DOCS
 
   # STDD skills: only remove what our own manifest recorded (never guesses
   # at a subset — the first line is `role=<...>`, the rest are skill dirs).
@@ -465,7 +493,7 @@ if [ "$UNINSTALL" -eq 1 ]; then
   exit 0
 fi
 
-for n in agents rules hooks; do
+for n in agents rules hooks agent_doc; do
   ensure_institution_symlink "$n"
 done
 ensure_skills_dest_safe
@@ -548,6 +576,37 @@ if [ -n "$CUSTOMIZE_FILES" ]; then
     else
       cp "$CUSTOMIZE_SRC/$f" "$RULES_DEST/customize/$f"
       echo "installed $RULES_DEST/customize/$f"
+    fi
+  done
+fi
+
+# agent_doc/*.md are plugin-owned lazy-load reference docs (role-specific,
+# conditionally-triggered — a subagent Reads them at dispatch time instead
+# of carrying the content inline in its body): unconditional overwrite,
+# same treatment as base rules above, minus the version-frontmatter stamp
+# (these are plain reference docs, not the rules/ frontmatter contract).
+# Never touches agent_doc/customize/ — that's the user's landing zone,
+# handled separately below.
+[ "$DRY" -eq 1 ] || mkdir -p "$AGENT_DOC_DEST"
+for f in $AGENT_DOCS; do
+  if [ "$DRY" -eq 1 ]; then
+    echo "would install $AGENT_DOC_DEST/$f"
+  else
+    cp "$AGENT_DOC_SRC/$f" "$AGENT_DOC_DEST/$f"
+    echo "installed $AGENT_DOC_DEST/$f"
+  fi
+done
+
+[ "$DRY" -eq 1 ] || mkdir -p "$AGENT_DOC_DEST/customize"
+if [ -n "$AGENT_DOC_CUSTOMIZE_FILES" ]; then
+  for f in $AGENT_DOC_CUSTOMIZE_FILES; do
+    if [ -f "$AGENT_DOC_DEST/customize/$f" ]; then
+      echo "skipped $AGENT_DOC_DEST/customize/$f (already exists — customize/ is never overwritten)"
+    elif [ "$DRY" -eq 1 ]; then
+      echo "would install $AGENT_DOC_DEST/customize/$f"
+    else
+      cp "$AGENT_DOC_CUSTOMIZE_SRC/$f" "$AGENT_DOC_DEST/customize/$f"
+      echo "installed $AGENT_DOC_DEST/customize/$f"
     fi
   done
 fi
@@ -683,7 +742,12 @@ got_workflows=$VERIFY_GOT
 verify_asset "scripts"   "$SCRIPTS_DEST"   "$SCRIPTS_MANIFEST"   file $SCRIPTS
 got_scripts=$VERIFY_GOT
 
-echo "install done: $got roles in $DEST (manifest: $MANIFEST), $got_skills skills in $SKILLS_DEST (manifest: $SKILLS_MANIFEST), $got_rules rules in $RULES_DEST (manifest: $RULES_MANIFEST), $got_hooks hooks in $HOOKS_DEST (manifest: $HOOKS_MANIFEST), $got_workflows workflows in $WORKFLOWS_DEST (manifest: $WORKFLOWS_MANIFEST), $got_scripts scripts in $SCRIPTS_DEST (manifest: $SCRIPTS_MANIFEST)"
+ALL_AGENT_DOCS="$AGENT_DOCS"
+for f in $AGENT_DOC_CUSTOMIZE_FILES; do ALL_AGENT_DOCS="$ALL_AGENT_DOCS customize/$f"; done
+verify_asset "agent_doc" "$AGENT_DOC_DEST" "$AGENT_DOC_MANIFEST" file $ALL_AGENT_DOCS
+got_agent_doc=$VERIFY_GOT
+
+echo "install done: $got roles in $DEST (manifest: $MANIFEST), $got_skills skills in $SKILLS_DEST (manifest: $SKILLS_MANIFEST), $got_rules rules in $RULES_DEST (manifest: $RULES_MANIFEST), $got_hooks hooks in $HOOKS_DEST (manifest: $HOOKS_MANIFEST), $got_workflows workflows in $WORKFLOWS_DEST (manifest: $WORKFLOWS_MANIFEST), $got_scripts scripts in $SCRIPTS_DEST (manifest: $SCRIPTS_MANIFEST), $got_agent_doc agent_doc in $AGENT_DOC_DEST (manifest: $AGENT_DOC_MANIFEST)"
 echo "NOTE: open a NEW Claude Code session to load the roles and skills (both are read at session start)."
 
 echo ""

@@ -6,8 +6,29 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
-## v0.7.9 (2026-08-20)
+## v0.8.0 (2026-08-20)
 
+- New `agent_doc/` lazy-load layer: role-specific, conditionally-triggered
+  reference docs that a dispatched subagent Reads only when its trigger
+  fires, instead of carrying the text in an always-loaded role body. Two
+  sublayers mirror rules/: `agent_doc/*.md` is plugin-managed (overwritten
+  on install/upgrade), `agent_doc/customize/` is user-owned (copied only if
+  absent — gated behind `--with-optional` like rules/customize — and it
+  survives uninstall). install.sh gains the full asset triple
+  (copy/manifest/symlink/uninstall), tlor-init Steps 3/4/7/12 create and
+  populate the layout, and institution_guard (.py AND .sh) protects the new
+  `~/.claude/agent_doc/` alias, fail-then-pass tested via the shared case
+  matrix.
+- Four role bodies slim down to lazy pointers: gondor-builder's and
+  dwarf-smith's codex-first sections → `agent_doc/builder-codex.md` (plus
+  the shared `agent_doc/codex-cli.md` invocation facts and pitfalls);
+  eagle-sentinel's HIGH-RISK codex pre-screen →
+  `agent_doc/eagle-codex-prescreen.md` (the council recommendation stays in
+  the body — it triggers on HIGH-RISK regardless of codex availability);
+  noldor-loremaster's browser read-only subset →
+  `agent_doc/noldor-browser.md`, with a restrictive fallback when the file
+  is missing. Every pointer also reads the same-named
+  `agent_doc/customize/` overlay when present.
 - `bombadil-freeagent` gains pinned defaults `model: sonnet` / `effort: medium`
   (user decision), reversing v0.7.8's "pins neither": the harness supports
   effort only in agent frontmatter — the Agent tool has no per-call effort
@@ -19,6 +40,8 @@ release first — new sections go at the top.
   prompt check; `scripts/lint_agents_frontmatter.py`'s rule for this role
   inverts — `model`+`effort` must now be PRESENT and `tools` absent.
   dispatch.md §3 and roles.md (en/zh-TW) reworded to match.
+- (v0.7.9 was tagged in an intermediate commit but never released; it is
+  folded into this version.)
 
 ## v0.7.8 (2026-08-16)
 

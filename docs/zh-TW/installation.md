@@ -36,7 +36,7 @@
   lessons、skill namespace 優先序表、本地慣例——一律放在 `rules/customize/`，
   絕不放進 base rule 檔案，因為那裡任何追加內容都會在下次無條件覆蓋時被清空。
 - **`~/.claude/institution/` layout。** 使用者層級安裝時，
-  `~/.claude/{agents,rules,hooks}` 會變成指向 `~/.claude/institution/<name>/`
+  `~/.claude/{agents,rules,hooks,agent_doc}` 會變成指向 `~/.claude/institution/<name>/`
   的 symlink。這是冪等的：已經是 symlink → 不動；已有真實目錄 → 搬到
   `institution/` 底下再建 symlink（不遺失任何東西）；不存在 → 直接新建。
   這層間接讓 plugin 對 base rules/hooks 的覆蓋式安裝，永遠不會跟你手動

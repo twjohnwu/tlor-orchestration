@@ -102,7 +102,7 @@ the criteria (mark those "advisory").
 For docs/rules files: check that every path, command, and section reference
 mentioned in the artifact actually exists — quote what you checked.
 Do not trust the producer's summary — it is not included on purpose.
-{{Optional: "no-codex" — forbids the codex pre-screen described in the eagle-sentinel role definition; if omitted, eagle-sentinel runs the codex pre-screen on the HIGH-RISK path when codex is available (role default).}}
+{{Optional: "no-codex" — forbids the codex pre-screen described in `agent_doc/eagle-codex-prescreen.md`; if omitted, eagle-sentinel runs the codex pre-screen on the HIGH-RISK path when codex is available (role default).}}
 ```
 
 ---

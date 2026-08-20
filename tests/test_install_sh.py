@@ -19,8 +19,11 @@ def test_dry_run_with_redirected_home_creates_zero_directories(tmp_path):
     WHEN `install.sh --dry-run` runs with that HOME
     THEN stdout SHALL contain "dry-run done (nothing written)." AND
       afterwards `<tmpdir>` SHALL NOT contain any newly created directory
-      (covering all ten `mkdir -p` sites: install.sh:373,416,421,430,441,
-      457,466,479,500,505).
+      (covering all `mkdir -p` sites, now twelve after the agent_doc/
+      asset type added two more at install.sh:590,600 — the original ten
+      references (install.sh:373,416,421,430,441,457,466,479,500,505) had
+      already drifted from actual line numbers before this change and are
+      left as-is; the assertion itself is line-number-agnostic).
     """
     home = tmp_path / "home"
     home.mkdir()

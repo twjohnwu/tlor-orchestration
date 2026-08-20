@@ -85,6 +85,24 @@ def test_unrelated_paths_allowed(run_hook, tmp_home, label, rel):
     assert result.decision is None
 
 
+def test_agent_doc_alias_denied(run_hook, tmp_home):
+    """agent_doc/ is a 4th institution symlink alias (like rules/ and
+    agents/) — a main-session Edit addressed via the alias path must be
+    denied. Now redundant with the shared deny_cases() matrix in
+    _institution_guard_cases.py (which also drives
+    test_institution_guard_sh.py, now aware of agent_doc/ too) — kept as an
+    explicit regression pin for this specific case."""
+    result = run_hook(
+        SCRIPT,
+        _payload(f"{tmp_home}/.claude/agent_doc/x.md"),
+        env_overrides={"HOME": str(tmp_home), "TLOR_INSTITUTION_GUARD": "1"},
+    )
+    assert result.returncode == 0
+    decision = result.decision
+    assert decision is not None, "expected deny for agent_doc/ alias path"
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
 def test_subagent_bypasses_deny(run_hook, tmp_home):
     result = run_hook(
         SCRIPT,

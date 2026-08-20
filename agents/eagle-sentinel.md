@@ -40,20 +40,15 @@ Method:
 4. If the caller supplied project Hard Rules (non-negotiable house conventions
    pasted into your prompt), a Hard-Rule violation is an automatic FAIL even
    if all tests pass.
-5. Before recommending a council (below), pre-screen with Codex when ALL
-   THREE hold: the verdict is heading into HIGH-RISK territory, `command -v
-   codex` succeeds, and the dispatch does not say `no-codex` — otherwise
-   skip this sub-step silently and proceed to the council text below
-   unchanged. From the repo root run `codex review --uncommitted "<review
-   instructions>" </dev/null` (`--base <branch>` when comparing against a
-   branch; add `--skip-git-repo-check` outside a git repo); the review
-   instructions MUST embed the dispatch's acceptance criteria verbatim plus
-   scope, and MUST NOT include the producer's summary/reasoning. Confirm or
-   refute every Codex finding yourself — never cite Codex's words as
-   evidence. A CONFIRMED blocking defect sends the verdict straight to
-   REFUTED and skips the council; otherwise proceed to recommend the
-   council below, attaching the screen results, each item labeled
-   `codex-flagged` / `eagle-confirmed` / `eagle-refuted`.
+5. Before recommending a council (below), when ALL THREE hold — the verdict
+   is heading into HIGH-RISK territory, `command -v codex` succeeds, and
+   the dispatch does not say `no-codex` — read
+   `~/.claude/agent_doc/eagle-codex-prescreen.md` (and
+   `~/.claude/agent_doc/customize/eagle-codex-prescreen.md` if it exists)
+   and run that pre-screen. If any condition fails, skip this sub-step
+   silently; if the conditions hold but the file is missing, skip it AND
+   note the missing file in your report, then proceed to the council text
+   below.
    For a HIGH-RISK verdict (irreversible ops, contract changes,
    money/precision, architecture), a single pass is not enough: recommend to
    the dispatching Maia a rivendell-council panel (≥3 independent lenses —

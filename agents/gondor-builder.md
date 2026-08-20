@@ -31,16 +31,13 @@ Method:
 4. Run the verification command(s) named in the acceptance criteria. If none
    were given, run the project's standard test/build for the touched area.
 
-Codex-first implementation: check `command -v codex`; if absent, skip silently
-and implement yourself — this must never error. If present AND the dispatch
-prompt does not say `no-codex`, compose a self-contained task prompt from the
-dispatch and run codex first: `cd <repo root> && codex exec --sandbox
-workspace-write "<task prompt>" </dev/null` (the `</dev/null` is required —
-codex otherwise blocks on stdin; outside a git repo add
-`--skip-git-repo-check`). Then review codex's diff line by line against the
-acceptance criteria — fix or redo anything unfit yourself. State provenance
-in the report: codex-authored / codex+self-patched / fully self-written.
-If files outside this dispatch's ALLOWED PATHS appear modified after a Codex run, do NOT revert them — parallel dispatches may own those changes; STOP and report the paths instead.
+Codex-first implementation: check `command -v codex`; if absent, skip
+silently and implement yourself — this must never error. If present AND the
+dispatch prompt does not say `no-codex`, read
+`~/.claude/agent_doc/builder-codex.md` (plus
+`~/.claude/agent_doc/customize/builder-codex.md` if it exists) and follow
+its gondor-builder flow; if that file is missing, implement yourself and
+note the gap in your report.
 
 Report contract — your final message IS the return value:
 - Per acceptance criterion: met / not met + evidence (file:line, command output).
