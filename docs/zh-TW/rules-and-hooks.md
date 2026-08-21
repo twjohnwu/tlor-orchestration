@@ -47,6 +47,7 @@ agent_doc/ 放**某個角色偶爾需要**的。
 | 子層 | 擁有者 | 安裝行為 |
 |---|---|---|
 | `agent_doc/*.md` | plugin | 每次 install/升級都覆寫 |
+| `agent_doc/<語言>/*.md`（如 `zh_tw/`、`en_us/`） | plugin | 剛好一層語言／主題子目錄，通用探測（除 `customize/` 以外任何子目錄都算）；每次 install/升級覆寫，uninstall 時逐檔移除，處理方式與 flat 檔案相同 |
 | `agent_doc/customize/` | 使用者 | 只在不存在時複製（需 `--with-optional`），uninstall 後存活；同名檔會**疊加**在 base 檔之上讀取，衝突處以 customize 為準 |
 
 | 文件 | 讀者 | 觸發條件 |
@@ -55,6 +56,12 @@ agent_doc/ 放**某個角色偶爾需要**的。
 | `builder-codex.md` | gondor-builder、dwarf-smith | 機器上有 codex 且派工沒寫 `no-codex` |
 | `eagle-codex-prescreen.md` | eagle-sentinel | HIGH-RISK 判定 + 有 codex + 沒寫 `no-codex` |
 | `noldor-browser.md` | noldor-loremaster | WebFetch 只拿到 JS 空殼；也收錄 bot-verifier（CAPTCHA）留窗協議 |
+| `bilbo-scribe.md` | bilbo-scribe | 每次派工的第一步——routing table ＋共用寫作核心（六步流程、五維度自評、事實保存） |
+| `zh_tw/patterns.md`、`zh_tw/style.md`、`zh_tw/localization.md` | bilbo-scribe | 輸出／目標語言為 zh-TW |
+| `en_us/patterns.md`、`en_us/style.md` | bilbo-scribe | 輸出／目標語言為英文 |
+| `seo-writing.md` | bilbo-scribe | 任務屬 SEO／搜尋導向內容 |
+| `tone-development.md` | bilbo-scribe | 任務要求開發或套用特定品牌／作者語氣 |
+| `user-guide-ste.md` | bilbo-scribe | 任務屬使用手冊／操作說明／步驟文件 |
 
 `institution_guard` 對 `~/.claude/agent_doc/` 的保護與 rules/、agents/ 相同：
 主 session 直接編輯會被 deny，被派工的 subagent 放行。

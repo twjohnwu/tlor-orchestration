@@ -66,7 +66,7 @@ relocated by hand. Apply this 3-branch check to each of
 (Project/repo level installs use plain directories — this institution layout
 is a `~/.claude/` concept only.)
 
-Then install the 13 agent role definitions from the plugin's `agents/`
+Then install the 14 agent role definitions from the plugin's `agents/`
 directory to `<target>/agents/`:
 
 - rohirrim-outrider.md
@@ -82,6 +82,7 @@ directory to `<target>/agents/`:
 - palantir-stone.md
 - cirdan-shipwright.md
 - bombadil-freeagent.md
+- bilbo-scribe.md
 
 **Agent files use backup-and-overwrite, not a silent unconditional
 overwrite.** Agent frontmatter supports no import mechanism, so a user's
@@ -137,8 +138,12 @@ inline in its body (e.g. `builder-codex.md`, `codex-cli.md`). Copy every
 `agent_doc/*.md` file from the plugin bundle to `<target>/agent_doc/` as
 an unconditional overwrite, same as the 6 rule files above — no version
 stamp, since these are plain reference docs, not the rules/ frontmatter
-contract. Never touches `agent_doc/customize/` — that's the user's
-landing zone, handled in Step 7.
+contract. `agent_doc/` also carries exactly one level of language/topic
+subdirectories (e.g. `zh_tw/`, `en_us/` — `bilbo-scribe`'s output-language
+reference docs); copy every `agent_doc/<subdir>/*.md` file the same way,
+preserving the `<subdir>/` path under `<target>/agent_doc/<subdir>/`. Never
+touches `agent_doc/customize/` — that's the user's landing zone, handled in
+Step 7.
 
 ### Step 5: Offer optional rules
 

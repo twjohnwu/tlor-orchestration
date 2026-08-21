@@ -51,6 +51,7 @@ must know; agent_doc/ holds what one role needs sometimes.
 | Sublayer | Owner | Install behavior |
 |---|---|---|
 | `agent_doc/*.md` | plugin | overwritten on every install/upgrade |
+| `agent_doc/<lang>/*.md` (e.g. `zh_tw/`, `en_us/`) | plugin | exactly one level of language/topic subdirectory, discovered generically (any dir except `customize/`); overwritten on every install/upgrade, uninstalled per-file same as the flat files |
 | `agent_doc/customize/` | user | copied only if absent (behind `--with-optional`), survives uninstall; a same-named file here is read IN ADDITION to the base file and wins where they disagree |
 
 | Doc | Read by | Trigger |
@@ -59,6 +60,12 @@ must know; agent_doc/ holds what one role needs sometimes.
 | `builder-codex.md` | gondor-builder, dwarf-smith | codex present and the dispatch does not say `no-codex` |
 | `eagle-codex-prescreen.md` | eagle-sentinel | HIGH-RISK verdict + codex present + no `no-codex` |
 | `noldor-browser.md` | noldor-loremaster | WebFetch returns a JS-only shell; also holds the bot-verifier (CAPTCHA) leave-the-browser-open protocol |
+| `bilbo-scribe.md` | bilbo-scribe | FIRST step of every dispatch — routing table + shared writing core (six-step workflow, five-dimension self-score, fact preservation) |
+| `zh_tw/patterns.md`, `zh_tw/style.md`, `zh_tw/localization.md` | bilbo-scribe | output/target language is zh-TW |
+| `en_us/patterns.md`, `en_us/style.md` | bilbo-scribe | output/target language is English |
+| `seo-writing.md` | bilbo-scribe | task is SEO / search-oriented content |
+| `tone-development.md` | bilbo-scribe | task asks to develop or apply a specific brand/author tone |
+| `user-guide-ste.md` | bilbo-scribe | task is a user guide / operating manual / step-by-step doc |
 
 `institution_guard` protects `~/.claude/agent_doc/` the same way it protects
 rules/ and agents/: main-session edits are denied, dispatched subagents pass.

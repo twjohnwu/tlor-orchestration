@@ -423,6 +423,49 @@ def test_every_install_sh_flag_literal_is_documented_in_both_language_docs():
         )
 
 
+BILBO_SCRIBE_MD = REPO_ROOT / "agent_doc" / "bilbo-scribe.md"
+
+AGENT_DOC_PATH_RE = re.compile(r"agent_doc/[\w./\-]+\.md")
+
+
+def _routing_table_also_read_paths(text):
+    """Extract every `agent_doc/...md` path referenced in bilbo-scribe.md's
+    '## Routing table' section's 'Also Read' column. Parses whatever rows
+    the table contains at test time (no hardcoded row list), so a future
+    added row is covered automatically."""
+    table_match = re.search(
+        r"## Routing table\n\n(.*?)\n\n", text, re.DOTALL
+    )
+    assert table_match, (
+        "bilbo-scribe.md: could not find the '## Routing table' section"
+    )
+    table_text = table_match.group(1)
+    return set(AGENT_DOC_PATH_RE.findall(table_text))
+
+
+def test_bilbo_scribe_routing_table_paths_all_exist():
+    """Guard test binding bilbo-scribe.md's routing table to the real
+    agent_doc/ directory.
+
+    GIVEN bilbo-scribe.md's '## Routing table' lists `agent_doc/...md`
+      paths a role should Read for each condition
+    WHEN parsing every such path out of the table dynamically (not a
+      hardcoded list)
+    THEN every path SHALL exist under the repo's `agent_doc/` — a row
+      added later that names a doc which was never written (or was
+      renamed/removed) would otherwise go unnoticed.
+    """
+    text = BILBO_SCRIBE_MD.read_text(encoding="utf-8")
+    paths = _routing_table_also_read_paths(text)
+    assert paths, "no 'agent_doc/...md' paths found in the routing table"
+
+    missing = sorted(p for p in paths if not (REPO_ROOT / p).is_file())
+    assert not missing, (
+        f"bilbo-scribe.md routing table references paths that do not exist "
+        f"in the repo: {missing}"
+    )
+
+
 def test_stdd_plan_skill_states_the_merged_task_id_line_format():
     """M4-doc (M1 batch): stdd-plan/SKILL.md documents the merged-task id
     line format.

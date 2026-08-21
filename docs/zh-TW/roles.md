@@ -23,6 +23,7 @@
 | `mirror-of-galadriel` | 凱蘭崔爾之鏡 | haiku / low | 唯讀查詢外部系統（任務追蹤、文件庫），透過 session 的 MCP 工具——只看，不動手 |
 | `palantir-stone` | 真知晶石 | sonnet / medium | 唯一能透過 session MCP 工具**寫入**外部系統的角色；照派工列舉的內容逐字執行，自己不判斷寫什麼 |
 | `cirdan-shipwright` | 造船者刻爾丹 | opus / medium | 開放式的 diff 設計／production-readiness 審查——沒有準則清單、沒有結論可攻；有準則的活留給 `eagle-sentinel`，攻結論的活交給下方的抗辯審查小組 |
+| `bilbo-scribe` | 紅皮書作者比爾博 | opus / medium | 照 spec/outline 寫專業文章，或把既有文字去 AI 味、改到像人寫的——寫作與編輯共用同一套 pattern catalog；絕不自證完稿（那是 `eagle-sentinel` 的活） |
 | `bombadil-freeagent` | 湯姆·龐巴迪 | sonnet / medium | 名冊之外的自由角色，用於現有角色都不合的任務形狀。預設 pin sonnet/medium——可用 per-call `model` 升降級（effort 沒有 per-call 機制）；每次派工必須在 prompt 寫 `no-role-fits reason:`——由 `hooks/dispatch_guard.py` 強制。同一種不合形狀出現第二次，就該鑄造新角色而不是再用它 |
 
 ### 抗辯審查小組（rivendell-council 鏡頭）
@@ -70,6 +71,7 @@ Prefer the pinned tlor-orchestration roles over generic subagents:
 - Read an external system via session MCP tools → mirror-of-galadriel
 - Write to an external system via session MCP tools (enumerated mutations only) → palantir-stone
 - Open-ended design/production-readiness review of a bare diff (no criteria, no conclusion to attack) → cirdan-shipwright
+- Write a professional article, or de-AI existing prose → bilbo-scribe
 - No pinned role fits the task's shape (verify the whole table first — a naming slip is not a missing role) → bombadil-freeagent
 
 Delegate any read of >3 files or repo-wide scan; keep only conclusions + file:line in the main thread.

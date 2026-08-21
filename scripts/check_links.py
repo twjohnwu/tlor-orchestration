@@ -18,10 +18,14 @@ AGENT_DOC_DIR = REPO_ROOT / "agent_doc"
 
 # Regex kept deliberately conservative (lowercase filename charset) so it
 # doesn't false-positive on placeholders like "X.md" or "<repo>.md". The
-# optional leading group captures a single directory qualifier (e.g.
-# "agent_doc/eagle-codex-prescreen.md") so path-qualified references can be
-# resolved against that directory instead of the bare rules/ basename set.
-MD_TOKEN_RE = re.compile(r"\b(?:([a-z0-9_-]+)/)?([a-z0-9-]+\.md)\b")
+# optional leading group captures ONE or TWO directory qualifiers (e.g.
+# "agent_doc/eagle-codex-prescreen.md" or the two-level
+# "agent_doc/zh_tw/patterns.md" — a language/topic subdir under agent_doc/)
+# so path-qualified references can be resolved against that directory
+# instead of the bare rules/ basename set. Capped at two levels: agent_doc/
+# subdirs are exactly one level deep (install.sh's own constraint), so a
+# third segment is never a real path this repo produces.
+MD_TOKEN_RE = re.compile(r"\b((?:[a-z0-9_-]+/){1,2})?([a-z0-9-]+\.md)\b")
 
 # Known generic placeholders used in illustrative prose, not real paths.
 PLACEHOLDER_TOKENS = {"rules-file.md"}
@@ -39,21 +43,44 @@ def collect_rules_md_basenames() -> set:
     return collect_dir_md_basenames(RULES_DIR)
 
 
+def collect_agent_doc_subdir_basenames() -> dict:
+    """Return {subdir_name: {basenames directly in agent_doc/<subdir>/}} —
+    one level deep only, `customize/` included like any other subdir (it
+    has its own basename set, just like `zh_tw/`/`en_us/`)."""
+    if not AGENT_DOC_DIR.is_dir():
+        return {}
+    return {
+        sub.name: {p.name for p in sub.glob("*.md")}
+        for sub in AGENT_DOC_DIR.iterdir()
+        if sub.is_dir()
+    }
+
+
 def check_rules_refs() -> list:
     errors = []
     known_basenames = collect_rules_md_basenames()
     known_agent_doc_basenames = collect_dir_md_basenames(AGENT_DOC_DIR)
+    known_agent_doc_subdirs = collect_agent_doc_subdir_basenames()
     for path in sorted(RULES_DIR.glob("*.md")):
         text = path.read_text(encoding="utf-8")
         rel = path.relative_to(REPO_ROOT)
         for lineno, line in enumerate(text.splitlines(), start=1):
             for match in MD_TOKEN_RE.finditer(line):
-                qualifier, token = match.group(1), match.group(2)
+                qualifier_raw, token = match.group(1), match.group(2)
                 if "<" in line[max(0, match.start() - 1):match.start()]:
                     continue
                 if token in PLACEHOLDER_TOKENS:
                     continue
-                if qualifier == "agent_doc":
+                segments = qualifier_raw.rstrip("/").split("/") if qualifier_raw else []
+                if len(segments) == 2 and segments[0] == "agent_doc":
+                    subdir = segments[1]
+                    if token not in known_agent_doc_subdirs.get(subdir, set()):
+                        errors.append(
+                            f"{rel}:{lineno}: referenced '{match.group(0)}' "
+                            f"not found under agent_doc/{subdir}/"
+                        )
+                    continue
+                if len(segments) == 1 and segments[0] == "agent_doc":
                     if token not in known_agent_doc_basenames:
                         errors.append(
                             f"{rel}:{lineno}: referenced '{match.group(0)}' "

@@ -173,14 +173,43 @@ fi
 # like rules/customize/). Tolerate the directory not existing at all yet
 # (e.g. an older checkout) — `AGENT_DOCS`/`AGENT_DOC_CUSTOMIZE_FILES` stay
 # empty rather than aborting the whole install under `set -e`.
+# Exactly one level of language/topic subdirectory is also supported (e.g.
+# `zh_tw/`, `en_us/` — a role whose reference docs fork by output language).
+# Discovered generically (any dir under agent_doc/ except `customize/`, no
+# hardcoded names) and recorded in the manifest as `subdir/file.md` so
+# uninstall removes them individually; `customize/` is deliberately excluded
+# from this subdir scan — it is handled by its own block below and must
+# never be a manifest-tracked removal target (is_safe_manifest_entry rejects
+# it explicitly). No recursion past one level (bash 3.2 has no globstar).
 AGENT_DOC_CUSTOMIZE_SRC="$AGENT_DOC_SRC/customize"
 AGENT_DOCS=""
 if [ -d "$AGENT_DOC_SRC" ]; then
   AGENT_DOCS=$(cd "$AGENT_DOC_SRC" && ls ./*.md 2>/dev/null | sed 's|^\./||')
+  for d in "$AGENT_DOC_SRC"/*/; do
+    [ -d "$d" ] || continue
+    dname="$(basename "$d")"
+    [ "$dname" = "customize" ] && continue
+    subfiles=$(cd "$d" && ls ./*.md 2>/dev/null | sed 's|^\./||')
+    for sf in $subfiles; do
+      AGENT_DOCS="$AGENT_DOCS $dname/$sf"
+    done
+  done
 fi
 AGENT_DOC_CUSTOMIZE_FILES=""
 if [ "$WITH_OPTIONAL" -eq 1 ] && [ -d "$AGENT_DOC_CUSTOMIZE_SRC" ]; then
   AGENT_DOC_CUSTOMIZE_FILES=$(cd "$AGENT_DOC_CUSTOMIZE_SRC" && ls ./*.md 2>/dev/null | sed 's|^\./||')
+  # Same one-level subdir discovery as the base agent_doc/ scan above (e.g.
+  # customize/zh_tw/patterns.md) — a user may want a language/topic split in
+  # their own overlay too. No recursion past one level (bash 3.2, no
+  # globstar); entries are recorded as `<subdir>/<file>.md` same as base.
+  for d in "$AGENT_DOC_CUSTOMIZE_SRC"/*/; do
+    [ -d "$d" ] || continue
+    dname="$(basename "$d")"
+    subfiles=$(cd "$d" && ls ./*.md 2>/dev/null | sed 's|^\./||')
+    for sf in $subfiles; do
+      AGENT_DOC_CUSTOMIZE_FILES="$AGENT_DOC_CUSTOMIZE_FILES $dname/$sf"
+    done
+  done
 fi
 
 # Idempotent institution layout: ~/.claude/{agents,rules,hooks} become
@@ -349,17 +378,30 @@ if [ "$UNINSTALL" -eq 1 ]; then
   # are treated as disposable, re-installable bundle content.
   #
   # Manifest entries name a single path component under a known dest dir
-  # (a filename or a skill-dir name) — never a nested path. Reject anything
-  # empty, anything that could escape the dest dir via `/` or `..`, and
-  # anything containing glob metacharacters (`*` `?` `[`) or whitespace —
-  # a manifest line is read with quoting discipline below, but a stray glob
-  # character in an entry could still surprise a caller that globs on it
-  # elsewhere, so reject it at the source rather than trusting call sites.
+  # (a filename or a skill-dir name) — never a nested path, with one
+  # exception: agent_doc's language/topic subdirs (zh_tw/, en_us/, ...) are
+  # exactly ONE level deep, so callers that pass allow_subdir=1 (agent_doc
+  # only) may have a single `/`. Reject anything empty, anything that could
+  # escape the dest dir via `..`, anything with more than one `/` (no
+  # recursion), the literal `customize` subdir (that's the user's own
+  # landing zone — never a manifest-tracked removal target, regardless of
+  # allow_subdir), and anything containing glob metacharacters (`*` `?` `[`)
+  # or whitespace — a manifest line is read with quoting discipline below,
+  # but a stray glob character in an entry could still surprise a caller
+  # that globs on it elsewhere, so reject it at the source rather than
+  # trusting call sites.
   is_safe_manifest_entry() {
-    local e="$1"
+    local e="$1" allow_subdir="${2:-0}"
     if [ -z "$e" ]; then return 1; fi
     case "$e" in
-      */*|*..*|*'*'*|*'?'*|*'['*|*' '*|*"$(printf '\t')"*|*"$(printf '\r')"*) return 1 ;;
+      *..*|*'*'*|*'?'*|*'['*|*' '*|*"$(printf '\t')"*|*"$(printf '\r')"*) return 1 ;;
+    esac
+    case "$e" in
+      */*/*) return 1 ;;
+      */*)
+        [ "$allow_subdir" -eq 1 ] || return 1
+        [ "${e%%/*}" = "customize" ] && return 1
+        ;;
     esac
     return 0
   }
@@ -388,9 +430,13 @@ if [ "$UNINSTALL" -eq 1 ]; then
     local fallback="$*"
     local remove_src
     if [ -f "$manifest" ]; then remove_src="$manifest"; else remove_src=""; fi
+    # agent_doc is the only asset whose manifest entries may carry one
+    # subdirectory level (zh_tw/patterns.md, ...) — see is_safe_manifest_entry.
+    local allow_subdir=0
+    [ "$label" = "agent_doc" ] && allow_subdir=1
     local f bak
     while IFS= read -r f || [ -n "$f" ]; do
-      if ! is_safe_manifest_entry "$f"; then
+      if ! is_safe_manifest_entry "$f" "$allow_subdir"; then
         echo "WARNING: skipping unsafe manifest entry '$f' in ${remove_src:-$manifest (fallback list)}" >&2
         continue
       fi
@@ -429,6 +475,17 @@ if [ "$UNINSTALL" -eq 1 ]; then
       # zones (never removed by the loop above) — only the now-empty
       # directory shell is cleared.
       [ -d "$dest/customize" ] && rmdir "$dest/customize" 2>/dev/null || true
+    fi
+    if [ "$label" = "agent_doc" ]; then
+      # Language/topic subdirs (zh_tw/, en_us/, ...) had their files removed
+      # individually above; clear each now-empty shell too, skipping
+      # customize/ (handled above, never removed here).
+      local sd
+      for sd in "$dest"/*/; do
+        [ -d "$sd" ] || continue
+        [ "$(basename "$sd")" = "customize" ] && continue
+        rmdir "$sd" 2>/dev/null || true
+      done
     fi
     if [ "$DRY" -eq 0 ] && [ -f "$manifest" ]; then rm "$manifest"; fi
   }
@@ -592,6 +649,9 @@ for f in $AGENT_DOCS; do
   if [ "$DRY" -eq 1 ]; then
     echo "would install $AGENT_DOC_DEST/$f"
   else
+    case "$f" in
+      */*) mkdir -p "$AGENT_DOC_DEST/$(dirname "$f")" ;;
+    esac
     cp "$AGENT_DOC_SRC/$f" "$AGENT_DOC_DEST/$f"
     echo "installed $AGENT_DOC_DEST/$f"
   fi
@@ -605,6 +665,9 @@ if [ -n "$AGENT_DOC_CUSTOMIZE_FILES" ]; then
     elif [ "$DRY" -eq 1 ]; then
       echo "would install $AGENT_DOC_DEST/customize/$f"
     else
+      case "$f" in
+        */*) mkdir -p "$AGENT_DOC_DEST/customize/$(dirname "$f")" ;;
+      esac
       cp "$AGENT_DOC_CUSTOMIZE_SRC/$f" "$AGENT_DOC_DEST/customize/$f"
       echo "installed $AGENT_DOC_DEST/customize/$f"
     fi
@@ -709,8 +772,23 @@ fi
 verify_asset() {
   local label="$1" dest="$2" manifest="$3" check="$4"; shift 4
   local list="$*"
-  printf '%s\n' $list > "$manifest"
-  local want f
+  # customize/*.md entries (rules and agent_doc both pass them in via
+  # ALL_RULES/ALL_AGENT_DOCS above, so they're still verified as installed
+  # below) are the user's own landing zone — per the uninstall policy
+  # comment above `is_safe_manifest_entry`, they are never a removal
+  # target, so they must never be WRITTEN into the manifest either. Writing
+  # them in only for is_safe_manifest_entry to reject them on removal was
+  # the bug: it printed a "skipping unsafe manifest entry" warning for
+  # every customize file on every uninstall.
+  local manifest_list="" f
+  for f in $list; do
+    case "$f" in
+      customize/*) ;;
+      *) manifest_list="$manifest_list $f" ;;
+    esac
+  done
+  printf '%s\n' $manifest_list > "$manifest"
+  local want
   want=$(echo $list | wc -w | tr -d ' ')
   VERIFY_GOT=0
   for f in $list; do

@@ -1,5 +1,5 @@
 ---
-description: Role dispatch and delegation rules for the thirteen tlor-orchestration roles
+description: Role dispatch and delegation rules for the fourteen tlor-orchestration roles
 managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
 audience: all
 ---
@@ -86,6 +86,7 @@ and then ALWAYS pass `model` explicitly.
 | Routine read-back verification | `eagle-sentinel` + `model: sonnet` override | generic subagent + mid-tier model |
 | High-risk verification | `eagle-sentinel` (opus/medium); panel: `elf-archer`/`orc-saboteur`/`hobbit-gardener` | generic subagent + top-tier model |
 | Open-ended design/production-readiness review of a diff — no criteria list, no stated conclusion | `cirdan-shipwright` (opus/medium) | `subagent_type: bombadil-freeagent` (pinned sonnet/medium; override `model` per call if the review warrants opus) plus a `no-role-fits reason: ...` line, required by dispatch_guard |
+| Write a professional article / de-AI existing prose | `bilbo-scribe` (opus/medium) | generic subagent + top-tier model |
 | External-system READ via session MCP tools (task trackers, docs stores) | `mirror-of-galadriel` (haiku/low) | none — needs MCP tools, no safe generic substitute |
 | External-system WRITE via session MCP tools | `palantir-stone` (sonnet/medium) — **T1 note**: outward-facing writes; the dispatch MUST enumerate every mutation (target gid+title, expected-before, literal value), max 10 per dispatch; per risk-tiers T1, the Maia MUST obtain the user's explicit confirmation of the exact mutation enumeration BEFORE dispatching. Create items carry the service, a literal `operation: create` marker, container gid+name, literal task name, every literal field value (or "no other fields"), `expected: absent`; max 25 create per dispatch (updates stay 10); create and update never mix in one dispatch; a RETRY dispatch marks each retried create item `retry-of: <gid \| none (stopped pre-write) \| unknown (create call ran, no gid)>`, and each retried comment `retry-of: comment (prior outcome <label>)`. | none — needs MCP tools, no safe generic substitute |
 | No pinned role fits the task's shape (verify against the whole table first — a naming slip is not a missing role) | `subagent_type: bombadil-freeagent` (pinned sonnet/medium): pass a per-call `model` only to up/downgrade per §3b's judgment-vs-volume inputs, plus a `no-role-fits reason: ...` line (guard-enforced) | (this row IS the fallback) |

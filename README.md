@@ -5,7 +5,7 @@
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 An orchestration framework for [Claude Code](https://code.claude.com), themed
-on Middle-earth. Thirteen subagent roles, twelve with fixed model/effort/tools,
+on Middle-earth. Fourteen subagent roles, thirteen with fixed model/effort/tools,
 plus dispatch rules, setup skills, and opt-in guard hooks — everything an AI
 coding session needs to delegate reliably.
 
@@ -32,6 +32,9 @@ flowchart TD
         ES["eagle-sentinel<br/>opus · criteria verification"]
         CS["cirdan-shipwright<br/>opus · open-ended diff review"]
     end
+    subgraph WRITE["Write"]
+        BS["bilbo-scribe<br/>opus/medium · article writer / de-AI editor"]
+    end
     subgraph MCP["External systems (MCP)"]
         MG["mirror-of-galadriel<br/>haiku · read-only"]
         PS["palantir-stone<br/>sonnet · enumerated writes"]
@@ -48,6 +51,7 @@ flowchart TD
     M --> RESEARCH
     M --> BUILD
     M --> VERIFY
+    M --> WRITE
     M --> MCP
     M --> BF
     ES -. recommends .-> PANEL
@@ -83,7 +87,7 @@ list).
 
 ## Docs
 
-- [Roles & dispatch](docs/en/roles.md) — the worldview, the thirteen-role fellowship, subagent dispatch snippet
+- [Roles & dispatch](docs/en/roles.md) — the worldview, the fourteen-role fellowship, subagent dispatch snippet
 - [Skills](docs/en/skills.md) — full skill detail + the opt-in STDD workflow
 - [Rules & hooks](docs/en/rules-and-hooks.md) — the bundled rules files, the agent_doc lazy-load layer, the four opt-in hooks
 - [Installation](docs/en/installation.md) — the two install paths, ownership model, install flags

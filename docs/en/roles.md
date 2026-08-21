@@ -24,6 +24,7 @@
 | `mirror-of-galadriel` | Seeing-glass of Lothlórien | haiku / low | Read-only lookup into EXTERNAL systems via session MCP tools (task trackers, docs stores) — looks, never touches |
 | `palantir-stone` | The palantír | sonnet / medium | The ONLY role that WRITES to external systems via session MCP tools; executes dispatch-enumerated mutations verbatim, never decides what to write |
 | `cirdan-shipwright` | Círdan the Shipwright | opus / medium | Open-ended design/production-readiness review of a bare diff — no criteria list, no stated conclusion to attack; criteria-bound work stays with `eagle-sentinel`, conclusion-attack work goes to the panel below |
+| `bilbo-scribe` | Bilbo, author of the Red Book | opus / medium | Writes a professional article against a spec/outline, or de-AIs existing prose to sound like a person wrote it — writing and editing share one pattern catalog; never certifies its own finished text (that's `eagle-sentinel`'s job) |
 | `bombadil-freeagent` | Tom Bombadil | sonnet / medium | The free agent outside the roster, for task shapes no pinned role covers. Pinned defaults sonnet/medium — pass a per-call `model` to up/downgrade (effort has no per-call mechanism); every dispatch states a `no-role-fits reason:` in the prompt — `hooks/dispatch_guard.py` enforces it. A second occurrence of the same unfit shape should mint a role instead |
 
 ### The adversarial review panel (rivendell-council lenses)
@@ -82,6 +83,7 @@ Prefer the pinned tlor-orchestration roles over generic subagents:
 - Read an external system via session MCP tools → mirror-of-galadriel
 - Write to an external system via session MCP tools (enumerated mutations only) → palantir-stone
 - Open-ended design/production-readiness review of a bare diff (no criteria, no conclusion to attack) → cirdan-shipwright
+- Write a professional article, or de-AI existing prose → bilbo-scribe
 - No pinned role fits the task's shape (verify the whole table first — a naming slip is not a missing role) → bombadil-freeagent
 
 Delegate any read of >3 files or repo-wide scan; keep only conclusions + file:line in the main thread.

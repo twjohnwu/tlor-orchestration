@@ -269,3 +269,148 @@ def test_declared_skills_dest_manifests_land_under_the_declared_path(tmp_path):
     assert not (default_skills / ".tlor-stdd-manifest").exists(), (
         f"{default_skills}/.tlor-stdd-manifest should not exist when --skills-dest is declared"
     )
+
+
+# --- agent_doc/ language subdir support (zh_tw/, en_us/) -------------------
+
+
+def test_install_lands_agent_doc_language_subdir_files_and_manifest(tmp_path):
+    """A fresh install copies `agent_doc/<lang>/*.md` (e.g. `zh_tw/`,
+    `en_us/`) preserving the subdir path, and records each one in the
+    agent_doc manifest as `<lang>/<file>.md`."""
+    home = tmp_path / "home"
+    home.mkdir()
+    env = _env_with_home(home)
+
+    proc = _run_install(env, ["--force"])
+    assert proc.returncode == 0, (
+        f"expected exit 0, got {proc.returncode}; stdout: {proc.stdout!r} "
+        f"stderr: {proc.stderr!r}"
+    )
+
+    agent_doc_dir = home / ".claude" / "agent_doc"
+    assert (agent_doc_dir / "zh_tw" / "patterns.md").is_file(), (
+        f"{agent_doc_dir}/zh_tw/patterns.md was not installed"
+    )
+    assert (agent_doc_dir / "en_us" / "patterns.md").is_file(), (
+        f"{agent_doc_dir}/en_us/patterns.md was not installed"
+    )
+    assert (agent_doc_dir / "bilbo-scribe.md").is_file(), (
+        f"{agent_doc_dir}/bilbo-scribe.md was not installed"
+    )
+
+    manifest_lines = (agent_doc_dir / ".tlor-manifest").read_text(
+        encoding="utf-8"
+    ).splitlines()
+    assert "zh_tw/patterns.md" in manifest_lines, (
+        f"agent_doc manifest missing 'zh_tw/patterns.md': {manifest_lines}"
+    )
+    assert "en_us/patterns.md" in manifest_lines, (
+        f"agent_doc manifest missing 'en_us/patterns.md': {manifest_lines}"
+    )
+
+
+def test_reinstall_of_agent_doc_language_subdir_files_is_idempotent(tmp_path):
+    """Re-running install (no changes) still reports the subdir files
+    installed/unchanged and exits 0 — no partial-install error."""
+    home = tmp_path / "home"
+    home.mkdir()
+    env = _env_with_home(home)
+
+    proc1 = _run_install(env, ["--force"])
+    assert proc1.returncode == 0, f"first run failed: {proc1.stderr!r}"
+
+    proc2 = _run_install(env, ["--force"])
+    assert proc2.returncode == 0, (
+        f"second run: expected exit 0, got {proc2.returncode}; stdout: "
+        f"{proc2.stdout!r} stderr: {proc2.stderr!r}"
+    )
+
+    agent_doc_dir = home / ".claude" / "agent_doc"
+    assert (agent_doc_dir / "zh_tw" / "patterns.md").is_file()
+    assert (agent_doc_dir / "en_us" / "patterns.md").is_file()
+
+
+def test_uninstall_removes_agent_doc_language_subdirs_but_customize_survives(
+    tmp_path,
+):
+    """Uninstall removes the language-subdir files (and their now-empty
+    subdir shells), while `agent_doc/customize/` (including its own
+    one-level subdirs) — the user's own landing zone — survives untouched,
+    with zero "skipping unsafe manifest entry" warnings for customize files.
+
+    The pre-uninstall existence assertions below are load-bearing: without
+    them this test would pass trivially against an install.sh that never
+    implemented the subdir-install branch at all (nothing installed ->
+    nothing to remove -> the post-uninstall "not exists" assertions are
+    vacuously true).
+    """
+    home = tmp_path / "home"
+    home.mkdir()
+    env = _env_with_home(home)
+
+    proc_install = _run_install(env, ["--force", "--with-optional"])
+    assert proc_install.returncode == 0, (
+        f"install failed: {proc_install.stdout!r} {proc_install.stderr!r}"
+    )
+
+    agent_doc_dir = home / ".claude" / "agent_doc"
+
+    # Load-bearing: prove the subdir-install branch actually ran before
+    # asserting anything about its removal.
+    assert (agent_doc_dir / "zh_tw" / "patterns.md").is_file(), (
+        "precondition failed: zh_tw/patterns.md was not installed — the "
+        "subdir-install branch under test never ran"
+    )
+    assert (agent_doc_dir / "en_us" / "patterns.md").is_file(), (
+        "precondition failed: en_us/patterns.md was not installed — the "
+        "subdir-install branch under test never ran"
+    )
+
+    customize_dir = agent_doc_dir / "customize"
+    customize_subdir = customize_dir / "zh_tw"
+    customize_subdir.mkdir(parents=True, exist_ok=True)
+    user_file = customize_dir / "user-added.md"
+    user_file.write_text("user content\n", encoding="utf-8")
+    user_subdir_file = customize_subdir / "user-added-sub.md"
+    user_subdir_file.write_text("user subdir content\n", encoding="utf-8")
+
+    proc_uninstall = _run_install(env, ["--uninstall"])
+    assert proc_uninstall.returncode == 0, (
+        f"uninstall failed: {proc_uninstall.stdout!r} {proc_uninstall.stderr!r}"
+    )
+    combined_output = proc_uninstall.stdout + proc_uninstall.stderr
+    customize_warnings = [
+        line
+        for line in combined_output.splitlines()
+        if "unsafe manifest entry" in line and "customize" in line
+    ]
+    assert not customize_warnings, (
+        "uninstall must print zero 'skipping unsafe manifest entry' warnings "
+        f"for customize files, got: {customize_warnings!r}"
+    )
+
+    assert not (agent_doc_dir / "zh_tw" / "patterns.md").exists(), (
+        "zh_tw/patterns.md should have been removed by uninstall"
+    )
+    assert not (agent_doc_dir / "zh_tw").exists(), (
+        "the now-empty zh_tw/ subdir shell should have been cleared by uninstall"
+    )
+    assert not (agent_doc_dir / "en_us").exists(), (
+        "the now-empty en_us/ subdir shell should have been cleared by uninstall"
+    )
+    assert customize_dir.exists(), (
+        "agent_doc/customize/ must survive uninstall — it's the user's own landing zone"
+    )
+    assert user_file.exists() and user_file.read_text(encoding="utf-8") == (
+        "user content\n"
+    ), "a pre-existing user file under agent_doc/customize/ must survive uninstall untouched"
+    assert (
+        customize_subdir.exists()
+        and user_subdir_file.exists()
+        and user_subdir_file.read_text(encoding="utf-8") == "user subdir content\n"
+    ), (
+        "a pre-existing user file under agent_doc/customize/zh_tw/ (a "
+        "subdir under the user's own landing zone) must survive uninstall "
+        "untouched"
+    )

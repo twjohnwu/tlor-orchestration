@@ -6,6 +6,27 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.9.0 (2026-08-22)
+
+- New 14th role `bilbo-scribe` (opus/medium): writes a professional article
+  against a spec/outline, or de-AIs existing prose so it reads like a person
+  wrote it — writing and editing share one pattern catalog, and the role
+  never certifies its own finished text (that stays `eagle-sentinel`'s job).
+- `agent_doc/` gains a language/topic subdirectory layer (`zh_tw/`,
+  `en_us/`) alongside 7 new flat docs (`bilbo-scribe.md`'s routing table +
+  shared writing core, `seo-writing.md`, `tone-development.md`,
+  `user-guide-ste.md`) for a total of 9 new reference docs `bilbo-scribe`
+  routes to by output language and task type.
+- `scripts/check_links.py`'s `MD_TOKEN_RE` and resolution logic now support
+  two-level qualified references (`agent_doc/zh_tw/patterns.md`) alongside
+  the existing one-level `agent_doc/foo.md` form.
+- `install.sh` discovers and installs exactly one level of subdirectory
+  under `agent_doc/` generically (no hardcoded language names), records
+  each subdir file in the manifest as `subdir/file.md`, and
+  `is_safe_manifest_entry` grows an `allow_subdir` parameter (agent_doc
+  only) so those entries uninstall cleanly while `agent_doc/customize/`
+  still survives untouched.
+
 ## v0.8.0 (2026-08-20)
 
 - New `agent_doc/` lazy-load layer: role-specific, conditionally-triggered
