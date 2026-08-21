@@ -13,15 +13,17 @@ core below holds the language-neutral rules that apply to every task.
 | Task is SEO / search-oriented content | `agent_doc/seo-writing.md` |
 | Task asks to develop or apply a specific brand/author tone | `agent_doc/tone-development.md` |
 | Task is a user guide / operating manual / step-by-step doc | `agent_doc/user-guide-ste.md` |
+| Writing a NEW piece (always), or editing when a target platform/genre is named | `agent_doc/scene-calibration.md` |
 
 Reading order by mode: EDITING (de-AI an existing text) → patterns first,
 then style/localization. WRITING (new article) → style/localization first,
 patterns as the banned-list check before delivery. Conditional rows stack on
 top of the language row; they never replace it.
 
-Customize overlay: for every doc above (this one included), if a same-named
-file exists under `agent_doc/customize/`, Read it IN ADDITION; on conflict
-the customize copy wins.
+Customize overlay: for every doc above (this one included), if a file at the
+same RELATIVE path exists under `agent_doc/customize/` (e.g.
+`customize/zh_tw/patterns.md` overlays `zh_tw/patterns.md`), Read it IN
+ADDITION; on conflict the customize copy wins.
 
 ## Six-step workflow (language-neutral)
 

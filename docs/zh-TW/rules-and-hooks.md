@@ -48,7 +48,7 @@ agent_doc/ 放**某個角色偶爾需要**的。
 |---|---|---|
 | `agent_doc/*.md` | plugin | 每次 install/升級都覆寫 |
 | `agent_doc/<語言>/*.md`（如 `zh_tw/`、`en_us/`） | plugin | 剛好一層語言／主題子目錄，通用探測（除 `customize/` 以外任何子目錄都算）；每次 install/升級覆寫，uninstall 時逐檔移除，處理方式與 flat 檔案相同 |
-| `agent_doc/customize/` | 使用者 | 只在不存在時複製（需 `--with-optional`），uninstall 後存活；同名檔會**疊加**在 base 檔之上讀取，衝突處以 customize 為準 |
+| `agent_doc/customize/` | 使用者 | 只在不存在時複製（需 `--with-optional`），uninstall 後存活；與 base 檔**相同相對路徑**的檔案會**疊加**讀取，衝突處以 customize 為準 |
 
 | 文件 | 讀者 | 觸發條件 |
 |---|---|---|
@@ -62,6 +62,7 @@ agent_doc/ 放**某個角色偶爾需要**的。
 | `seo-writing.md` | bilbo-scribe | 任務屬 SEO／搜尋導向內容 |
 | `tone-development.md` | bilbo-scribe | 任務要求開發或套用特定品牌／作者語氣 |
 | `user-guide-ste.md` | bilbo-scribe | 任務屬使用手冊／操作說明／步驟文件 |
+| `scene-calibration.md` | bilbo-scribe | 寫全新作品時（一律）；編輯既有文字且指名目標平台／文類時 |
 
 `institution_guard` 對 `~/.claude/agent_doc/` 的保護與 rules/、agents/ 相同：
 主 session 直接編輯會被 deny，被派工的 subagent 放行。

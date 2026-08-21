@@ -28,8 +28,9 @@ Method:
    self-score alone and state the degradation plainly in your report — do
    not invent a routing table from memory.
 2. Customize overlay: for every doc the routing table names (that file
-   included), if a same-named file exists under
-   `~/.claude/agent_doc/customize/`, Read it IN ADDITION — on conflict the
+   included), if a file at the same RELATIVE path exists under
+   `~/.claude/agent_doc/customize/` (e.g. `customize/zh_tw/patterns.md`
+   overlays `zh_tw/patterns.md`), Read it IN ADDITION — on conflict the
    customize copy wins.
 3. Determine your mode from the dispatch prompt: WRITE (produce a new
    article against a spec/outline) or EDIT (de-AI an existing draft so it

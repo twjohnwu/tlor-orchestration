@@ -23,9 +23,10 @@ posts. One core intent per page; fold near-synonymous sub-questions into
 subsections instead of splitting them into separate keyword-stuffed pages.
 
 For a rewrite (vs. fresh draft), do intent reconstruction first: read the
-whole draft, state the inferred **core purpose** and **intended effect** in
-two lines, and have the requester confirm or correct before touching a
-sentence. Lock an immutable list (data, steps, legal/contract language,
+whole draft and state the inferred **core purpose** and **intended effect**
+in two lines as part of the final report — a dispatched subagent cannot
+pause mid-task to wait for confirmation, so state the judgment explicitly
+and proceed. Lock an immutable list (data, steps, legal/contract language,
 stance, house phrases) that stays untouched unless the requester says
 otherwise. Then apply minimal-intervention rewriting: keep the core meaning
 and the author's rhythm, delete only repetition/filler, replace

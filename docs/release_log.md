@@ -13,10 +13,13 @@ release first — new sections go at the top.
   wrote it — writing and editing share one pattern catalog, and the role
   never certifies its own finished text (that stays `eagle-sentinel`'s job).
 - `agent_doc/` gains a language/topic subdirectory layer (`zh_tw/`,
-  `en_us/`) alongside 7 new flat docs (`bilbo-scribe.md`'s routing table +
+  `en_us/`) alongside 8 new flat docs (`bilbo-scribe.md`'s routing table +
   shared writing core, `seo-writing.md`, `tone-development.md`,
-  `user-guide-ste.md`) for a total of 9 new reference docs `bilbo-scribe`
-  routes to by output language and task type.
+  `user-guide-ste.md`, `scene-calibration.md`) for a total of 10 new
+  reference docs `bilbo-scribe` routes to by output language and task type.
+- Customize overlay for `agent_doc/` now matches on the same RELATIVE path
+  under `agent_doc/customize/` (e.g. `customize/zh_tw/patterns.md` overlays
+  `zh_tw/patterns.md`), not just a same-named flat file.
 - `scripts/check_links.py`'s `MD_TOKEN_RE` and resolution logic now support
   two-level qualified references (`agent_doc/zh_tw/patterns.md`) alongside
   the existing one-level `agent_doc/foo.md` form.

@@ -52,7 +52,7 @@ must know; agent_doc/ holds what one role needs sometimes.
 |---|---|---|
 | `agent_doc/*.md` | plugin | overwritten on every install/upgrade |
 | `agent_doc/<lang>/*.md` (e.g. `zh_tw/`, `en_us/`) | plugin | exactly one level of language/topic subdirectory, discovered generically (any dir except `customize/`); overwritten on every install/upgrade, uninstalled per-file same as the flat files |
-| `agent_doc/customize/` | user | copied only if absent (behind `--with-optional`), survives uninstall; a same-named file here is read IN ADDITION to the base file and wins where they disagree |
+| `agent_doc/customize/` | user | copied only if absent (behind `--with-optional`), survives uninstall; a file here at the same RELATIVE path as a base file is read IN ADDITION to it and wins where they disagree |
 
 | Doc | Read by | Trigger |
 |---|---|---|
@@ -66,6 +66,7 @@ must know; agent_doc/ holds what one role needs sometimes.
 | `seo-writing.md` | bilbo-scribe | task is SEO / search-oriented content |
 | `tone-development.md` | bilbo-scribe | task asks to develop or apply a specific brand/author tone |
 | `user-guide-ste.md` | bilbo-scribe | task is a user guide / operating manual / step-by-step doc |
+| `scene-calibration.md` | bilbo-scribe | writing a NEW piece (always), or editing when a target platform/genre is named |
 
 `institution_guard` protects `~/.claude/agent_doc/` the same way it protects
 rules/ and agents/: main-session edits are denied, dispatched subagents pass.
