@@ -224,6 +224,11 @@ planned work the same way it applies to ad-hoc work.
 Plan mode's default "Only use built-in search" is overridden — use
 tlor-orchestration roles per the dispatch table above.
 
+Before writing the final plan file, invoke the `westron-plainspeech` skill
+(ships with this plugin) — it applies the plain-language checks in
+`agent_doc/plan-writing.md` to the plan prose and to every dispatch prompt
+the plan produces.
+
 Resuming a finished subagent by ID inside plan-approval continuation: see §4's
 "Resuming a finished subagent by ID" — that is the only case where a plan-mode
 producer can be resumed rather than freshly dispatched.

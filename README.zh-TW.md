@@ -71,6 +71,7 @@ flowchart TD
 | `/erebor-ledger` | 回溯性報表：tlor 角色派工省下多少 token/成本，依 Fable-5-orchestrator 與 Opus-orchestrator session 分開統計 | 「usage report」「cost savings report」「token ledger」——非單次進行中派工的即時估算 |
 | `/westmarch-scribe` | 將已填 Outcome 的精簡 MADR 決策歸檔至專案 decision log／instruction 檔／通用決策紀錄 | stdd-explore/uiux/spec/plan 的建議性收尾步驟、做出耐久決策後直接呼叫，或對話中出現決策關鍵詞時主動觸發（兩者都需先安裝 tlor rules 層，即先跑過 `/tlor-init`）|
 | `/minas-tirith-archivist` | `/westmarch-scribe` 的唯讀查詢對應版——搜尋已歸檔的決策紀錄（通用與專案層級）並附引用回答，絕不寫入或編輯 | 詢問過去的決策或某個慣例的緣由，或使用者直接呼叫（同樣需先安裝 tlor rules 層）|
+| `/westron-plainspeech` | 計畫工件的平語化檢核——plan 散文套 ISO 24495 四原則,dispatch prompt 套 STE 式檢核(清單本體在 `agent_doc/plan-writing.md`) | dispatch.md plan-mode requirements 在寫最終 plan 檔前指名,或「平語化計畫」 |
 
 ## Code-enforced STDD 工作流程（選配）
 

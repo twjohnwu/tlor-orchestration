@@ -72,6 +72,7 @@ flowchart TD
 | `/erebor-ledger` | Retrospective token/cost-savings report for tlor role dispatching, split by Fable-5- vs Opus-orchestrator sessions | "usage report", "cost savings report", "token ledger" — not for live in-progress cost estimation |
 | `/westmarch-scribe` | Archive a filled compact-MADR decision to the project's decision log / instruction file / general decisions log | Advisory closing step of stdd-explore/uiux/spec/plan, directly after a durable decision, or proactively on decision-keywords in conversation (both require the tlor rules layer installed, i.e. `/tlor-init` run first) |
 | `/minas-tirith-archivist` | Read-only query counterpart to `/westmarch-scribe` — searches archived decision records (general and project-scoped) and answers with citations, never writes or edits | Asking about past decisions or why a convention exists, or directly by the user (also requires the tlor rules layer installed) |
+| `/westron-plainspeech` | Plain-language pass for planning artifacts — ISO 24495 principles for plan prose, STE-flavored checks for dispatch prompts (checklist lives in `agent_doc/plan-writing.md`) | Named by dispatch.md's plan-mode requirements before the final plan write-up, or "plain-language plan" |
 
 ## Code-enforced STDD workflow (opt-in)
 

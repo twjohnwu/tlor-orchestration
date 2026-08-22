@@ -20,6 +20,11 @@
 相較於直接在 orchestrator 模型上跑同樣工作省下多少成本。僅回溯性報表，
 不是單次進行中派工的即時估算工具。
 
+**westron-plainspeech**——計畫工件的平語化檢核:plan 散文套 ISO 24495
+四原則,dispatch prompt 與 acceptance criteria 套 STE 式句長/術語檢核。
+清單本體在 `agent_doc/plan-writing.md`,skill 只是讀取它的薄觸發殼;由
+dispatch.md 的 plan-mode requirements 在寫最終 plan 檔前指名。
+
 ### `disable-model-invocation: true` 這個旗標實際的效果
 
 `tlor-init` 與 `tlor-restore` 的 frontmatter 都設了

@@ -6,6 +6,16 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.9.2 (2026-08-22)
+
+- New skill `westron-plainspeech` + `agent_doc/plan-writing.md` — plain-
+  language checks (ISO 24495 / STE-flavored) for plan files and dispatch
+  prompts.
+- `dispatch.md`'s plan-mode requirements now name the skill before the
+  final plan write-up.
+- README and skills docs gain a routing row for the new skill, in both
+  languages.
+
 ## v0.9.1 (2026-08-22)
 
 - `erebor-ledger` gains a Retries (marked) column, parsing dispatch prompts'

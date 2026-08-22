@@ -26,6 +26,13 @@ much dispatching to tlor roles saved versus running the same work inline on
 the orchestrator model. It looks backwards only, and cannot estimate the
 saving on a dispatch still in flight.
 
+**westron-plainspeech** — plain-language pass for planning artifacts:
+applies ISO 24495's four principles to plan prose and an STE-flavored
+sentence/terminology checklist to dispatch prompts and acceptance criteria.
+The checklist itself lives in `agent_doc/plan-writing.md`; the skill is a
+thin trigger that reads it. Named by dispatch.md's plan-mode requirements
+before the final plan write-up.
+
 ### `disable-model-invocation: true` — what the flag actually does
 
 `tlor-init` and `tlor-restore` both set `disable-model-invocation: true` in
