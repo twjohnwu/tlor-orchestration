@@ -33,7 +33,8 @@ CLAUDE.md、AGENTS.md 或任何 rules 檔裡寫指示都無法啟用它：讀那
 
 透過 `install.sh --stdd-role=ALL` 或 `/tlor-init` 的 STDD 步驟安裝。
 
-非自動載入——這七個 skill 實作 Spec-driven Test-Driven Development 流程，
+非自動載入——這九個 skill 裡七個實作 Spec-driven Test-Driven Development
+流程（另外兩個負責決策記錄的歸檔與查詢），
 只有明確要求時才會安裝到 `~/.claude/skills/`。本輪僅實作 `ALL` 這個
 profile；`RD`/`PM`/`UIUX` 角色限定子集 deferred（`install.sh
 --stdd-role=RD|PM|UIUX` 只會印出 deferred 訊息、不安裝任何東西）。

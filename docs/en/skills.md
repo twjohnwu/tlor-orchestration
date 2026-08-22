@@ -40,8 +40,9 @@ skills is a step the user runs, never one an agent can do on their behalf.
 
 Installed via `install.sh --stdd-role=ALL` or `/tlor-init`'s STDD step.
 
-Not autoloaded — these seven skills implement the Spec-driven Test-Driven
-Development pipeline, and they land in `~/.claude/skills/` only when you ask
+Not autoloaded — seven of these nine skills implement the Spec-driven
+Test-Driven Development pipeline (the other two archive and query decision
+records), and they land in `~/.claude/skills/` only when you ask
 for them. This round ships the `ALL` profile alone; the role-scoped
 `RD`/`PM`/`UIUX` subsets are deferred, so `install.sh --stdd-role=RD|PM|UIUX`
 prints a deferred message and installs nothing.
