@@ -6,8 +6,8 @@
 
 An orchestration framework for [Claude Code](https://code.claude.com), themed
 on Middle-earth. Fourteen subagent roles, thirteen with fixed model/effort/tools,
-plus dispatch rules, setup skills, and opt-in guard hooks — everything an AI
-coding session needs to delegate reliably.
+plus dispatch rules, setup skills, and opt-in guard hooks. The point is to make
+delegation reliable enough that a coding session can depend on it.
 
 繁體中文說明請見 [README.zh-TW.md](README.zh-TW.md).
 
@@ -75,15 +75,15 @@ flowchart TD
 
 ## Code-enforced STDD workflow (opt-in)
 
-`workflows/stdd-execute.js` (a Workflow script) plus its runtime dependency
-`scripts/stdd_custody_check.py` (the custody/fingerprint verdict program it
-relays to) enforce the STDD execute phase's approval-custody chain and
-verifier-round cap by code rather than by prose — see
-[Skills](docs/en/skills.md) for detail. `install.sh`/`/tlor-init` copy both
-to `~/.claude/workflows/` and `~/.claude/scripts/` (or the project/repo-level
-equivalent); an install done only via `claude plugin add` also finds them
-through the plugin's own installed directory (`custodyCheck`'s search-location
-list).
+Two files enforce the STDD execute phase's approval-custody chain and
+verifier-round cap in code rather than in prose: the Workflow script
+`workflows/stdd-execute.js`, and its runtime dependency
+`scripts/stdd_custody_check.py`, the custody/fingerprint verdict program it
+relays to. [Skills](docs/en/skills.md) has the detail.
+`install.sh`/`/tlor-init` copy both to `~/.claude/workflows/` and
+`~/.claude/scripts/` (or the project/repo-level equivalent). An install done
+only via `claude plugin add` also finds them through the plugin's own
+installed directory (`custodyCheck`'s search-location list).
 
 ## Docs
 

@@ -4,7 +4,7 @@
 
 ## Rules
 
-本 plugin 附帶去個人化的編排規則——透過 `/tlor-init` 或 `install.sh` 安裝：
+本 plugin 附帶去個人化的編排規則，用 `/tlor-init` 或 `install.sh` 安裝：
 
 **必裝**（6 檔，由 plugin 擁有——每次安裝／升級皆無條件覆蓋，`version`
 由 `.claude-plugin/plugin.json` 蓋上，不含 `## Lessons` 區塊——見
@@ -31,17 +31,16 @@
 | `skill-triggers.md` | 何時該呼叫 skill，而非照單全收「一律呼叫」的注入規則——需自行填入已裝 plugin 的 namespace 優先序 |
 | `lessons.md` | 附加式的反覆工作流失敗紀錄，每個 base rule 檔案各一個區塊 |
 
-你也可以把自己團隊的規則檔（`.md`）直接放進 `rules/customize/`——安裝時
-會一併複製，且會原生自動載入（跟這裡其他檔案一樣走 `.claude/rules/`
-機制，不需要路由表），installer 永遠不會動它。`/tlor-init` 產生的路由表
-只是幫不懂 `.claude/rules/`、只讀 AGENTS.md 的工具記錄這個目錄——不是它讓
-檔案載入的。
+你也可以把自己團隊的規則檔（`.md`）直接放進 `rules/customize/`：安裝時會一併
+複製，installer 永遠不會動它。它們會原生自動載入，跟這裡其他檔案一樣走
+`.claude/rules/` 機制，不需要路由表。`/tlor-init` 產生的路由表只是幫那些不懂
+`.claude/rules/`、只讀 AGENTS.md 的工具記下這個目錄，不是它讓檔案載入的。
 
 ## Agent docs（agent_doc/，懶載入）
 
 角色專屬、條件觸發的參考文件。被派工的 subagent 只在觸發條件成立時才
 Read（機器上有 codex、頁面只有 JS 殼、判定進入 HIGH-RISK），其餘派工
-一個字都不用付。分工判準一句話：rules/ 放**每個 context 都必須知道**的，
+一個字都不用付。分工判準：rules/ 放**每個 context 都必須知道**的，
 agent_doc/ 放**某個角色偶爾需要**的。
 
 | 子層 | 擁有者 | 安裝行為 |
@@ -71,7 +70,7 @@ agent_doc/ 放**某個角色偶爾需要**的。
 
 四個 hook **預設皆靜默**——前三個靠環境變數啟用，第四個靠註冊安裝。任何內部
 錯誤一律 fail-open（放行，不擋工作）。`install.sh` 會複製 hook 腳本，但不接線
-也不啟用（不寫 `hooks.json`、不設環境變數）——要接線請走 plugin 安裝。
+也不啟用（不寫 `hooks.json`、不設環境變數）；要接線請走 plugin 安裝。
 
 | Hook | 事件 | 說明 | env key |
 |---|---|---|---|

@@ -29,11 +29,11 @@
 
 ### The adversarial review panel (rivendell-council lenses)
 
-These three lenses take no ordinary dispatches — for high-risk verdicts
-`eagle-sentinel` recommends convening them, and the Maia convenes it
+These three lenses take no ordinary dispatches. For high-risk verdicts
+`eagle-sentinel` recommends convening them, and the Maia does the convening
 (≥3 independent lenses + a judge, flow in the `rivendell-council` skill).
 For routine or borderline convenings, pass an explicit `model: sonnet`
-downgrade when dispatching the lenses — a per-call override beats the
+downgrade when dispatching the lenses. A per-call override beats the
 role's pinned frontmatter.
 
 | Role | Race & post | Model / effort | Duty |
@@ -46,22 +46,23 @@ role's pinned frontmatter.
 
 `mirror-of-galadriel` (read) and `palantir-stone` (write) are the only roles
 that touch systems outside this repo/session, via session MCP tools. Route
-every read to the Mirror; route every write to the palantír, and only as an
+every read to the Mirror. Route every write to the palantír, and only as an
 enumerated list of mutations (target gid + title, expected-before, literal
-new value) — max 10 per dispatch, and per risk-tiers T1 the Maia must obtain
+new value), max 10 per dispatch. Per risk-tiers T1, the Maia must obtain
 the user's explicit confirmation of that exact enumeration before
 dispatching. Both agent files (`agents/mirror-of-galadriel.md`,
 `agents/palantir-stone.md`) are the source of truth for the full rule set
-(scoping, verification, idempotency, etc.) — this section is routing only,
+(scoping, verification, idempotency, etc.). This section is routing only,
 not a restatement.
 
-If a session's MCP server exposes different tool names than the `tools:`
-frontmatter lists, or the pinned server isn't connected: tools that fail to
-resolve entirely (zero usable tools) make the agent refuse to launch with an
-error naming them; tools that PARTIALLY resolve are silently ignored and the
-agent launches anyway (verified harness behavior, v2.1.208+) — connect the
-matching MCP server, or edit the `tools:` list to the tool names your
-session actually exposes.
+Tool names drift. A session's MCP server may expose different names than the
+`tools:` frontmatter lists, or the pinned server may not be connected at all.
+When nothing resolves (zero usable tools), the agent refuses to launch and
+the error names the tools it wanted. When tools resolve only PARTIALLY, the
+rest are silently ignored and the agent launches anyway (verified harness
+behavior, v2.1.208+). Either way the fix is the same: connect the matching
+MCP server, or edit the `tools:` list to the tool names your session
+actually exposes.
 
 ## Subagent dispatch (lightweight CLAUDE.md snippet)
 

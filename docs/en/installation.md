@@ -12,11 +12,11 @@
   delegation, so the snippet is the recommended lightweight setup.
 - **Full** — additionally run `/tlor-init`. This lays down the rules files,
   the `~/.claude/institution/` layout (see below), and CLAUDE.md/AGENTS.md
-  routing. The rules load on their own once present — `.claude/rules/` is a
-  native auto-load location, no routing required — while the routing adds a
-  dispatch-discipline reminder up front, an AGENTS.md interface for tools
-  that don't read `.claude/rules/`, and the declaration that this
-  framework's roles are your primary dispatch targets.
+  routing. The rules load on their own once present, since `.claude/rules/`
+  is a native auto-load location and needs no routing. The routing is still
+  worth having: it puts a dispatch-discipline reminder up front, gives an
+  AGENTS.md interface for tools that don't read `.claude/rules/`, and
+  declares this framework's roles your primary dispatch targets.
 
 ## Ownership model
 
@@ -38,7 +38,7 @@
   customization by hand afterward.
 - **`rules/customize/` is yours.** The installer creates it, may seed it with
   optional starter files on first install, and never overwrites anything
-  already there afterward — this is the only place persistent local
+  already there afterward. It is the only place persistent local
   customization belongs.
 - **Base files have zero user-writable sections.** All user additions —
   lessons, the skill-namespace-priority table, local patterns — live in
@@ -54,12 +54,12 @@
 
 ## Session-start cost
 
-Once installed, the rules corpus is not something routing controls — most of
-it loads **in full at the start of every session**. `~/.claude/rules/` (and
+Once installed, routing does not control the rules corpus. Most of it loads
+**in full at the start of every session**. `~/.claude/rules/` (and
 its `customize/` subdirectory) is a native Claude Code auto-load location:
 every `.md` file under it without `paths:` frontmatter enters context at
 launch, recursively, with no `@import` needed. A rule file that carries
-`paths:` frontmatter is the documented way to defer it — it loads only when
+`paths:` frontmatter is the documented way to defer it: it loads only when
 Claude reads a file matching that pattern, instead of at every session start.
 
 Measured against this shipped repo with `wc -l -c` (self-measure command
@@ -79,21 +79,22 @@ So: the six base rule files run **795 lines / ~44.2 KB**, the seeded
 combined per-session floor is **1,145 lines / ~60.0 KB** — before you add a
 single lesson of your own. This is a fixed tax paid every session,
 regardless of whether that session ever dispatches a subagent. The base
-figure applies to every install; the combined figure only holds if you also
-took the optional `rules/customize/` seeds (`install.sh --with-optional`) —
+figure applies to every install. The combined figure only holds if you also
+took the optional `rules/customize/` seeds (`install.sh --with-optional`);
 a base-only install pays just the base figure.
 
 Two caveats on this mechanism. **Version floor**: `.claude/rules/` auto-load
-requires Claude Code 2.0.64 or newer — on an older version the directory is
-not read at all, so "routing not required" would leave you with zero rules
-loaded, not the lightweight fallback you'd expect. **It can be turned off**:
-loading is suppressed by `claudeMdExcludes` in any settings layer, and — for
-project-scope rules only — rules are also skipped when project settings are
-excluded from `--setting-sources`; don't assume this corpus is unconditional.
+requires Claude Code 2.0.64 or newer. On an older version Claude Code never
+reads the directory at all, so "routing not required" would leave you with
+zero rules loaded, not the lightweight fallback you'd expect. **It can be
+turned off**: `claudeMdExcludes` in any settings layer suppresses loading,
+and for project-scope rules only, excluding project settings from
+`--setting-sources` skips the rules too. Don't assume this corpus is
+unconditional.
 
-This cost hits models with smaller context windows proportionally harder —
-and those are exactly this framework's target readers (the whole premise of
-dispatch is offloading field work from a constrained context). Weigh this
+This cost hits models with smaller context windows proportionally harder,
+and those are exactly this framework's target readers: the whole premise of
+dispatch is offloading field work from a constrained context. Weigh that
 against the lightweight, plugin-only path above if a per-session budget
 matters to you.
 
@@ -106,7 +107,7 @@ matters to you.
 /plugin install tlor@tlor
 ```
 
-Updates: bump happens on our side via the `version` field; refresh with
+Updates: we bump the `version` field on our side. Refresh with
 `/plugin marketplace update tlor`.
 
 ### Updates
@@ -114,12 +115,12 @@ Updates: bump happens on our side via the `version` field; refresh with
 Update support requires the marketplace installation route (Option A):
 `/plugin marketplace add twjohnwu/tlor-orchestration` then
 `/plugin install tlor@tlor`. Every release bumps
-`.claude-plugin/plugin.json`'s `version` — per Claude Code's plugin docs,
-pushing commits alone does not surface an update; only a version bump does,
+`.claude-plugin/plugin.json`'s `version`. Per Claude Code's plugin docs,
+pushing commits alone does not surface an update. Only a version bump does,
 and `/plugin marketplace update tlor` then pulls it. The `install.sh` plain-
-copy route (Option B) has no update UI at all — re-running `install.sh`
-overwrites base rules again, but there's no notification that a new version
-exists; check the repo's releases/version badge yourself.
+copy route (Option B) has no update UI at all. Re-running `install.sh`
+overwrites base rules again, but nothing tells you a new version exists, so
+check the repo's releases/version badge yourself.
 
 ### Option B — plain copy
 
@@ -128,24 +129,24 @@ git clone https://github.com/twjohnwu/tlor-orchestration.git
 cd tlor-orchestration && ./install.sh          # --dry-run / --force / --uninstall / --with-optional / --stdd-role=ALL / --install-hook / --skills-dest=PATH
 ```
 
-Copies agents to `~/.claude/agents/`, rules to `~/.claude/rules/`, hook
-scripts to `~/.claude/hooks/`, and skills to `~/.claude/skills/`, setting up
+This copies agents to `~/.claude/agents/`, rules to `~/.claude/rules/`, hook
+scripts to `~/.claude/hooks/`, and skills to `~/.claude/skills/`, and sets up
 the `~/.claude/institution/` symlink layout on first run (see Ownership
 model above). Add `--with-optional` to include the optional rules installed
-from `rules/customize/`. Records manifests for clean `--uninstall`. Hook
-*activation* (env vars, `hooks.json` wiring) still needs the plugin route
-(Option A) — `install.sh` only places the files.
+from `rules/customize/`. It records manifests so `--uninstall` comes out
+clean. Hook *activation* (env vars, `hooks.json` wiring) still needs the
+plugin route (Option A). `install.sh` only places the files.
 
 **`--stdd-role=RD|PM|UIUX|ALL`** — opt-in install of the STDD workflow
 skills (`stdd-skills/*`, non-autoload; see [skills.md](skills.md)). Only
-`ALL` is implemented this round; `RD`/`PM`/`UIUX` print a deferred message
+`ALL` is implemented this round. `RD`/`PM`/`UIUX` print a deferred message
 and install nothing. No flag → no STDD skills, unchanged from before this
 flag existed.
 
 **`--install-hook`** — opt-in install + `settings.json` registration of the
 STDD test-file guard (`hooks/stdd_test_guard.py`). Default NOT installed.
 **Honest caveat**: Claude Code reads PreToolUse hooks from `settings.json`
-once, at session start — a resumed/continued session will NOT pick up a
+once, at session start. A resumed or continued session will NOT pick up a
 hook registered mid-session. Verify this hook in a brand-new (non-resumed)
 session only.
 
@@ -155,8 +156,8 @@ persists to `~/.claude/.tlor-install.conf` (a plain `skills_dest=PATH` line,
 read with `grep`/`cut`, never sourced), so a later run with no flag still
 installs to the same place. Without a declaration (no flag, no config line),
 a `~/.claude/skills` symlink resolving outside `~/.claude` still aborts the
-whole install — that safety default is deliberate and unchanged; an explicit
-`--skills-dest` declaration is how you opt out of it for a skills directory
+whole install. That safety default is deliberate and unchanged. An explicit
+`--skills-dest` declaration is how you opt out of it, for a skills directory
 you keep elsewhere on purpose.
 
 **Lightweight users** (plugin only, no `/tlor-init`): see the CLAUDE.md
@@ -169,5 +170,5 @@ After installing via Option A, run `/tlor-init` in Claude Code for guided
 setup: choose installation level, install rules, generate CLAUDE.md and
 AGENTS.md routing, and optionally enable hooks.
 
-Either way, **open a new Claude Code session afterwards** — agent definitions
-are loaded at session start.
+Either way, **open a new Claude Code session afterwards**: Claude Code loads
+agent definitions at session start.

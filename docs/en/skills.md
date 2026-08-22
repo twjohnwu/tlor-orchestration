@@ -2,8 +2,8 @@
 
 [← Back to README](../../README.md)
 
-See the README's skill routing table for the quick reference. This page
-covers detail beyond that table plus the STDD opt-in explanation.
+The README's skill routing table is the quick reference. This page carries
+the detail that table leaves out, plus the STDD opt-in.
 
 ## Autoloaded skills — detail
 
@@ -23,8 +23,8 @@ upgrades.
 
 **erebor-ledger** — reads existing Claude Code transcripts and reports how
 much dispatching to tlor roles saved versus running the same work inline on
-the orchestrator model. Retrospective only; not a live estimator for a
-single in-progress dispatch.
+the orchestrator model. It looks backwards only, and cannot estimate the
+saving on a dispatch still in flight.
 
 ### `disable-model-invocation: true` — what the flag actually does
 
@@ -32,20 +32,19 @@ single in-progress dispatch.
 their frontmatter. The model never sees a skill carrying this flag, so no
 instruction placed in a CLAUDE.md, AGENTS.md, or rules file can make it run:
 the model reading those instructions has no such skill in its list to invoke.
-Only two routes activate one — the user typing `/skill-name`, or the owning
-plugin's own SessionStart hook. Plan accordingly: a setup step that needs one
-of these skills is a step the user runs, not one an agent can perform on their
-behalf.
+Only two routes activate one: the user typing `/skill-name`, or the owning
+plugin's own SessionStart hook. So a setup step that depends on one of these
+skills is a step the user runs, never one an agent can do on their behalf.
 
 ## Opt-in: STDD workflow skills
 
 Installed via `install.sh --stdd-role=ALL` or `/tlor-init`'s STDD step.
 
 Not autoloaded — these seven skills implement the Spec-driven Test-Driven
-Development pipeline and only land in `~/.claude/skills/` when explicitly
-requested. This round only the `ALL` profile is implemented; `RD`/`PM`/`UIUX`
-role-scoped subsets are deferred (`install.sh --stdd-role=RD|PM|UIUX` prints
-a deferred message and installs nothing).
+Development pipeline, and they land in `~/.claude/skills/` only when you ask
+for them. This round ships the `ALL` profile alone; the role-scoped
+`RD`/`PM`/`UIUX` subsets are deferred, so `install.sh --stdd-role=RD|PM|UIUX`
+prints a deferred message and installs nothing.
 
 | Skill | Middle-earth title | Purpose | When to invoke |
 |---|---|---|---|
@@ -56,8 +55,8 @@ a deferred message and installs nothing).
 | `/stdd-plan` | Map 行軍圖 | Generates condition-based `design-be.md`/`design-fe.md`/`api.yml` and a scenario-covered `tasks.md` from an approved spec | Turning an approved spec into a design + task list |
 | `/stdd-execute` | Forge 鑄造 | Runs the per-task RED → GREEN → REFACTOR loop against an approved `tasks.md`, two-dispatch model with an independent verifier | Implementing STDD tasks one at a time |
 | `/stdd-lint` | Eagle Vision 鷹之視野 | Pure rule-based (non-model-judgment) mechanical checker: placeholder leakage, ID continuity, GWT completeness, test-mapping/coverage, fingerprint state | Called internally by stdd-spec/stdd-plan/stdd-execute's boundary checks, and directly by the user |
-| `/westmarch-scribe` | Westmarch 記事錄 | westmarch-scribe — decision capture: archives a filled compact-MADR decision to the project's decision log (or instruction file, or the general decisions log) | Invoked from stdd-explore/stdd-uiux/stdd-spec/stdd-plan's advisory closing step, directly by the user, or proactively on decision-keywords in conversation |
-| `/minas-tirith-archivist` | Minas Tirith 檔案守護者 | minas-tirith-archivist — decision query: read-only counterpart to `/westmarch-scribe`; searches archived decision records (general and project-scoped) and answers with citations, never writes or edits | Asking about past decisions or why a convention exists, or directly by the user |
+| `/westmarch-scribe` | Westmarch 記事錄 | Decision capture: archives a filled compact-MADR decision to the project's decision log (or instruction file, or the general decisions log) | Invoked from stdd-explore/stdd-uiux/stdd-spec/stdd-plan's advisory closing step, directly by the user, or proactively on decision-keywords in conversation |
+| `/minas-tirith-archivist` | Minas Tirith 檔案守護者 | Decision query: the read-only counterpart to `/westmarch-scribe`; searches archived decision records (general and project-scoped) and answers with citations, never writes or edits | Asking about past decisions or why a convention exists, or directly by the user |
 
 Both `/westmarch-scribe` and `/minas-tirith-archivist` gate on the tlor rules
 layer being installed (`dispatch.md`/`judgment.md` present) — if not, they

@@ -28,7 +28,7 @@
 
 ### 抗辯審查小組（rivendell-council 鏡頭）
 
-這三個鏡頭平時不接一般派工——高風險判定時由 `eagle-sentinel` 建議、**Maia 召集**（≥3 個獨立鏡頭＋一位裁判，流程見 `rivendell-council` skill）。例行或邊界案的召集，派遣鏡頭時可明示 `model: sonnet` 降級——派遣時的覆寫優先於角色的 frontmatter pin。
+這三個鏡頭平時不接一般派工。高風險判定時由 `eagle-sentinel` 建議、**Maia 召集**（≥3 個獨立鏡頭＋一位裁判，流程見 `rivendell-council` skill）。例行或邊界案的召集，派遣鏡頭時可明示 `model: sonnet` 降級：派遣時的覆寫優先於角色的 frontmatter pin。
 
 | 角色 | 種族與職位 | Model / effort | 職責 |
 |---|---|---|---|
@@ -41,16 +41,18 @@
 `mirror-of-galadriel`（讀）與 `palantir-stone`（寫）是名冊中唯二會透過
 session MCP 工具碰觸 repo/session 之外系統的角色。所有讀取派給鏡子；所有
 寫入派給真知晶石，且僅能以列舉清單方式派工（目標 gid＋標題、變更前預期值、
-逐字新值）——每次派工上限 10 筆，且依 risk-tiers T1，Maia 必須在派工前
-取得使用者對這份確切列舉內容的明確確認。兩個角色的 agent 檔案
-（`agents/mirror-of-galadriel.md`、`agents/palantir-stone.md`）才是完整
-規則（範圍界定、驗證、冪等性等）的權威來源——本節只講派工路由，不重述細節。
+逐字新值）。每次派工上限 10 筆，且依 risk-tiers T1，Maia 必須在派工前
+取得使用者對這份確切列舉內容的明確確認。完整規則（範圍界定、驗證、冪等性
+等）的權威來源是兩個角色的 agent 檔案本身，也就是
+`agents/mirror-of-galadriel.md` 與 `agents/palantir-stone.md`；本節只講派工
+路由，不重述細節。
 
 若某個 session 的 MCP server 曝露的工具名稱與 `tools:` frontmatter 不同、
 或釘住的 server 根本沒連上：工具**全部**解析失敗（零個可用工具）時，角色
 會無法啟動並回報缺哪些工具；工具**部分**解析失敗時，未解析到的工具會被
-靜默忽略、角色仍會啟動（已驗證的 harness 行為，v2.1.208+）——這時要連上
-對應的 MCP server，或把 `tools:` 清單改成你 session 實際曝露的工具名稱。
+靜默忽略、角色仍會啟動（已驗證的 harness 行為，v2.1.208+）。遇到這兩種
+情況，要連上對應的 MCP server，或把 `tools:` 清單改成你 session 實際曝露
+的工具名稱。
 
 ## Subagent 派工（輕量版 CLAUDE.md snippet）
 

@@ -4,7 +4,7 @@
 
 ## Rules
 
-The plugin bundles depersonalized orchestration rules — install them via
+The plugin bundles depersonalized orchestration rules. Install them with
 `/tlor-init` or `install.sh`:
 
 **Required** (6 files, plugin-owned — unconditionally overwritten on every
@@ -33,20 +33,20 @@ install/upgrade, `version` stamped from `.claude-plugin/plugin.json`, no
 | `skill-triggers.md` | When to invoke a skill instead of following a blanket "always invoke" injection — fill in your installed plugins' namespace priority |
 | `lessons.md` | Append-only recurring-workflow-failure log, one section per base rule file |
 
-You can also drop your own `.md` rule files into `rules/customize/` — they
+You can also drop your own `.md` rule files into `rules/customize/`. They
 auto-load natively (the same `.claude/rules/` mechanism as everything else
 here, no routing table required), and the installer will never touch them.
-The routing table `/tlor-init` generates just documents this directory for
-tools that read AGENTS.md but don't know about `.claude/rules/` — it isn't
-what makes the files load.
+The routing table `/tlor-init` generates does nothing more than advertise
+this directory to tools that read AGENTS.md but know nothing about
+`.claude/rules/`; it is not what makes the files load.
 
 ## Agent docs (agent_doc/, lazy-load)
 
-Role-specific, conditionally-triggered reference docs. A dispatched subagent
+Role-specific reference docs that load on a condition. A dispatched subagent
 Reads them only when its trigger fires (a codex-capable machine, a JS-only
 page, a HIGH-RISK verdict), so the text costs nothing in every other
-dispatch. Division of labor in one line: rules/ holds what EVERY context
-must know; agent_doc/ holds what one role needs sometimes.
+dispatch. The division of labor: rules/ holds what EVERY context must know,
+agent_doc/ holds what one role needs sometimes.
 
 | Sublayer | Owner | Install behavior |
 |---|---|---|
@@ -73,11 +73,11 @@ rules/ and agents/: main-session edits are denied, dispatched subagents pass.
 
 ## Hooks (opt-in)
 
-All four hooks are **silent by default** — the first three are enabled by an
-environment variable, the fourth by registration. Every one of them fails open
-on an internal error (the call goes through; work is never blocked by a bug).
-`install.sh` copies the hook scripts but does not wire or activate them
-(no `hooks.json`, no env vars); use the plugin route for that.
+All four hooks are **silent by default**: an environment variable turns on
+the first three, registration turns on the fourth. Every one of them fails
+open on an internal error, so the call goes through and a bug in a hook never
+blocks your work. `install.sh` copies the hook scripts but does not wire or
+activate them (no `hooks.json`, no env vars) — use the plugin route for that.
 
 | Hook | Event | What it does | Env key |
 |---|---|---|---|

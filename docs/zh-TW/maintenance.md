@@ -7,8 +7,8 @@
 - **CLAUDE.md + AGENTS.md 雙檔架構**：`/tlor-init` 會產生一個精簡的
   CLAUDE.md（只含幾條最高優先級規則＋`@AGENTS.md` import，交由 harness
   自動內聯）以及一份含完整路由表的 AGENTS.md。這樣拆的理由是 AGENTS.md
-  也能被其他 AI coding 工具（Cursor、Codex 等）讀取，CLAUDE.md 則是
-  Claude Code 專屬的檔案，不供其他工具讀取。（自動載入本身並非 CLAUDE.md
+  也能被其他 AI coding 工具（Cursor、Codex 等）讀取，CLAUDE.md 則只有
+  Claude Code 會讀。（自動載入本身並非 CLAUDE.md
   獨有——`.claude/rules/` 底下的檔案在 Claude Code 中同樣會自動載入；見
   [installation.md](installation.md) 的 Session 啟動成本一節。）
 - **Serena 為選配**：兩個搜尋角色的 tools 列了
@@ -29,8 +29,8 @@
   `eagle-sentinel` 會安靜地跑在你 session 的模型上。
 - **安全鏡頭角色可能觸發模型的安全防護。** `orc-saboteur`（與程度較輕的
   `elf-archer`）做的是對抗式**防禦**審查；部分模型的寬版安全分類器可能把它
-  讀成攻擊性資安工作、於任務中途自動切換模型。這是已知誤判——審查仍會完成。
-  措辭已保持防禦性以降低機率。
+  讀成攻擊性資安工作，並在任務中途自動切換模型。這是已知誤判，審查仍會完成；
+  角色指令的措辭刻意偏防禦性，就是用來壓低這個機率。
 
 ## 發布流程（維護者）
 

@@ -26,15 +26,15 @@
 `disable-model-invocation: true`。設了這個旗標的 skill，模型完全看不到，所以在
 CLAUDE.md、AGENTS.md 或任何 rules 檔裡寫指示都無法啟用它：讀那些指示的模型，
 手上根本沒有這個 skill 可以呼叫。只有兩條路徑能啟動它，一是使用者自己打
-`/skill-name`，二是該 plugin 自己的 SessionStart hook。規劃時要據此安排：需要
-用到這兩個 skill 的設定步驟，是使用者親自執行的步驟，agent 無法代跑。
+`/skill-name`，二是該 plugin 自己的 SessionStart hook。所以排流程時要算進去：
+用到這兩個 skill 的設定步驟只能由使用者親自跑，agent 代不了。
 
 ## 選配：STDD 工作流程 skills
 
 透過 `install.sh --stdd-role=ALL` 或 `/tlor-init` 的 STDD 步驟安裝。
 
 非自動載入——這七個 skill 實作 Spec-driven Test-Driven Development 流程，
-只有明確要求時才會落地到 `~/.claude/skills/`。本輪僅實作 `ALL` 這個
+只有明確要求時才會安裝到 `~/.claude/skills/`。本輪僅實作 `ALL` 這個
 profile；`RD`/`PM`/`UIUX` 角色限定子集 deferred（`install.sh
 --stdd-role=RD|PM|UIUX` 只會印出 deferred 訊息、不安裝任何東西）。
 
