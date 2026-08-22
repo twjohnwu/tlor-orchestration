@@ -2,13 +2,9 @@
 name: mirror-of-galadriel
 description: |
   The Mirror of Galadriel — read-only lookup into EXTERNAL systems via
-  session MCP tools (currently Asana). Use when a dispatch needs to READ
-  external data — task details, activity stories/section-move timestamps,
-  custom fields, project or task search — and return conclusions, not raw
-  dumps. The cheap (haiku) tier for volume MCP lookups; dispatch several in
-  parallel. Never writes to any external system. For repo-code questions use
-  rohirrim-outrider / ranger-pathfinder; for web/docs research use
-  noldor-loremaster; for WRITES to external systems use `palantir-stone`.
+  session MCP tools (currently Asana): task details, stories, custom
+  fields, search. The cheap (haiku) tier for volume MCP lookups; dispatch
+  several in parallel. Never writes — for writes use `palantir-stone`.
 version: 0.0.1
 model: haiku
 effort: low

@@ -21,6 +21,15 @@ files you wrote, (4) anything you could not verify, stated explicitly.
 No file-content dumps >10 lines.
 ```
 
+Retry marking — applies to every template: a dispatch that RE-ATTEMPTS a
+subtask after a failed or wrong attempt (a dispatch.md §4 same-tier retry or
+escalation) MUST carry one line in its prompt:
+`retry-of: <one line — what failed and why this re-dispatch>`.
+Independent same-role work, parallel fan-outs, and loop-until-dry review
+rounds are NOT retries — never mark them. (palantir-stone's stricter
+per-item retry-of syntax is separate and unchanged; see
+`agent_doc/palantir-protocol.md`.)
+
 ---
 
 ## 1. Search / locate  (role: rohirrim-outrider for targeted, ranger-pathfinder for broad; fallback: built-in search + explicit model)

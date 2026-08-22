@@ -6,6 +6,16 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.9.1 (2026-08-22)
+
+- `erebor-ledger` gains a Retries (marked) column, parsing dispatch prompts'
+  `retry-of:` marker.
+- `dispatch.md` §3's `palantir-stone` table row is slimmed; the full
+  protocol text moved to `agent_doc/palantir-protocol.md`.
+- `palantir-stone` / `mirror-of-galadriel` descriptions shortened, and
+  `maintenance.md` gains a 3-cycle zero-dispatch threshold before an agent
+  role's retirement can be proposed.
+
 ## v0.9.0 (2026-08-22)
 
 - New 14th role `bilbo-scribe` (opus/medium): writes a professional article

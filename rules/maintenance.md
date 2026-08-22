@@ -29,6 +29,9 @@ don't own them.
 - Deleting a rubric, template, or a diagnosis/reference file
 - Restructuring the file layout or moving files out of the rules directory
 - Anything in the routing file's non-negotiable rules section
+- Retiring an agent role — and propose retirement only after the role has
+  shown ZERO dispatches across ≥3 consecutive erebor-ledger reporting
+  cycles; a single zero-dispatch period is noise, not a signal
 
 Rule of thumb: making the system stricter or more accurate = self-serve;
 making it looser = user decision.

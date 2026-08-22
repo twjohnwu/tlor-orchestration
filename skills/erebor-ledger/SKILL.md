@@ -285,9 +285,10 @@ the report output every run — never omit it. The same pinned frontmatter
 file also supplies the `model:` value a row's `Model` cell is compared
 against to decide the `(upgrade)`/`(downgrade)` marker described above.
 
-It also discloses a retry-count heuristic and its known limitation — see
-`Retries (heuristic)` below; this is stated in the report output every run
-— never omit it.
+It also discloses an explicit retry marker AND a retry-count heuristic, and
+the heuristic's known limitation — see `Retries (marked)` and `Retries
+(heuristic)` below; both are stated in the report output every run — never
+omit either.
 
 ## Four report figures
 
@@ -370,6 +371,21 @@ making the script write:
   quota, add `calibration_ceiling_usd` to that same file the same way:
   `{"subscription_usd": <value>, "calibration_ceiling_usd": <value>}`.
 
+## Retries (marked) — the explicit `retry-of:` marker
+
+`Retries (marked)` counts dispatches whose subagent transcript's FIRST
+`type: user` record (the dispatch prompt) contains a line starting with
+`retry-of:` (case-insensitive, leading whitespace allowed) — the explicit
+retry-marker convention now part of `rules/delegation-templates.md`. Where
+present, this count is **authoritative** — it comes directly from a
+dispatch prompt actually written by the orchestrator as a retry, not from
+inference over transcript ordering. It only ever counts what a prompt
+explicitly marks, so a corpus with no marked prompts (e.g. sessions run
+before the convention existed) will show `0` here even if real retries
+happened — that is a coverage gap, not a claim that no retries occurred;
+`Retries (heuristic)` remains alongside it as the fallback estimate for
+exactly that unmarked corpus.
+
 ## Retries (heuristic) — a role's consecutive re-dispatches
 
 `Retries (heuristic)` is a **heuristic count, not a verified retry count**
@@ -405,8 +421,8 @@ Every group (Fable / Opus) gets its own per-role table with this exact
 column set and order — this is the implementation contract, not a
 suggestion:
 
-| Role | Model | Effort | Dispatches | Retries (heuristic) | input | output | cache(r/w) | API-equiv cost (actual model) | API-equiv cost (if run inline) | quota headroom preserved | headroom % |
-|---|---|---|---|---|---|---|---|---|---|---|---|
+| Role | Model | Effort | Dispatches | Retries (marked) | Retries (heuristic) | input | output | cache(r/w) | API-equiv cost (actual model) | API-equiv cost (if run inline) | quota headroom preserved | headroom % |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
 
 Rows are keyed by **(role, model, effort)**, not just role: a role
 dispatched with a per-call model/effort override (per
@@ -453,23 +469,23 @@ is always **Total quota headroom preserved**, with `—` in its
 
 Fable group per-role example:
 
-| Role | Model | Effort | Dispatches | Retries (heuristic) | input | output | cache(r/w) | API-equiv cost (actual model) | API-equiv cost (if run inline) | quota headroom preserved | headroom % |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| rohirrim-outrider | haiku-4-5 | low* | 12 | 1 | 8,400 | 2,100 | 15,000/3,200 | $0.42 | $3.10 | $2.68 | 86.5% |
-| ranger-pathfinder | sonnet-5 | low* | 5 | 0 | 6,000 | 4,500 | 9,800/1,500 | $0.61 | $2.95 | $2.34 | 79.3% |
-| noldor-loremaster | sonnet-5 | medium* | 2 | 0 | 3,200 | 1,800 | 2,000/500 | $0.28 | $1.10 | $0.82 | 74.5% |
-| dwarf-smith | sonnet-5 | low* | 3 | 0 | 4,100 | 3,000 | 5,600/900 | $0.35 | $1.85 | $1.50 | 81.1% |
-| gondor-builder | sonnet-5 | medium* | 4 | 0 | 9,000 | 6,200 | 12,000/2,100 | $0.90 | $4.20 | $3.30 | 78.6% |
-| eagle-sentinel | sonnet-5 (downgrade) | medium* | 5 | 0 | 6,500 | 3,200 | 7,000/1,000 | $0.48 | $2.40 | $1.92 | 80.0% |
-| eagle-sentinel | opus-4-8 | medium* | 1 | 1 | 1,000 | 700 | 1,000/200 | $0.07 | $0.40 | $0.33 | 82.5% |
-| elf-archer | opus-4-8 | medium* | 1 | 0 | 1,200 | 900 | 600/100 | $0.10 | $0.55 | $0.45 | 81.8% |
-| orc-saboteur | opus-4-8 | medium* | 1 | 0 | 1,300 | 950 | 700/100 | $0.11 | $0.58 | $0.47 | 81.0% |
-| hobbit-gardener | opus-4-8 | medium* | 1 | 0 | 1,100 | 800 | 500/100 | $0.09 | $0.50 | $0.41 | 82.0% |
-| mirror-of-galadriel | haiku-4-5 | low* | 12 | 0 | 8,400 | 2,100 | 15,000/3,200 | $0.42 | $3.10 | $2.68 | 86.5% |
-| palantir-stone | sonnet-5 | low* | 3 | 0 | 4,100 | 3,000 | 5,600/900 | $0.35 | $1.85 | $1.50 | 81.1% |
-| general-purpose | sonnet-5 | — | 1 | 0 | 1,200 | 700 | 800/100 | $0.10 | $0.48 | $0.38 | 79.2% |
-| Explore | sonnet-5 | low* | 1 | 0 | 800 | 300 | 200/100 | $0.05 | $0.22 | $0.17 | 77.3% |
-| **Total quota headroom preserved** | — | — | **39** | **2** | — | — | — | **$3.71** | **$19.03** | **$15.32** | **80.5%** |
+| Role | Model | Effort | Dispatches | Retries (marked) | Retries (heuristic) | input | output | cache(r/w) | API-equiv cost (actual model) | API-equiv cost (if run inline) | quota headroom preserved | headroom % |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| rohirrim-outrider | haiku-4-5 | low* | 12 | 1 | 1 | 8,400 | 2,100 | 15,000/3,200 | $0.42 | $3.10 | $2.68 | 86.5% |
+| ranger-pathfinder | sonnet-5 | low* | 5 | 0 | 0 | 6,000 | 4,500 | 9,800/1,500 | $0.61 | $2.95 | $2.34 | 79.3% |
+| noldor-loremaster | sonnet-5 | medium* | 2 | 0 | 0 | 3,200 | 1,800 | 2,000/500 | $0.28 | $1.10 | $0.82 | 74.5% |
+| dwarf-smith | sonnet-5 | low* | 3 | 0 | 0 | 4,100 | 3,000 | 5,600/900 | $0.35 | $1.85 | $1.50 | 81.1% |
+| gondor-builder | sonnet-5 | medium* | 4 | 0 | 0 | 9,000 | 6,200 | 12,000/2,100 | $0.90 | $4.20 | $3.30 | 78.6% |
+| eagle-sentinel | sonnet-5 (downgrade) | medium* | 5 | 0 | 0 | 6,500 | 3,200 | 7,000/1,000 | $0.48 | $2.40 | $1.92 | 80.0% |
+| eagle-sentinel | opus-4-8 | medium* | 1 | 0 | 1 | 1,000 | 700 | 1,000/200 | $0.07 | $0.40 | $0.33 | 82.5% |
+| elf-archer | opus-4-8 | medium* | 1 | 0 | 0 | 1,200 | 900 | 600/100 | $0.10 | $0.55 | $0.45 | 81.8% |
+| orc-saboteur | opus-4-8 | medium* | 1 | 0 | 0 | 1,300 | 950 | 700/100 | $0.11 | $0.58 | $0.47 | 81.0% |
+| hobbit-gardener | opus-4-8 | medium* | 1 | 0 | 0 | 1,100 | 800 | 500/100 | $0.09 | $0.50 | $0.41 | 82.0% |
+| mirror-of-galadriel | haiku-4-5 | low* | 12 | 0 | 0 | 8,400 | 2,100 | 15,000/3,200 | $0.42 | $3.10 | $2.68 | 86.5% |
+| palantir-stone | sonnet-5 | low* | 3 | 0 | 0 | 4,100 | 3,000 | 5,600/900 | $0.35 | $1.85 | $1.50 | 81.1% |
+| general-purpose | sonnet-5 | — | 1 | 0 | 0 | 1,200 | 700 | 800/100 | $0.10 | $0.48 | $0.38 | 79.2% |
+| Explore | sonnet-5 | low* | 1 | 0 | 0 | 800 | 300 | 200/100 | $0.05 | $0.22 | $0.17 | 77.3% |
+| **Total quota headroom preserved** | — | — | **39** | **1** | **2** | — | — | — | **$3.71** | **$19.03** | **$15.32** | **80.5%** |
 
 The Opus group's structure mirrors the table above exactly (same column
 order); its numbers are computed separately and not duplicated here.
@@ -667,9 +683,10 @@ dropped, and a comparison run pasted without its comparison table:
 - [ ] **Disclosures intact**: the counterfactual-estimate line, the cache-tier
       pricing line, the cache-tier volume-vs-cost-basis line, the
       usage-monotonicity line, the `*` / `(upgrade)` / `(downgrade)` marker
-      notes, the `Retries (heuristic)` disclosure (with its over-counting
-      limitation), and the API-equivalent/flat-fee disclosure are all still in
-      the output — never trimmed to save space.
+      notes, the `Retries (marked)` disclosure, the `Retries (heuristic)`
+      disclosure (with its over-counting limitation), and the
+      API-equivalent/flat-fee disclosure are all still in the output — never
+      trimmed to save space.
 - [ ] **Monotonicity count checked**: state the number of usage-monotonicity
       violation warnings in the run. Zero is the expected state; a non-zero
       count means the cumulative-usage assumption behind the dedup's

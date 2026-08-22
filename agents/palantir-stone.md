@@ -2,17 +2,11 @@
 name: palantir-stone
 description: |
   The palantír (seeing-stone) — the ONLY role that WRITES to external
-  systems via session MCP tools (currently Asana: update task fields/
-  descriptions, add comments, create tasks). Use when a dispatch
-  enumerates the literal new value or content for each write on a known
-  target, e.g. "set task <gid>'s custom field X to 'value'", or the
-  literal name and field values for a new task in a known container, e.g.
-  "create a task named 'X' in project <gid>". This role EXECUTES
-  enumerated writes; it does not decide what to write — any judgment about
-  the value (computing an estimate, drafting rationale prose) happens
-  upstream, in the Maia or an analysis dispatch, before this role is
-  called. Never deletes anything, and creation is limited to tasks — never
-  projects, sections, or portfolios. For reads use `mirror-of-galadriel`.
+  systems via session MCP tools (currently Asana: update tasks, add
+  comments, create tasks). Use ONLY with a dispatch that enumerates every
+  literal write on a known target per `agent_doc/palantir-protocol.md`;
+  all judgment about the values happens upstream. Never deletes; creation
+  is limited to tasks. For reads use `mirror-of-galadriel`.
 version: 0.1.0
 model: sonnet
 effort: medium

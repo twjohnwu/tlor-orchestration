@@ -95,6 +95,15 @@ RETRY_HEURISTIC_DISCLOSURE = (
     " issued in separate messages that were actually independent (not a"
     " retry) would still be over-counted here."
 )
+RETRY_MARKER_DISCLOSURE = (
+    "Retries (marked) counts dispatches whose FIRST user record (the dispatch"
+    " prompt) contains an explicit `retry-of:` line (the convention in"
+    " rules/delegation-templates.md). This is authoritative where present —"
+    " unlike Retries (heuristic), it is not inferred from issue order — but"
+    " only covers dispatches whose prompt actually carries the marker; the"
+    " heuristic column remains as a fallback estimate for the unmarked"
+    " corpus, with its own over-counting limitation described above."
+)
 API_EQUIVALENT_DISCLOSURE = (
     "The dollar figures in this report (API-equiv cost / quota headroom preserved)"
     " are API list-price equivalents, not money the user spent or kept: under a"
@@ -849,6 +858,53 @@ def find_subagent_files(project_dir: str, session_id: str):
             yield agent_file, meta_file
 
 
+def _content_has_retry_marker(content) -> bool:
+    """Scan a `message.content` value (string, or list of content blocks)
+    for a line starting with `retry-of:` (case-insensitive, leading
+    whitespace allowed). Only `text`-type blocks are scanned in the list
+    form — non-text blocks (tool_result, image, ...) never carry a dispatch
+    prompt line."""
+    texts: list = []
+    if isinstance(content, str):
+        texts.append(content)
+    elif isinstance(content, list):
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "text":
+                text = block.get("text")
+                if isinstance(text, str):
+                    texts.append(text)
+    for text in texts:
+        for raw_line in text.splitlines():
+            if raw_line.strip().lower().startswith("retry-of:"):
+                return True
+    return False
+
+
+def dispatch_has_retry_marker(agent_file: str) -> bool:
+    """Returns True if the FIRST `type: user` record in a subagent
+    transcript (the dispatch prompt) carries an explicit `retry-of:` line
+    per the convention in rules/delegation-templates.md — see
+    RETRY_MARKER_DISCLOSURE. Only reads as far as that first user record;
+    a malformed or missing transcript returns False, never raises."""
+    try:
+        with open(agent_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if rec.get("type") != "user":
+                    continue
+                content = (rec.get("message") or {}).get("content")
+                return _content_has_retry_marker(content)
+    except OSError:
+        return False
+    return False
+
+
 def load_agent_meta(meta_file: str, warnings: list) -> dict:
     """Returns {"agentType", "toolUseId", "effort"} — `effort` is only ever
     populated if some future Claude Code version starts writing an
@@ -1094,6 +1150,7 @@ class RoleRow:
     counterfactual_cost: float = 0.0
     na: bool = False
     retries: int = 0
+    retries_marked: int = 0
 
 
 @dataclass
@@ -1349,12 +1406,19 @@ def build_report(
                     if cf_price is not None:
                         per_model_cf[model] = per_model_cf.get(model, 0.0) + cost_for_tokens(tok, cf_price)
 
+                # Retries (marked): read once per dispatch (not per model
+                # split) — this specific subagent transcript's own dispatch
+                # prompt either carries the `retry-of:` marker or it doesn't.
+                retry_marked = dispatch_has_retry_marker(agent_file)
+
                 row_na_common = orch_price is None
                 for model, tok in per_model_tokens.items():
                     key = RoleKey(role, short_model_id(model), effort_display)
                     row = g.roles.setdefault(key, RoleRow())
                     if model == dominant_model:
                         row.dispatches += 1
+                        if retry_marked:
+                            row.retries_marked += 1
                         # The dispatch is attributed to the dominant-model
                         # row for the retry-run walk below (one entry per
                         # dispatch, not per model split).
@@ -1630,15 +1694,16 @@ def fmt_pct(saved: float | None, counterfactual: float | None) -> str:
     return f"{saved / counterfactual * 100:.1f}%"
 
 
-def _accumulate_totals(rows) -> tuple[int, int, float, float, bool, bool]:
-    """(dispatches, retries, actual, counterfactual, any_na, any_priced)
-    summed across `rows` (an iterable of `RoleRow`s) — the single
-    accumulator M8 collapses `group_totals` and `render_group`'s own
+def _accumulate_totals(rows) -> tuple[int, int, int, float, float, bool, bool]:
+    """(dispatches, retries, retries_marked, actual, counterfactual, any_na,
+    any_priced) summed across `rows` (an iterable of `RoleRow`s) — the
+    single accumulator M8 collapses `group_totals` and `render_group`'s own
     inline totals loop into, so the two can no longer drift on what
     "total" means (the comment `group_totals` used to carry admitted the
     duplication directly)."""
     total_dispatches = 0
     total_retries = 0
+    total_retries_marked = 0
     total_actual = 0.0
     total_counterfactual = 0.0
     any_na = False
@@ -1646,13 +1711,22 @@ def _accumulate_totals(rows) -> tuple[int, int, float, float, bool, bool]:
     for row in rows:
         total_dispatches += row.dispatches
         total_retries += row.retries
+        total_retries_marked += row.retries_marked
         if row.na:
             any_na = True
         else:
             any_priced = True
             total_actual += row.actual_cost
             total_counterfactual += row.counterfactual_cost
-    return total_dispatches, total_retries, total_actual, total_counterfactual, any_na, any_priced
+    return (
+        total_dispatches,
+        total_retries,
+        total_retries_marked,
+        total_actual,
+        total_counterfactual,
+        any_na,
+        any_priced,
+    )
 
 
 def group_totals(g: GroupState):
@@ -1662,9 +1736,15 @@ def group_totals(g: GroupState):
     (mirrors render_group's own "don't print $0.00 for unknown" rule).
     Used by the cross-month comparison table.
     """
-    total_dispatches, _retries, total_actual, total_counterfactual, any_na, any_priced = _accumulate_totals(
-        g.roles.values()
-    )
+    (
+        total_dispatches,
+        _retries,
+        _retries_marked,
+        total_actual,
+        total_counterfactual,
+        any_na,
+        any_priced,
+    ) = _accumulate_totals(g.roles.values())
     if any_priced:
         return total_dispatches, total_actual, total_counterfactual, any_na
     return total_dispatches, None, None, any_na
@@ -1848,10 +1928,10 @@ def render_group(label: str, g: GroupState, detail_others: bool = False) -> str:
     )
     lines.append("")
     lines.append(
-        "| Role | Model | Effort | Dispatches | Retries (heuristic) | input | output | cache(r/w) | "
+        "| Role | Model | Effort | Dispatches | Retries (marked) | Retries (heuristic) | input | output | cache(r/w) | "
         "API-equiv cost (actual model) | API-equiv cost (if run inline) | quota headroom preserved | headroom % |"
     )
-    lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
+    lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
 
     grouped = _group_keys_by_role(g.roles)
     tlor_roles = ordered_tlor_roles()
@@ -1886,14 +1966,14 @@ def render_group(label: str, g: GroupState, detail_others: bool = False) -> str:
         if row.na:
             lines.append(
                 f"| {role} | {model_cell} | {effort_cell} | {row.dispatches} | "
-                f"{row.retries} | {fmt_int(row.tokens['input'])} | {fmt_int(row.tokens['output'])} | "
+                f"{row.retries_marked} | {row.retries} | {fmt_int(row.tokens['input'])} | {fmt_int(row.tokens['output'])} | "
                 f"{cache_cell} | N/A | N/A | N/A | N/A |"
             )
         else:
             saved = row.counterfactual_cost - row.actual_cost
             lines.append(
                 f"| {role} | {model_cell} | {effort_cell} | {row.dispatches} | "
-                f"{row.retries} | {fmt_int(row.tokens['input'])} | {fmt_int(row.tokens['output'])} | "
+                f"{row.retries_marked} | {row.retries} | {fmt_int(row.tokens['input'])} | {fmt_int(row.tokens['output'])} | "
                 f"{cache_cell} | {fmt_money(row.actual_cost)} | "
                 f"{fmt_money(row.counterfactual_cost)} | {fmt_money(saved)} | "
                 f"{fmt_pct(saved, row.counterfactual_cost)} |"
@@ -1901,9 +1981,15 @@ def render_group(label: str, g: GroupState, detail_others: bool = False) -> str:
 
     # M8: the same accumulator `group_totals` uses — this used to be a
     # second, hand-duplicated arithmetic loop right here.
-    total_dispatches, total_retries, total_actual, total_counterfactual, any_na, any_priced = _accumulate_totals(
-        row for _role, _model_cell, _effort_cell, row in render_rows
-    )
+    (
+        total_dispatches,
+        total_retries,
+        total_retries_marked,
+        total_actual,
+        total_counterfactual,
+        any_na,
+        any_priced,
+    ) = _accumulate_totals(row for _role, _model_cell, _effort_cell, row in render_rows)
 
     partial_note = "(partial — excludes N/A rows above)" if any_na else ""
     if any_priced:
@@ -1919,7 +2005,7 @@ def render_group(label: str, g: GroupState, detail_others: bool = False) -> str:
         total_actual_cell = total_counterfactual_cell = total_saved_cell = total_pct_cell = "N/A"
     lines.append(
         f"| **Total quota headroom preserved** {partial_note} | — | — | **{total_dispatches}** | "
-        f"**{total_retries}** | — | — | — | "
+        f"**{total_retries_marked}** | **{total_retries}** | — | — | — | "
         f"**{total_actual_cell}** | **{total_counterfactual_cell}** | "
         f"**{total_saved_cell}** | **{total_pct_cell}** |"
     )
@@ -2188,6 +2274,7 @@ def _report_header(excluded: dict, filter_desc: str | None) -> list[str]:
     lines.append(f"> {CACHE_TIER_SUM_DISCLOSURE}")
     lines.append(f"> {MONOTONICITY_DISCLOSURE}")
     lines.append(f"> {EFFORT_SOURCE_DISCLOSURE}")
+    lines.append(f"> {RETRY_MARKER_DISCLOSURE}")
     lines.append(f"> {RETRY_HEURISTIC_DISCLOSURE}")
     lines.append(f"> {API_EQUIVALENT_DISCLOSURE}")
     lines.append(f"> {render_exclusion_disclosure(excluded)}")

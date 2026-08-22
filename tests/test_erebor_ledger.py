@@ -59,6 +59,19 @@ def assistant(ts, msg_id, request_id, model, usage_blob, content=None):
     }
 
 
+def user_message(text):
+    """One `"type":"user"` transcript line — the dispatch prompt a subagent
+    transcript opens with. Used to inject an explicit `retry-of:` marker as
+    the FIRST user record of a subagent's `dispatches` records."""
+    return {
+        "type": "user",
+        "message": {
+            "role": "user",
+            "content": [{"type": "text", "text": text}],
+        },
+    }
+
+
 def agent_block(tool_id, subagent_type):
     return {
         "type": "tool_use",
@@ -130,7 +143,7 @@ def run_report(root, *extra_args):
 # --------------------------------------------------------------------------
 
 def row_cells(report, role, group="Fable"):
-    """The 12 cells of `role`'s row inside the `## {group} group per-role
+    """The 13 cells of `role`'s row inside the `## {group} group per-role
     table` section. Fails the test if the role has no row there."""
     section = report.split(f"## {group} group per-role table", 1)[1]
     section = section.split("## ", 1)[0]
@@ -145,14 +158,15 @@ COL = {
     "model": 1,
     "effort": 2,
     "dispatches": 3,
-    "retries": 4,
-    "input": 5,
-    "output": 6,
-    "cache": 7,
-    "actual_cost": 8,
-    "inline_cost": 9,
-    "headroom": 10,
-    "headroom_pct": 11,
+    "retries_marked": 4,
+    "retries": 5,
+    "input": 6,
+    "output": 7,
+    "cache": 8,
+    "actual_cost": 9,
+    "inline_cost": 10,
+    "headroom": 11,
+    "headroom_pct": 12,
 }
 
 
@@ -594,6 +608,55 @@ def test_dedup_attribution_skips_excluded_session_owner(tmp_path):
     report = run_report(tmp_path)
     assert cell(report, "dwarf-smith", "output") == "500"
     assert cell(report, "dwarf-smith", "dispatches") == "1"
+
+
+# --------------------------------------------------------------------------
+# 11b. Retries (marked) — explicit `retry-of:` line in the dispatch prompt's
+# first user record, independent of the consecutive-same-role heuristic.
+# --------------------------------------------------------------------------
+
+def test_retries_marked_counts_explicit_retry_of_marker(tmp_path):
+    """A dispatch whose subagent transcript opens with a `retry-of:` line
+    counts toward Retries (marked); a dispatch with no marker does not —
+    even though neither role's heuristic count is affected by the marker."""
+    make_session(
+        tmp_path,
+        "p",
+        "s",
+        [
+            orchestrator_line("2026-07-20T10:00:00.000Z", 1, ["gondor-builder-a"]),
+            orchestrator_line("2026-07-20T10:05:00.000Z", 2, ["gondor-builder-b"]),
+            orchestrator_line("2026-07-20T10:10:00.000Z", 3, ["dwarf-smith-a"]),
+        ],
+        dispatches=[
+            (
+                "gondor-builder-a",
+                "gondor-builder",
+                [assistant("2026-07-20T10:01:00.000Z", "a1", "a1", SONNET, usage(out=10))],
+            ),
+            (
+                "gondor-builder-b",
+                "gondor-builder",
+                [
+                    user_message("Goal: fix the bug.\nretry-of: prior attempt failed\nAcceptance: it passes."),
+                    assistant("2026-07-20T10:06:00.000Z", "b1", "b1", SONNET, usage(out=10)),
+                ],
+            ),
+            (
+                "dwarf-smith-a",
+                "dwarf-smith",
+                [assistant("2026-07-20T10:11:00.000Z", "c1", "c1", SONNET, usage(out=10))],
+            ),
+        ],
+    )
+    report = run_report(tmp_path)
+    # Same role, separate messages → the heuristic AND the marker both land
+    # on the merged (role, model, effort) row.
+    assert cell(report, "gondor-builder", "retries_marked") == "1"
+    assert cell(report, "gondor-builder", "retries") == "1"
+    # Single dispatch, no marker → both columns are zero.
+    assert cell(report, "dwarf-smith", "retries_marked") == "0"
+    assert cell(report, "dwarf-smith", "retries") == "0"
 
 
 # --------------------------------------------------------------------------
