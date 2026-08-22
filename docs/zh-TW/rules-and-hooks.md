@@ -6,9 +6,7 @@
 
 本 plugin 附帶去個人化的編排規則，用 `/tlor-init` 或 `install.sh` 安裝：
 
-**必裝**（6 檔，由 plugin 擁有——每次安裝／升級皆無條件覆蓋，`version`
-由 `.claude-plugin/plugin.json` 蓋上，不含 `## Lessons` 區塊——見
-[installation.md](installation.md) 的所有權模型）：
+**必裝**（6 檔，由 plugin 擁有——每次安裝／升級皆無條件覆蓋，`version` 由 `.claude-plugin/plugin.json` 蓋上，不含 `## Lessons` 區塊——見 [installation.md](installation.md) 的所有權模型）：
 
 | Rule | 用途 |
 |---|---|
@@ -19,8 +17,7 @@
 | `risk-tiers.md` | 行動風險分級（T1 不可逆 / T2 難復原 / T3 可逆）|
 | `maintenance.md` | session 可自行修改 vs 需人類核准的項目 |
 
-**選裝**（6 檔，位於 `rules/customize/`——`--with-optional` 或在
-`/tlor-init` 中選擇；一旦複製過去就不會再被覆蓋）：
+**選裝**（6 檔，位於 `rules/customize/`——`--with-optional` 或在 `/tlor-init` 中選擇；一旦複製過去就不會再被覆蓋）：
 
 | Rule | 用途 |
 |---|---|
@@ -31,17 +28,11 @@
 | `skill-triggers.md` | 何時該呼叫 skill，而非照單全收「一律呼叫」的注入規則——需自行填入已裝 plugin 的 namespace 優先序 |
 | `lessons.md` | 附加式的反覆工作流失敗紀錄，每個 base rule 檔案各一個區塊 |
 
-你也可以把自己團隊的規則檔（`.md`）直接放進 `rules/customize/`：安裝時會一併
-複製，installer 永遠不會動它。它們會原生自動載入，跟這裡其他檔案一樣走
-`.claude/rules/` 機制，不需要路由表。`/tlor-init` 產生的路由表只是幫那些不懂
-`.claude/rules/`、只讀 AGENTS.md 的工具記下這個目錄，不是它讓檔案載入的。
+你也可以把自己團隊的規則檔（`.md`）直接放進 `rules/customize/`：安裝時會一併複製，installer 永遠不會動它。它們會原生自動載入，跟這裡其他檔案一樣走 `.claude/rules/` 機制，不需要路由表。`/tlor-init` 產生的路由表只是幫那些不懂 `.claude/rules/`、只讀 AGENTS.md 的工具記下這個目錄，不是它讓檔案載入的。
 
 ## Agent docs（agent_doc/，懶載入）
 
-角色專屬、條件觸發的參考文件。被派工的 subagent 只在觸發條件成立時才
-Read（機器上有 codex、頁面只有 JS 殼、判定進入 HIGH-RISK），其餘派工
-一個字都不用付。分工判準：rules/ 放**每個 context 都必須知道**的，
-agent_doc/ 放**某個角色偶爾需要**的。
+角色專屬、條件觸發的參考文件。被派工的 subagent 只在觸發條件成立時才 Read（機器上有 codex、頁面只有 JS 殼、判定進入 HIGH-RISK），其餘派工一個字都不用付。分工判準：rules/ 放**每個 context 都必須知道**的，agent_doc/ 放**某個角色偶爾需要**的。
 
 | 子層 | 擁有者 | 安裝行為 |
 |---|---|---|
@@ -68,9 +59,7 @@ agent_doc/ 放**某個角色偶爾需要**的。
 
 ## Hooks（選配）
 
-四個 hook **預設皆靜默**——前三個靠環境變數啟用，第四個靠註冊安裝。任何內部
-錯誤一律 fail-open（放行，不擋工作）。`install.sh` 會複製 hook 腳本，但不接線
-也不啟用（不寫 `hooks.json`、不設環境變數）；要接線請走 plugin 安裝。
+四個 hook **預設皆靜默**——前三個靠環境變數啟用，第四個靠註冊安裝。任何內部錯誤一律 fail-open（放行，不擋工作）。`install.sh` 會複製 hook 腳本，但不接線也不啟用（不寫 `hooks.json`、不設環境變數）；要接線請走 plugin 安裝。
 
 | Hook | 事件 | 說明 | env key |
 |---|---|---|---|
@@ -81,15 +70,10 @@ agent_doc/ 放**某個角色偶爾需要**的。
 
 三則補充：
 
-- **PreToolUse 三者是串接的**：`hooks.json` 只掛 `pre_tool_use.sh` 一支，它先跑
-  `institution_guard.py`，**有輸出就短路**，沒有才輪到 `dispatch_guard.py`。
-- **bash fallback 需要 jq**：偵測不到 `python3` 時退回 `institution_guard.sh`，
-  它依賴 `jq`；缺 `jq` 會靜默放行（不報錯、不擋）。
-- **`TLOR_STDD_ALLOW_TEST_REWRITE=1` 是繞過，不是開關**：它單次解除
-  `stdd_test_guard` 的封鎖（plan-drift 復原用），不會啟用任何 hook。
+- **PreToolUse 三者是串接的**：`hooks.json` 只掛 `pre_tool_use.sh` 一支，它先跑 `institution_guard.py`，**有輸出就短路**，沒有才輪到 `dispatch_guard.py`。
+- **bash fallback 需要 jq**：偵測不到 `python3` 時退回 `institution_guard.sh`，它依賴 `jq`；缺 `jq` 會靜默放行（不報錯、不擋）。
+- **`TLOR_STDD_ALLOW_TEST_REWRITE=1` 是繞過，不是開關**：它單次解除 `stdd_test_guard` 的封鎖（plan-drift 復原用），不會啟用任何 hook。
 
 ### Session-snapshot 誠實提醒
 
-Claude Code 只在 session 啟動時讀取一次 `settings.json` 裡的 PreToolUse
-hook——在既有或 `--continue`/`--resume` 的 session 中新註冊 hook 不會讓它
-在那個 session 生效。任何新註冊的 hook 都請只在全新 session 中驗證。
+Claude Code 只在 session 啟動時讀取一次 `settings.json` 裡的 PreToolUse hook——在既有或 `--continue`/`--resume` 的 session 中新註冊 hook 不會讓它在那個 session 生效。任何新註冊的 hook 都請只在全新 session 中驗證。

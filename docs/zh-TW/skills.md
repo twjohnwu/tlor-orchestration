@@ -2,47 +2,32 @@
 
 [← 回 README](../../README.zh-TW.md)
 
-快速參考見 README 的 skill 路由表。本頁補充該表以外的細節，以及 STDD
-選配安裝的說明。
+快速參考見 README 的 skill 路由表。本頁補充該表以外的細節，以及 STDD 選配安裝的說明。
 
 ## 自動載入 skills——細節
 
-**rivendell-council** — 抗辯小組的召集流程：組裝自足審查包、並行派遣三鏡頭、
-以多數存活制判定、關鍵結論循環至收斂。
+**rivendell-council** — 抗辯小組的召集流程：組裝自足審查包、並行派遣三鏡頭、以多數存活制判定、關鍵結論循環至收斂。
 
-**tlor-init** — 一次性設定 skill：選安裝層級（使用者層/專案層/repo 層）、
-複製 agents 與 rules、產生 CLAUDE.md 路由與 AGENTS.md、選配啟用 hooks。
+**tlor-init** — 一次性設定 skill：選安裝層級（使用者層/專案層/repo 層）、複製 agents 與 rules、產生 CLAUDE.md 路由與 AGENTS.md、選配啟用 hooks。
 偵測既有安裝並提供帶備份的升級流程。也提供選配的 STDD 安裝步驟（見下）。
 
 **tlor-restore** — 從 `/tlor-init` 升級時建立的備份還原。
 
-**erebor-ledger** — 讀取既有的 Claude Code transcript，回報 tlor 角色派工
-相較於直接在 orchestrator 模型上跑同樣工作省下多少成本。僅回溯性報表，
-不是單次進行中派工的即時估算工具。
+**erebor-ledger** — 讀取既有的 Claude Code transcript，回報 tlor 角色派工相較於直接在 orchestrator 模型上跑同樣工作省下多少成本。僅回溯性報表，不是單次進行中派工的即時估算工具。
 
-**westron-plainspeech**——計畫工件的平語化檢核:plan 散文套 ISO 24495
-四原則,dispatch prompt 與 acceptance criteria 套 STE 式句長/術語檢核。
-清單本體在 `agent_doc/plan-writing.md`,skill 只是讀取它的薄觸發殼;由
-dispatch.md 的 plan-mode requirements 在寫最終 plan 檔前指名。
+**westron-plainspeech**——計畫工件的平語化檢核:plan 散文套 ISO 24495 四原則,dispatch prompt 與 acceptance criteria 套 STE 式句長/術語檢核。
+清單本體在 `agent_doc/plan-writing.md`,skill 只是讀取它的薄觸發殼;由 dispatch.md 的 plan-mode requirements 在寫最終 plan 檔前指名。
 
 ### `disable-model-invocation: true` 這個旗標實際的效果
 
-`tlor-init` 與 `tlor-restore` 的 frontmatter 都設了
-`disable-model-invocation: true`。設了這個旗標的 skill，模型完全看不到，所以在
-CLAUDE.md、AGENTS.md 或任何 rules 檔裡寫指示都無法啟用它：讀那些指示的模型，
-手上根本沒有這個 skill 可以呼叫。只有兩條路徑能啟動它，一是使用者自己打
-`/skill-name`，二是該 plugin 自己的 SessionStart hook。所以排流程時要算進去：
-用到這兩個 skill 的設定步驟只能由使用者親自跑，agent 代不了。
+`tlor-init` 與 `tlor-restore` 的 frontmatter 都設了 `disable-model-invocation: true`。設了這個旗標的 skill，模型完全看不到，所以在 CLAUDE.md、AGENTS.md 或任何 rules 檔裡寫指示都無法啟用它：讀那些指示的模型，手上根本沒有這個 skill 可以呼叫。只有兩條路徑能啟動它，一是使用者自己打 `/skill-name`，二是該 plugin 自己的 SessionStart hook。所以排流程時要算進去：用到這兩個 skill 的設定步驟只能由使用者親自跑，agent 代不了。
 
 ## 選配：STDD 工作流程 skills
 
 透過 `install.sh --stdd-role=ALL` 或 `/tlor-init` 的 STDD 步驟安裝。
 
-非自動載入——這九個 skill 裡七個實作 Spec-driven Test-Driven Development
-流程（另外兩個負責決策記錄的歸檔與查詢），
-只有明確要求時才會安裝到 `~/.claude/skills/`。本輪僅實作 `ALL` 這個
-profile；`RD`/`PM`/`UIUX` 角色限定子集 deferred（`install.sh
---stdd-role=RD|PM|UIUX` 只會印出 deferred 訊息、不安裝任何東西）。
+非自動載入——這九個 skill 裡七個實作 Spec-driven Test-Driven Development 流程（另外兩個負責決策記錄的歸檔與查詢），
+只有明確要求時才會安裝到 `~/.claude/skills/`。本輪僅實作 `ALL` 這個 profile；`RD`/`PM`/`UIUX` 角色限定子集 deferred（`install.sh--stdd-role=RD|PM|UIUX` 只會印出 deferred 訊息、不安裝任何東西）。
 
 | Skill | 中土稱號 | 用途 | 何時呼叫 |
 |---|---|---|---|
@@ -56,27 +41,17 @@ profile；`RD`/`PM`/`UIUX` 角色限定子集 deferred（`install.sh
 | `/westmarch-scribe` | Westmarch 記事錄 | westmarch-scribe — 決策歸檔：將已填 Outcome 的精簡 MADR 決策寫入專案 decision log（或 instruction 檔、通用決策紀錄） | 由 stdd-explore/stdd-uiux/stdd-spec/stdd-plan 的建議性收尾步驟呼叫，使用者也可直接呼叫，或對話中出現決策關鍵詞時主動觸發 |
 | `/minas-tirith-archivist` | Minas Tirith 檔案守護者 | minas-tirith-archivist — 決策查詢：`/westmarch-scribe` 的唯讀對應版，搜尋已歸檔的決策紀錄（通用與專案層級）並附引用回答，絕不寫入或編輯 | 詢問過去的決策或某個慣例的緣由，或使用者直接呼叫 |
 
-`/westmarch-scribe` 與 `/minas-tirith-archivist` 都會先檢查 tlor rules 層是否
-已安裝（`dispatch.md`／`judgment.md` 是否存在）——若未安裝，兩者都會直接
-**停止**並回報「tlor rules not installed — run `/tlor-init` first」，而不會
+`/westmarch-scribe` 與 `/minas-tirith-archivist` 都會先檢查 tlor rules 層是否已安裝（`dispatch.md`／`judgment.md` 是否存在）——若未安裝，兩者都會直接**停止**並回報「tlor rules not installed — run `/tlor-init` first」，而不會
 猜測要寫入或搜尋的位置。
 
-流程順序：`stdd-explore → stdd-uiux（條件式）→ stdd-spec → stdd-plan →
-stdd-execute`，`stdd` 與 `stdd-lint` 則任何階段都可呼叫。
+流程順序：`stdd-explore → stdd-uiux（條件式）→ stdd-spec → stdd-plan →stdd-execute`，`stdd` 與 `stdd-lint` 則任何階段都可呼叫。
 
-**STDD test-file guard hook**（`hooks/stdd_test_guard.py`）——選配的
-PreToolUse hook，強制已建立 RED baseline 的測試檔在其任務標記完成前不可
-再被改寫。透過 `install.sh --install-hook` 安裝（與 `--stdd-role` 無關）。
-**session-snapshot 誠實提醒**：Claude Code 只在 session 啟動時讀取一次
-`settings.json` 裡的 PreToolUse hook——若在既有 session 或
-`--continue`/`--resume` 的 session 中執行 `--install-hook`，該 hook 不會在
-那個 session 生效；請只在全新 session 中驗證。
+**STDD test-file guard hook**（`hooks/stdd_test_guard.py`）——選配的 PreToolUse hook，強制已建立 RED baseline 的測試檔在其任務標記完成前不可再被改寫。透過 `install.sh --install-hook` 安裝（與 `--stdd-role` 無關）。
+**session-snapshot 誠實提醒**：Claude Code 只在 session 啟動時讀取一次 `settings.json` 裡的 PreToolUse hook——若在既有 session 或 `--continue`/`--resume` 的 session 中執行 `--install-hook`，該 hook 不會在那個 session 生效；請只在全新 session 中驗證。
 
 ## 觸發方式
 
-`/rivendell-council` 的自動叫用是由 description 驅動的——模型會拿 skill
-description 裡的觸發詞去比對當下情境。若要硬保證觸發，在你專案的
-`CLAUDE.md` 加一行：
+`/rivendell-council` 的自動叫用是由 description 驅動的——模型會拿 skill description 裡的觸發詞去比對當下情境。若要硬保證觸發，在你專案的 `CLAUDE.md` 加一行：
 
 ```
 High-risk verdicts (irreversible ops, contract/schema changes, money/precision, architecture decisions, root-cause claims, production-affecting conclusions) MUST pass /tlor:rivendell-council before adoption.

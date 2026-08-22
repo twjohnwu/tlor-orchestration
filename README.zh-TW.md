@@ -4,9 +4,7 @@
 [![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftwjohnwu%2Ftlor-orchestration%2Fmain%2F.claude-plugin%2Fplugin.json&query=%24.version&label=version&color=blue)](https://github.com/twjohnwu/tlor-orchestration/blob/main/.claude-plugin/plugin.json)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-中土世界主題的 Claude Code 編排框架：十四個 subagent 角色（其中十三個固定
-職責），加上派工規則、設定 skill，以及選配的 guard hook。要讓 AI coding
-session 可靠地把工作委派出去，需要的就是這些。
+中土世界主題的 Claude Code 編排框架：十四個 subagent 角色（其中十三個固定職責），加上派工規則、設定 skill，以及選配的 guard hook。要讓 AI coding session 可靠地把工作委派出去，需要的就是這些。
 
 English version: [README.md](README.md).
 
@@ -75,15 +73,9 @@ flowchart TD
 
 ## Code-enforced STDD 工作流程（選配）
 
-STDD execute 階段的核准 custody chain 與 verifier round cap 是用程式碼強制
-執行的，不是寫在 prose 裡。做這件事的是 Workflow script
-`workflows/stdd-execute.js`，以及它執行時轉呼的 custody／fingerprint 裁決
-程式 `scripts/stdd_custody_check.py`，細節見 [Skills](docs/zh-TW/skills.md)。
+STDD execute 階段的核准 custody chain 與 verifier round cap 是用程式碼強制執行的，不是寫在 prose 裡。做這件事的是 Workflow script `workflows/stdd-execute.js`，以及它執行時轉呼的 custody／fingerprint 裁決程式 `scripts/stdd_custody_check.py`，細節見 [Skills](docs/zh-TW/skills.md)。
 
-`install.sh` 與 `/tlor-init` 會把兩者複製到 `~/.claude/workflows/` 與
-`~/.claude/scripts/`（或對應的 project/repo 層路徑）。環境若只跑過
-`claude plugin add`、沒跑過 install.sh 或 tlor-init，`custodyCheck` 一樣找
-得到它們：plugin 自己的安裝目錄就在它的搜尋位置清單裡。
+`install.sh` 與 `/tlor-init` 會把兩者複製到 `~/.claude/workflows/` 與 `~/.claude/scripts/`（或對應的 project/repo 層路徑）。環境若只跑過 `claude plugin add`、沒跑過 install.sh 或 tlor-init，`custodyCheck` 一樣找得到它們：plugin 自己的安裝目錄就在它的搜尋位置清單裡。
 
 ## 文件
 
@@ -98,7 +90,5 @@ STDD execute 階段的核准 custody chain 與 verifier round cap 是用程式�
 
 ## 授權與致敬
 
-MIT © [twjohnwu](https://github.com/twjohnwu)。本專案為對托爾金傳說體系的
-粉絲致敬，與 Tolkien Estate 及 Middle-earth Enterprises 皆無關、未獲其背書；種族與角色名僅作主題性使用。
-瑞文戴爾會議（rivendell-council）的召集流程靈感來自 adversarial-review，
-[Miguok/fable-harness](https://github.com/Miguok/fable-harness)（MIT）。
+MIT © [twjohnwu](https://github.com/twjohnwu)。本專案為對托爾金傳說體系的粉絲致敬，與 Tolkien Estate 及 Middle-earth Enterprises 皆無關、未獲其背書；種族與角色名僅作主題性使用。
+瑞文戴爾會議（rivendell-council）的召集流程靈感來自 adversarial-review， [Miguok/fable-harness](https://github.com/Miguok/fable-harness)（MIT）。
