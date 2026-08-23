@@ -258,7 +258,7 @@ the mechanical check.
 When execution reveals that a design file (`design-be.md` / `design-fe.md`
 / `api.yml`) is wrong or incomplete for what the task actually needs:
 
-1. First read `STDD/spec.md`'s "Rejected options" section for this change, to
+1. First read the change's own `spec.md` "Rejected options" section, to
    avoid re-proposing an option already rejected during `stdd-explore`.
 2. **STOP** — do not continue writing implementation code before the
    design file is updated.
@@ -415,8 +415,8 @@ with selectable options.
   by default — without it, protection is detection-after-the-fact via
   `/stdd-lint`, not prevention. Say this plainly in any report, don't imply
   stronger guarantees than exist.
-- **Recovery discriminator is an agent-reported claim** (REQ-01, mirrored
-  from `STDD/spec.md`): the GREEN-recovery path's discriminator — whether
+- **Recovery discriminator is an agent-reported claim** (REQ-01): the
+  GREEN-recovery path's discriminator — whether
   re-running `task.verificationCommand` exits 0 — is itself an
   agent-reported claim; this runtime has no execution path of its own, only
   dispatched agents that report back. No recovery design can be stronger

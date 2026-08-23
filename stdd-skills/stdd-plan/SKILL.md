@@ -94,7 +94,7 @@ language (soft default `en`, any language code is acceptable). Write the
 resolved value into the `language:` frontmatter field of the design
 artifacts this skill produces (`design-be.md`, `design-fe.md`, `tasks.md`)
 for later artifacts in the same change to reuse (single source of truth:
-`STDD/spec.md`'s cross-cutting "Artifact language rule" — referenced here,
+`stdd-spec` SKILL.md Step 3's artifact-language rule — referenced here,
 not restated). Regardless of the chosen language, GIVEN/WHEN/THEN,
 `REQ-XX`/`S-XX`, commands, and filenames always stay in English.
 
@@ -140,8 +140,7 @@ Conditionally produce, each referencing the relevant `REQ-XX` from spec.md:
   `references/checklist.md` — not restated here). See `templates/design-be.md`
   for a worked example of both diagram types.
 - **`STDD/<name>/design-fe.md`** — follows the fused Sean Chou 4-section +
-  frontendatscale 9-section template referenced in `STDD/spec.md`'s
-  documentation-standards section; small changes may trim sections down.
+  frontendatscale 9-section template; small changes may trim sections down.
 - **`STDD/<name>/api.yml`** — the **only** machine-verifiable contract file
   (OpenAPI 3.1). API shape lives here and *only* here — `design-be.md`,
   `design-fe.md`, and any diagram may reference it but must never redefine
@@ -264,8 +263,8 @@ Before presenting the plan for approval:
     D5) → block and report which scenarios are uncovered.
 - If `/stdd-lint` is not installed, **STOP** and report "`/stdd-lint` is not
   installed, cannot complete the mechanical check" — do not silently skip
-  the coverage check (this is the single-source Lint-STOP rule in
-  `STDD/spec.md`; do not restate it elsewhere).
+  the coverage check (this is the single-source Lint-STOP rule, stated in
+  `stdd-lint` Check 8 — do not restate it elsewhere).
 - `[INFRA]` tasks and any content under the `prototype` directory are
   excluded from the coverage denominator.
 - **Requirements checklist close-out** (S-51): go through step 2's checklist
@@ -310,13 +309,11 @@ Once `design-be.md` / `design-fe.md` exist:
   (Step 3's S-52 flow is the exception: there, suggestions are presented
   even without that bar being met yet, because the user makes the call.)
 - This skill's `references/` directory ships a distilled 23-patterns
-  template (a name catalogue with a one-line "when to apply" note each; the
-  original source is tracked in `STDD/spec.md`'s reference table, not
-  reproduced here).
+  template (a name catalogue with a one-line "when to apply" note each).
 - **First run in a target project**: land that template into
   `wiki/coding_standard/`, following the classification and
-  `wiki/README.md` routing-table rules in `STDD/spec.md`'s wiki
-  knowledge-base section (canonical — do not restate the taxonomy here):
+  `wiki/README.md` routing-table rules in `stdd-spec` SKILL.md Step 1
+  (canonical — do not restate the taxonomy here):
   - if `wiki/README.md` does not exist, create it
   - register the new file into its routing table (relative path + one-line
     purpose); do not re-register an entry that's already listed
@@ -360,7 +357,7 @@ This skill directory ships:
 - This skill enforces the plan-stage gates it can check mechanically
   (fingerprint, coverage, placeholders) via `/stdd-lint`; it has no
   mechanical hook protection of its own — the approval-gate honesty
-  disclosure lives in `STDD/spec.md` REQ-09 and is not repeated here.
+  disclosure lives in `stdd-spec` SKILL.md Step 6 and is not repeated here.
 - If aspect detection, api.yml lint availability, or scenario
   manual/automatable classification is genuinely ambiguous, ask the user —
   do not guess a shape that later has to be unwound.

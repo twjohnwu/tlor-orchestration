@@ -2,8 +2,7 @@
 
 Bundled reference for `stdd-uiux` Step 7's mechanical self-review, distilled
 from [pbakaus/impeccable](https://github.com/pbakaus/impeccable)
-(Apache-2.0; full citation tracked in `STDD/spec.md`'s reference-source
-table, not repeated here). This is a floor, not a taste ceiling: passing
+(Apache-2.0). This is a floor, not a taste ceiling: passing
 every item means known common mistakes were avoided, not that the design
 "looks good."
 
