@@ -49,9 +49,8 @@ Given `spec.md` or `tasks.md` exists, scan both (whichever exist) for:
 
 ## Check 2 — Scenario ID continuity and uniqueness (S-27)
 
-Given a change's `spec.md` (a single file — note this is distinct from
-`STDD/specs/`, which is this framework's own spec directory, unrelated to any
-individual change's spec):
+Given a change's `spec.md` (a single file — note this is the change's own
+spec, distinct from the STDD framework's own specs):
 
 - Extract every `S-XX` ID.
 - Report any gap in numbering (a gap is reported, not judged — a change may

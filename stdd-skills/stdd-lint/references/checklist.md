@@ -1,6 +1,6 @@
 # Reference: the 15 mechanical checks, at a glance
 
-Tabulates the 15 checks `stdd-lint` runs, per `STDD/specs/stdd-lint.md`. See
+Tabulates the 15 checks `stdd-lint` runs. See
 `SKILL.md` for the full behavior of each check; this page is a
 quick-reference table only.
 
@@ -39,7 +39,7 @@ against this list; any match is reported as **FAIL** with the offending
 
 ## v2→v3 migration note (extends the fingerprint-comparison row above)
 
-Per `STDD/specs/stdd-integration.md` S-36 (referenced here, not restated):
+Per S-36 (this note is the single source — no separate spec file exists in this repo):
 before comparing fingerprints, distinguish two cases for
 `design_ux_fingerprint` in `spec.md`'s frontmatter —
 
