@@ -6,6 +6,24 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.9.3 (2026-08-23)
+
+- Lazy-load split: four always-loaded rule sections move to `agent_doc/` —
+  `rules/maintenance.md` becomes a stub keeping only the always-on guards
+  (full protocol → `agent_doc/maintenance.md`); `risk-tiers.md`'s
+  Out-of-bounds recovery → `agent_doc/oob-recovery.md`; `dispatch.md` §4's
+  resume paragraph → `agent_doc/resume-protocol.md` (default answer stays
+  "dispatch fresh"); `decomposition.md` §7's worked contrast →
+  `agent_doc/worked-contrast.md`. Always-injected rules drop 867 → 739
+  lines on the reference machine.
+- Evidence-rule drift guard: new single source
+  `agent_doc/fragments/evidence-rule.md`; `install.sh` gains
+  `check_evidence_rule_parity`, failing the install loudly when any
+  verbatim copy in `agents/*.md` drifts from the fragment. The two adapted
+  variants (mirror-of-galadriel, palantir-stone) are excluded by
+  first-line match; the file list is dynamic, so a future role is covered
+  with zero script change.
+
 ## v0.9.2 (2026-08-22)
 
 - New skill `westron-plainspeech` + `agent_doc/plan-writing.md` — plain-

@@ -150,6 +150,45 @@ stdd_profile_skills() {
 VERSION=$(grep -m1 '"version"' "$PLUGIN_JSON" | sed -E 's/.*"version": *"([^"]+)".*/\1/')
 
 ROLES=$(cd "$SRC" && ls ./*.md | sed 's|^\./||')
+
+# The evidence rule is deliberately duplicated verbatim in participating
+# role files so it stays visible in every role's instructions. Treat the
+# fragment as the source of truth and fail loudly if a copy drifts.
+check_evidence_rule_parity() {
+  local fragment="$AGENT_DOC_SRC/fragments/evidence-rule.md"
+  local expected f match line actual expected_tmp actual_tmp participants=0
+
+  if [ ! -f "$fragment" ]; then
+    echo "ERROR: evidence-rule fragment is missing: $fragment" >&2
+    exit 1
+  fi
+  expected=$(cat "$fragment")
+
+  for f in $ROLES; do
+    match=$(grep -n -m1 '^Evidence rule: any claim about a file' "$SRC/$f" || true)
+    [ -n "$match" ] || continue
+    participants=$((participants+1))
+    line=${match%%:*}
+    actual=$(sed -n "${line},$((line + 3))p" "$SRC/$f")
+    if [ "$actual" != "$expected" ]; then
+      echo "ERROR: evidence rule drift in $SRC/$f at line $line" >&2
+      expected_tmp=$(mktemp "${TMPDIR:-/tmp}/evidence-rule.expected.XXXXXX")
+      actual_tmp=$(mktemp "${TMPDIR:-/tmp}/evidence-rule.actual.XXXXXX")
+      printf '%s' "$expected" > "$expected_tmp"
+      printf '%s' "$actual" > "$actual_tmp"
+      echo "Diff (expected fragment, then actual role copy):" >&2
+      diff -u "$expected_tmp" "$actual_tmp" >&2 || true
+      rm -f "$expected_tmp" "$actual_tmp"
+      exit 1
+    fi
+  done
+
+  if [ "$participants" -eq 0 ]; then
+    echo "ERROR: no roles matched the evidence-rule prefix" >&2
+    exit 1
+  fi
+}
+
 SKILLS=$(cd "$SKILLS_SRC" && ls -d */ | sed 's|/$||')
 RULES=$(cd "$RULES_SRC" && ls ./*.md | sed 's|^\./||')
 HOOK_FILES="institution_guard.py institution_guard.sh pre_tool_use.sh verify_gate.py dispatch_guard.py"
@@ -549,6 +588,8 @@ if [ "$UNINSTALL" -eq 1 ]; then
   if [ "$DRY" -eq 1 ]; then echo "uninstall dry-run done (nothing removed)."; else echo "uninstall done."; fi
   exit 0
 fi
+
+check_evidence_rule_parity
 
 for n in agents rules hooks agent_doc; do
   ensure_institution_symlink "$n"

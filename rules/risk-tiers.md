@@ -2,6 +2,7 @@
 description: Classify a state-changing action into a risk tier before acting, and apply that tier's required protocol.
 managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
 audience: all
+version: 0.9.3
 ---
 
 # risk-tiers.md — Classify the action, then apply the tier's protocol
@@ -50,14 +51,11 @@ Two modifiers:
 - **T3 done right**: adding a new test file and running the test suite —
   no backup, no question; quote the test output as verification.
 
-## Out-of-bounds recovery (a subagent edited outside its dispatch scope)
+## Out-of-bounds recovery
 
-Back up the bad state FIRST (`cp X X.bak-YYYYMMDD`). Inside a version-
-controlled project, use `git diff` to identify and revert ONLY the
-out-of-scope hunks — never whole-file `git checkout`, which destroys
-in-scope uncommitted work. Outside version control, restore from the
-pre-edit backup the T2 protocol required; if none exists, treat as T1 data
-loss and tell the user before touching anything else.
+A subagent edited outside its dispatch scope → FIRST back up the bad state
+(`cp X X.bak-YYYYMMDD`), then read `~/.claude/agent_doc/oob-recovery.md`
+for the recovery procedure.
 
 ## Anti-patterns (these are how risk discipline actually fails)
 
