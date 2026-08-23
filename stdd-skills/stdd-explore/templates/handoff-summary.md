@@ -1,7 +1,7 @@
 # Example: stdd-explore handoff summary
 
 This is a worked example of the artifact `stdd-explore` hands off at the end
-of a session (per `STDD/specs/stdd-explore.md` S-45). It is NOT itself a gated
+of a session (per S-45). It is NOT itself a gated
 artifact — it is a conversational summary, optionally pasted into `spec.md`'s
 prose by `stdd-spec` when that file is created. The one exception that IS
 written directly to `spec.md` (when it already exists) is the "Rejected

@@ -8,7 +8,7 @@ description: 'Generate condition-based design artifacts (design-be.md / design-f
 Third phase of the STDD pipeline (`stdd-explore → stdd-uiux (conditional) →
 stdd-spec → stdd-plan → stdd-execute`). Turns an approved `spec.md` into
 condition-based design artifacts and a scenario-covered `tasks.md`. Canonical
-spec: `STDD/specs/stdd-plan.md` (REQ-03); the cross-cutting mechanical checks
+spec: REQ-03 (this SKILL.md is the single source — no separate spec file exists in this repo); the cross-cutting mechanical checks
 (frontmatter status fields, dual-fingerprint rule, Lint-STOP rule) are canonical
 in `stdd-lint`'s `references/checklist.md` — this skill references them, it does
 not restate them; the `wiki/` taxonomy is described at step 9 below. Worked
@@ -246,7 +246,7 @@ proceed to the mechanical checks or the approval gate until re-verified.
 Before presenting the plan for approval:
 
 - Re-read `spec.md`'s `status` frontmatter (same gate check as step 0).
-- Call `/stdd-lint` (see `STDD/specs/stdd-lint.md`) for these six mechanical
+- Call `/stdd-lint` (see its `references/checklist.md`) for these six mechanical
   cross-checks, delegated because they're checkable without judgment:
   1. design-be/fe REQ/S IDs ↔ spec.md
   2. api.yml operationId/path ↔ design-be.md
@@ -254,7 +254,7 @@ Before presenting the plan for approval:
   4. design-fe.md referenced endpoints ↔ api.yml
   5. design-be.md Mermaid DB-operation notes ↔ table schema
   6. tasks.md scenario ↔ spec coverage
-- Call `/stdd-lint` (see `STDD/specs/stdd-lint.md`) to compare `S-XX`
+- Call `/stdd-lint` (see its `references/checklist.md`) to compare `S-XX`
   coverage between `spec.md` and `tasks.md`, split by manual vs
   automatable:
   - Automatable scenarios must be 100% covered by TDD tasks in tasks.md.

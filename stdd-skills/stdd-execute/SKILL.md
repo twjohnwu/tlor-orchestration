@@ -7,7 +7,7 @@ description: 'STDD execute phase. Runs the per-task RED → GREEN → REFACTOR T
 
 Fourth phase of the STDD pipeline. Implements each `tasks.md` task with a
 strict RED → GREEN → REFACTOR loop and a task-boundary spec re-check.
-Canonical spec: `STDD/specs/stdd-execute.md` (REQ-04); cross-cutting
+Canonical spec: REQ-04 (this SKILL.md is the single source — no separate spec file exists in this repo); cross-cutting
 mechanisms (frontmatter status, dual-fingerprint rule, `[wip]`/`[x]`
 semantics, Lint-STOP, design-ux consistency check) are canonical in
 `stdd-skills/stdd-spec/SKILL.md` Step 6 — referenced here, not restated.
@@ -102,8 +102,7 @@ fingerprint + RED summary from step 2, with these instructions:
 ### Interrupt recovery (S-11)
 
 Any interruption during Dispatch A/B recovers via `[wip]` detection
-(consumed by this skill, not `/stdd` — see `STDD/specs/stdd-status.md`
-S-19):
+(consumed by this skill, not `/stdd` — per S-19):
 
 - **Recovering into or after GREEN**: re-run the task's verification
   command. Even on recovery, the task must still pass the full step-5
@@ -159,13 +158,13 @@ S-19):
   and remove the hook's registration from `settings.json` **before**
   removing the plugin, to avoid an orphaned hook breaking tool calls. When
   the hook is absent (or misses an attempt), `/stdd-lint`'s post-hoc
-  fingerprint comparison (`STDD/specs/stdd-lint.md` S-30) is the fallback
+  fingerprint comparison (`stdd-lint` Check 5, S-30) is the fallback
   detection — not a preventive one.
   - **Honest disclosure**: `status`/`approved_fingerprint`/
     `design_ux_fingerprint` frontmatter fields have **zero** mechanical
     protection under any circumstance — only user approval in conversation
     plus `stdd-lint`'s post-hoc comparison guard them (see
-    `STDD/specs/stdd-spec.md` S-05, `STDD/spec.md` REQ-09). Do not imply
+    S-05, REQ-09). Do not imply
     this skill closes that gap; it doesn't, by design.
   - This is not in tension with 4a's spec/design-ux body-hash comparison
     (check 4, below): that check catches a body edited **after** approval
