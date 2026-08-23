@@ -6,6 +6,17 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.10.0 (2026-08-23)
+
+- `stdd-spec`: two new conditional spec sections — `## State model` (Mermaid
+  `stateDiagram-v2`; every transition annotated with `S-XX` / `no-op` /
+  `forbidden`) and `## Decision tables` (every row's `Scenario` cell maps to
+  exactly one `S-XX`); worked examples added to `templates/spec.md`. Both
+  follow the C1/C2 pattern: conditional, own section, no `S-XX` ID.
+- `stdd-lint`: new Check 14 (S-59, state-diagram transition annotation) and
+  Check 15 (S-60, decision-table row coverage); check count 13 → 15.
+- `stdd-uiux` unchanged: User Flow section already existed.
+
 ## v0.9.3 (2026-08-23)
 
 - Lazy-load split: four always-loaded rule sections move to `agent_doc/` —

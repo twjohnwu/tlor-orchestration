@@ -1,6 +1,6 @@
 ---
 name: stdd-lint
-description: 'STDD mechanical checker. A pure rule-based (non-model-judgment) checker that runs the 13 checks catalogued in references/checklist.md (placeholder/coverage/fingerprint/cross-artifact checks) against a single STDD change. Triggers: "/stdd-lint", or any stdd-* skill''s boundary/coverage call.'
+description: 'STDD mechanical checker. A pure rule-based (non-model-judgment) checker that runs the 15 checks catalogued in references/checklist.md (placeholder/coverage/fingerprint/cross-artifact checks) against a single STDD change. Triggers: "/stdd-lint", or any stdd-* skill''s boundary/coverage call.'
 ---
 
 # stdd-lint — Eagle Vision 鷹之視野
@@ -21,7 +21,7 @@ other artifacts, it does not validate `api.yml` itself.
 Run every applicable check below against the target change's
 `STDD/<name>/` directory and return ONE combined report — do not stop at the
 first failing check. See `references/checklist.md` for a one-table summary
-of all 13 checks (trigger condition + FAIL condition, one row each).
+of all 15 checks (trigger condition + FAIL condition, one row each).
 
 ## Check 1 — Placeholder text scan (S-26)
 
@@ -234,6 +234,35 @@ Given `design-be.md` exists and contains a "Table schema" section:
   `file:line`.
 - SKIP if `design-be.md` has no "Table schema" section (nothing to
   cross-check the notes against), stating that reason.
+
+## Check 14 — State-diagram transition annotation (S-59)
+
+Given `spec.md` contains a `## State model` section:
+
+- Extract every transition line (a line containing `-->`) from the
+  section's Mermaid `stateDiagram-v2` block.
+- Each transition line must carry an annotation: an `S-XX` ID, `no-op`,
+  or `forbidden`. A transition line with none of the three → **FAIL
+  "unannotated transition"**, with `file:line`.
+- For every annotated `S-XX`, check the ID is defined in the same
+  `spec.md`. Unknown ID → **FAIL "state model references unknown
+  scenario `<ID>`"**, with `file:line`.
+- SKIP if `spec.md` has no `## State model` section (the change has no
+  stateful entity), stating that reason.
+
+## Check 15 — Decision-table row coverage (S-60)
+
+Given `spec.md` contains a `## Decision tables` section:
+
+- Extract every data row from each markdown table in the section
+  (skip header and separator rows).
+- Each row's `Scenario` cell must cite exactly one `S-XX` defined in
+  the same `spec.md`. An empty cell or an unknown ID → **FAIL
+  "decision-table row not covered by a scenario"**, with `file:line`.
+- A table in the section with no `Scenario` column at all → **FAIL
+  "decision table missing Scenario column"**.
+- SKIP if `spec.md` has no `## Decision tables` section, stating that
+  reason.
 
 ## Report format
 

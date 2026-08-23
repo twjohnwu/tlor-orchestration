@@ -112,6 +112,26 @@ Include:
   verification" entry into the coverage math. Omit this diagram when
   there's no boundary/external dependency involved. See `templates/spec.md`
   for a worked C1/C2 example.
+- **Conditional**: if the change involves a stateful entity (a status
+  field, an approval lifecycle, a state machine), add a State Diagram
+  using Mermaid's `stateDiagram-v2` syntax in its own `## State model`
+  section (banned constructs: single source of truth is `stdd-lint`'s
+  `references/checklist.md` — not restated here). Like the C1/C2
+  diagram, it is descriptive context, not a testable behavior — it never
+  gets an `S-XX` ID. Every transition line MUST carry an annotation:
+  the `S-XX` scenario that covers it, `no-op` (nothing to test), or
+  `forbidden` (the transition must never happen). Omit this section when
+  the change has no stateful entity. See `templates/spec.md` for a
+  worked example.
+- **Conditional**: if any REQ contains combinational logic (2+
+  conditions × 2+ outcomes — validation rules, permission matrices),
+  add a Decision Table as a markdown table in its own
+  `## Decision tables` section, with a `Scenario` column whose every row
+  cites exactly one `S-XX` defined in this spec. The table is a
+  scenario-coverage aid, not a substitute for GWT text — the GWT
+  scenarios remain the testable authority. Omit this section when no
+  REQ has combinational logic. See `templates/spec.md` for a worked
+  example.
 - If `stdd-explore` handed off a rejected-options list (or wrote it directly
   if `spec.md` already existed at that time), write it verbatim now into a
   `## Rejected options` section. This section is non-gated: it does NOT

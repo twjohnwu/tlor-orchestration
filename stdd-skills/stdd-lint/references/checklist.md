@@ -1,6 +1,6 @@
-# Reference: the 13 mechanical checks, at a glance
+# Reference: the 15 mechanical checks, at a glance
 
-Tabulates the 13 checks `stdd-lint` runs, per `STDD/specs/stdd-lint.md`. See
+Tabulates the 15 checks `stdd-lint` runs, per `STDD/specs/stdd-lint.md`. See
 `SKILL.md` for the full behavior of each check; this page is a
 quick-reference table only.
 
@@ -19,6 +19,8 @@ quick-reference table only.
 | `api.yml` field names ↔ `design-be.md` table schema | S-56 | `api.yml` exists AND `design-be.md` has a "Table schema" section | an `api.yml` field has no snake_case↔camelCase counterpart column in the table schema (and isn't noted as computed/derived) |
 | `design-fe.md` referenced endpoints ↔ `api.yml` | S-57 | `design-fe.md` exists | `design-fe.md` references an endpoint with no matching `path`+method in `api.yml` |
 | `design-be.md` Mermaid DB-operation notes ↔ table schema | S-58 | `design-be.md` exists and has a "Table schema" section | a Mermaid DB-operation note names a column/table not present in the table schema |
+| State-diagram transition annotation | S-59 | `spec.md` contains a `## State model` section | any transition line (a `-->` line in the section's Mermaid block) lacks an `S-XX` / `no-op` / `forbidden` annotation; OR an annotated `S-XX` is not defined in the same `spec.md` |
+| Decision-table row coverage | S-60 | `spec.md` contains a `## Decision tables` section | any data row's `Scenario` cell is empty or cites an `S-XX` not defined in the same `spec.md`; OR a table in the section has no `Scenario` column |
 
 ## Banned Mermaid constructs (single source of truth — R7-1)
 

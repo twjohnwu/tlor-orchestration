@@ -34,6 +34,34 @@ graph TD
   Queue --> Worker
 ```
 
+## State model
+
+<!-- Conditional section: present because a delivery has a lifecycle.
+     Every transition line carries an S-XX, no-op, or forbidden
+     annotation. This section never gets an S-XX ID. -->
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending : webhook registered (no-op)
+    Pending --> Delivering : worker picks up (S-01)
+    Delivering --> Delivered : 2xx response (S-01)
+    Delivering --> Queued : 5xx or timeout (S-02)
+    Queued --> Delivering : retry timer fires (S-02)
+    Delivered --> [*] : (no-op)
+    Queued --> Delivered : forbidden
+```
+
+## Decision tables
+
+<!-- Conditional section: present because retry handling is
+     combinational. Every row's Scenario cell cites exactly one S-XX. -->
+
+| # | Response class | Attempts left | Action | Scenario |
+|---|---|---|---|---|
+| 1 | 2xx | any | mark delivered | S-01 |
+| 2 | 5xx / timeout | > 0 | enqueue retry | S-02 |
+| 3 | 5xx / timeout | 0 | mark failed | S-02 |
+
 ## Capability: Retry failed outbound webhook deliveries
 
 ### REQ-01: Retry a failed webhook delivery with backoff
