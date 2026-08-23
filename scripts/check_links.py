@@ -4,6 +4,9 @@
 Stdlib only. Two independent checks:
   (a) rules/*.md — every bare `*.md` filename token mentioned in prose must
       exist somewhere under rules/ (base files and rules/customize/ alike).
+      References written with the installed-path prefix `~/.claude/` are
+      normalized (prefix stripped) before matching, so
+      `~/.claude/agent_doc/foo.md` and `agent_doc/foo.md` are equivalent.
   (b) README.md / README.zh-TW.md — every markdown relative link `](path)`
       (http(s) links and #anchors skipped) must resolve to a real file,
       relative to the repo root.
@@ -24,7 +27,9 @@ AGENT_DOC_DIR = REPO_ROOT / "agent_doc"
 # so path-qualified references can be resolved against that directory
 # instead of the bare rules/ basename set. Capped at two levels: agent_doc/
 # subdirs are exactly one level deep (install.sh's own constraint), so a
-# third segment is never a real path this repo produces.
+# third segment is never a real path this repo produces. The installed-path
+# prefix `~/.claude/` is stripped from each line before this regex runs, so
+# `~/.claude/agent_doc/...` references match the same way as `agent_doc/...`.
 MD_TOKEN_RE = re.compile(r"\b((?:[a-z0-9_-]+/){1,2})?([a-z0-9-]+\.md)\b")
 
 # Known generic placeholders used in illustrative prose, not real paths.
@@ -65,6 +70,7 @@ def check_rules_refs() -> list:
         text = path.read_text(encoding="utf-8")
         rel = path.relative_to(REPO_ROOT)
         for lineno, line in enumerate(text.splitlines(), start=1):
+            line = line.replace("~/.claude/", "")
             for match in MD_TOKEN_RE.finditer(line):
                 qualifier_raw, token = match.group(1), match.group(2)
                 if "<" in line[max(0, match.start() - 1):match.start()]:
