@@ -27,9 +27,7 @@ group gets its own report and its own totals.
 reports (e.g. a sonnet-orchestrated session)** — not merged into either
 group, not averaged, not shown as a third group (that would need its own
 pricing/role-breakdown work this tool does not do). **This exclusion is
-disclosed every run**, never silent (fixed 2026-07-27 — before this fix the
-exclusion existed only in the script's own docstring, invisible in the
-rendered report, SKILL.md, and the spec): the standing disclosure block at
+disclosed every run**, never silent: the standing disclosure block at
 the top of every report states the excluded session count, the excluded
 orchestrator models and their per-model session counts, and the excluded
 token total (orchestrator-side plus dispatched-side), or states plainly that
@@ -176,12 +174,10 @@ python3 skills/erebor-ledger/scripts/erebor_ledger.py [--project SUBSTR] \
   SHARE) below.
 - `--config PATH`: advanced/testing only — override the config file path
   (default: `~/.claude/erebor-ledger.json`).
-- `--detail-others`: **DEPRECATED, now a no-op.** Non-tlor-role `agentType`s
-  (built-in Explore, `general-purpose`, plugin agents, ...) are always
-  broken out into one row per distinct `agentType`/model/effort combo by
-  default (see the mandatory format below) — this used to require the
-  flag. The flag is still accepted so existing invocations don't break, but
-  it changes nothing; it may be removed in a future major version. Rows are
+- `--detail-others`: accepted for compatibility, no effect. Non-tlor-role
+  `agentType`s (built-in Explore, `general-purpose`, plugin agents, ...)
+  are always broken out into one row per distinct `agentType`/model/effort
+  combo (see the mandatory format below). Rows are
   sorted by descending quota headroom preserved (unpriced rows last,
   alphabetical among themselves); Total quota headroom preserved reflects
   the sum of whatever rows are actually priced either way.
@@ -304,10 +300,9 @@ same underlying token/cost data — nothing here recomputes pricing.
    not mean dispatching wasted tokens. It measures how much work was moved
    OUT of the orchestrator's own (quota-relevant) context versus kept inside
    it — the context-dilution the framework's delegation rationale rests on
-   avoiding. (Renamed 2026-07-27 from "Relative multiple": the old framing —
-   "the same work run inline would have consumed N× the tokens" — implied a
-   savings claim that a sub-1.0 value makes nonsensical; never reintroduce
-   that framing.)
+   avoiding. (Never describe this figure as a savings multiple — "the same
+   work run inline would have consumed N× the tokens" implies a claim that
+   a sub-1.0 value makes nonsensical.)
 2. **API-EQUIVALENT COST** — the existing per-role table (`Actual cost` /
    `Counterfactual cost` renamed to `API-equiv cost (actual model)` /
    `API-equiv cost (if run inline)` / `quota headroom preserved` /

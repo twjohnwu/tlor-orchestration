@@ -6,6 +6,12 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.10.1 (2026-09-04)
+
+- `erebor-ledger`: SKILL.md prose cleanup — three history-narrative
+  phrasings removed (prompt-audit findings); the rules they carried are
+  restated in current-form wording. Zero behavior change.
+
 ## v0.10.0 (2026-08-23)
 
 - `stdd-spec`: two new conditional spec sections — `## State model` (Mermaid
