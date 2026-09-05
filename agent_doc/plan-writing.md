@@ -33,6 +33,9 @@ none of them cover: planning artifacts.
 - Same term for the same thing across the whole batch (ubiquitous
   language): if the plan says "routing table", no prompt says "dispatch
   matrix".
+- No unverifiable manner adverbs in acceptance criteria ("correctly",
+  "properly", "appropriately", "cleanly") — replace with the concrete check
+  the adverb was hiding. Full adverb discipline: ~/.claude/agent_doc/adverbs.md.
 
 ## 3. Plan-specific checks (in neither upstream standard)
 

@@ -8,11 +8,14 @@ core below holds the language-neutral rules that apply to every task.
 
 | Condition (judge from the dispatch prompt + the draft's body text) | Also Read |
 |---|---|
+| ALWAYS, both modes (writing and de-AI editing) | `agent_doc/adverbs.md` |
 | Output/target language is zh-TW (mixed text: judge by the body's main language) | `agent_doc/zh_tw/patterns.md` + `agent_doc/zh_tw/style.md` + `agent_doc/zh_tw/localization.md` |
 | Output/target language is English | `agent_doc/en_us/patterns.md` + `agent_doc/en_us/style.md` |
 | Task is SEO / search-oriented content | `agent_doc/seo-writing.md` |
 | Task asks to develop or apply a specific brand/author tone | `agent_doc/tone-development.md` |
 | Task is a user guide / operating manual / step-by-step doc | `agent_doc/user-guide-ste.md` |
+| Target text is fiction or narrative prose | `agent_doc/fiction-narrative.md` |
+| Target matches one of: release notes, PR/issue replies, postmortems, tickets, technical articles | `agent_doc/prose-domains.md` |
 | Writing a NEW piece (always), or editing when a target platform/genre is named | `agent_doc/scene-calibration.md` |
 
 Reading order by mode: EDITING (de-AI an existing text) → patterns first,

@@ -18,6 +18,8 @@ release first — new sections go at the top.
   `takeOverTaskSpace` for ego, browser-left-open for Playwright);
   `resume-protocol.md` and `delegation-templates.md` §4 wording updated to
   cover both session types.
+- bilbo-scribe catalog +3 docs distilled from sepia (github.com/Nanako0129/sepia v0.8.0, MIT): agent_doc/adverbs.md (Hemingway-style adverb discipline, bilingual), agent_doc/fiction-narrative.md (fiction 3-pass), agent_doc/prose-domains.md (five professional venues); routed in agent_doc/bilbo-scribe.md.
+- westron-plainspeech: plan-writing.md §2 bans unverifiable manner adverbs in acceptance criteria.
 
 ## v0.10.1 (2026-09-04)
 
