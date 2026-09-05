@@ -15,7 +15,9 @@ core below holds the language-neutral rules that apply to every task.
 | Task asks to develop or apply a specific brand/author tone | `agent_doc/tone-development.md` |
 | Task is a user guide / operating manual / step-by-step doc | `agent_doc/user-guide-ste.md` |
 | Target text is fiction or narrative prose | `agent_doc/fiction-narrative.md` |
+| Reviewing/diagnosing fiction or narrative prose (30-feature diagnosis; pairs with fiction-narrative.md, which repairs) | `agent_doc/fiction-rubric.md` |
 | Target matches one of: release notes, PR/issue replies, postmortems, tickets, technical articles | `agent_doc/prose-domains.md` |
+| De-AI editing of non-fiction prose — the shared 10-check pass, run alongside prose-domains.md's venue rules | `agent_doc/professional-pass.md` |
 | Writing a NEW piece (always), or editing when a target platform/genre is named | `agent_doc/scene-calibration.md` |
 
 Reading order by mode: EDITING (de-AI an existing text) → patterns first,

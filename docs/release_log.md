@@ -20,6 +20,7 @@ release first — new sections go at the top.
   cover both session types.
 - bilbo-scribe catalog +3 docs distilled from sepia (github.com/Nanako0129/sepia v0.8.0, MIT): agent_doc/adverbs.md (Hemingway-style adverb discipline, bilingual), agent_doc/fiction-narrative.md (fiction 3-pass), agent_doc/prose-domains.md (five professional venues); routed in agent_doc/bilbo-scribe.md.
 - westron-plainspeech: plan-writing.md §2 bans unverifiable manner adverbs in acceptance criteria.
+- sepia batch 2: zh_tw/patterns.md +5 entries (#39-43) + evidence section merged from sepia zh.md (Simplified-corpus caveats kept); localization.md §六 語氣詞 restoration framing; new agent_doc/professional-pass.md (shared 10-check non-fiction pass) and agent_doc/fiction-rubric.md (fiction diagnosis rubric, voice-fit machinery excluded), both routed in bilbo-scribe.
 
 ## v0.10.1 (2026-09-04)
 
