@@ -3,9 +3,12 @@
 Two cases. (1) A write-capable
 producer blocked solely by plan mode, resumed after the user approves the
 plan. (2) A read-only researcher blocked by an external human-pass gate
-(CAPTCHA / anti-bot verifier) that reported the block and left the browser
-open per agent_doc/noldor-browser.md, resumed after the user clears the
-gate — same question, same scope, browser session untouched in between.
+(CAPTCHA / anti-bot verifier) that reported the block per
+agent_doc/noldor-browser.md and either left a Playwright browser open with
+the challenge page visible, or handed off an ego-browser task space via
+`handOffTaskSpace` — resumed after the user clears the gate (reclaiming an
+ego task space with `takeOverTaskSpace`), same question, same scope,
+browser session/task space untouched in between.
 Never an external-system role (`palantir-stone`: a resumed context reuses
 its pre-approval mutation enumeration — always a new dispatch with fresh
 user confirmation), and §5 verification work always dispatches fresh. The

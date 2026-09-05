@@ -6,6 +6,19 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.11.0 (2026-09-05)
+
+- `noldor-loremaster`: browses with ego-browser first (Bash granted,
+  restricted to `ego-browser nodejs` heredocs and the `command -v
+  ego-browser` check); the read-only Playwright subset stays as fallback
+  when ego-browser is unavailable.
+- `agent_doc/noldor-browser.md` rewritten dual-path: login-state rule,
+  ego task-space lifecycle (`useOrCreateTaskSpace` / `completeTaskSpace`),
+  and a dual-path CAPTCHA/anti-bot handoff (`handOffTaskSpace` /
+  `takeOverTaskSpace` for ego, browser-left-open for Playwright);
+  `resume-protocol.md` and `delegation-templates.md` §4 wording updated to
+  cover both session types.
+
 ## v0.10.1 (2026-09-04)
 
 - `erebor-ledger`: SKILL.md prose cleanup — three history-narrative

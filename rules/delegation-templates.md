@@ -90,9 +90,10 @@ Acceptance: direct answer first, then evidence with source links/versions;
 distinguish "documented fact" from "inference"; note version applicability
 ({{our stack/version}}); if sources conflict, show both and say which is
 newer/authoritative.
-{{Optional, browser tasks only: "Keep the browser open after your work —
-another browser dispatch follows in this batch." Omit it and the agent
-closes the browser itself when done (role default).}}
+{{Optional, browser tasks only: "Keep the browser session (Playwright
+browser or ego task space) open after your work — another browser dispatch
+follows in this batch." Omit it and the agent closes the session itself
+when done (role default).}}
 Write findings >30 lines to {{<scratchpad>/path}} and return the path.
 ```
 
