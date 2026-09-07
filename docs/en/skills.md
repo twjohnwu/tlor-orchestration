@@ -43,6 +43,18 @@ Only two routes activate one: the user typing `/skill-name`, or the owning
 plugin's own SessionStart hook. So a setup step that depends on one of these
 skills is a step the user runs, never one an agent can do on their behalf.
 
+### Triggering
+
+Auto-invocation of `/rivendell-council` is description-driven — the model
+matches the skill description's trigger words against the situation. For a
+hard guarantee, add one line to your project's `CLAUDE.md`:
+
+```
+High-risk verdicts (irreversible ops, contract/schema changes, money/precision, architecture decisions, root-cause claims, production-affecting conclusions) MUST pass /tlor:rivendell-council before adoption.
+```
+
+`eagle-sentinel`'s HIGH-RISK recommendation is the convening signal.
+
 ## Opt-in: STDD workflow skills
 
 Installed via `install.sh --stdd-role=ALL` or `/tlor-init`'s STDD step.
@@ -116,15 +128,3 @@ snapshot caveat**: Claude Code reads PreToolUse hooks from `settings.json`
 once, at session start. Running `--install-hook` inside an existing session,
 or a `--continue`/`--resume`d one, does NOT activate the hook there. Verify
 it in a brand-new session only.
-
-## Triggering
-
-Auto-invocation of `/rivendell-council` is description-driven — the model
-matches the skill description's trigger words against the situation. For a
-hard guarantee, add one line to your project's `CLAUDE.md`:
-
-```
-High-risk verdicts (irreversible ops, contract/schema changes, money/precision, architecture decisions, root-cause claims, production-affecting conclusions) MUST pass /tlor:rivendell-council before adoption.
-```
-
-`eagle-sentinel`'s HIGH-RISK recommendation is the convening signal.

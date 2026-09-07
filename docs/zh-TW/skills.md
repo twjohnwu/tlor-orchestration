@@ -22,6 +22,16 @@
 
 `tlor-init` 與 `tlor-restore` 的 frontmatter 都設了 `disable-model-invocation: true`。設了這個旗標的 skill，模型完全看不到，所以在 CLAUDE.md、AGENTS.md 或任何 rules 檔裡寫指示都無法啟用它：讀那些指示的模型，手上根本沒有這個 skill 可以呼叫。只有兩條路徑能啟動它，一是使用者自己打 `/skill-name`，二是該 plugin 自己的 SessionStart hook。所以排流程時要算進去：用到這兩個 skill 的設定步驟只能由使用者親自跑，agent 代不了。
 
+### 觸發方式
+
+`/rivendell-council` 的自動叫用是由 description 驅動的——模型會拿 skill description 裡的觸發詞去比對當下情境。若要硬保證觸發，在你專案的 `CLAUDE.md` 加一行：
+
+```
+High-risk verdicts (irreversible ops, contract/schema changes, money/precision, architecture decisions, root-cause claims, production-affecting conclusions) MUST pass /tlor:rivendell-council before adoption.
+```
+
+`eagle-sentinel` 給出 HIGH-RISK 建議就是該召集的訊號。
+
 ## 選配：STDD 工作流程 skills
 
 透過 `install.sh --stdd-role=ALL` 或 `/tlor-init` 的 STDD 步驟安裝。
@@ -58,13 +68,3 @@
 
 **STDD test-file guard hook**（`hooks/stdd_test_guard.py`）——選配的 PreToolUse hook。測試檔一旦建立 RED baseline，在它的任務標記完成之前，這個 hook 會擋掉對它的改寫。用 `install.sh --install-hook` 安裝，與 `--stdd-role` 無關。
 **session-snapshot 誠實提醒**：Claude Code 只在 session 啟動時讀一次 `settings.json` 裡的 PreToolUse hook。在既有 session、或 `--continue`／`--resume` 起來的 session 中執行 `--install-hook`，該 hook 在那個 session 不會生效。請只在全新 session 中驗證。
-
-## 觸發方式
-
-`/rivendell-council` 的自動叫用是由 description 驅動的——模型會拿 skill description 裡的觸發詞去比對當下情境。若要硬保證觸發，在你專案的 `CLAUDE.md` 加一行：
-
-```
-High-risk verdicts (irreversible ops, contract/schema changes, money/precision, architecture decisions, root-cause claims, production-affecting conclusions) MUST pass /tlor:rivendell-council before adoption.
-```
-
-`eagle-sentinel` 給出 HIGH-RISK 建議就是該召集的訊號。

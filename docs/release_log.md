@@ -10,6 +10,7 @@ release first — new sections go at the top.
 
 - Plain-language rewrite of README.md / README.zh-TW.md: upgraded positioning sentence (spec-driven + BDD-style example/scenario discovery + TDD execution with independent verification), function-first prose, stale role-pinning claim fixed (13 of 14 pin tools); neutral table, mermaid diagrams, and badges unchanged.
 - docs/en/skills.md and docs/zh-TW/skills.md: new "BDD layer (v0.12.0)" subsection in the STDD section (Example Map, Domain Language, observable-THEN rubric, Check 16 phase rule, stdd_verify semantics) plus a plain-language pass on the section. Docs-only, not installed.
+- docs/{en,zh-TW}/skills.md: the Triggering section moved under "Autoloaded skills — detail" as a subsection (structure only, wording unchanged).
 
 ## v0.12.0 (2026-09-07)
 
