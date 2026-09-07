@@ -45,7 +45,10 @@ Dispatch a builder (role `gondor-builder` if tlor-orchestration/pinned roles are
 installed, otherwise a generic subagent with `model: sonnet` stated
 explicitly) with these exact instructions:
 
-1. Read the task's `S-XX` scenario GIVEN/WHEN/THEN from `spec.md`.
+1. Read the task's `S-XX` scenario GIVEN/WHEN/THEN from `spec.md`. Judge THEN
+   clauses as externally observable behavior (state, output, timing) — a
+   THEN that merely names an internal call locks implementation, not
+   behavior; flag it.
 2. Write a test function named `test_sXX_<scenario_snake>`.
 3. Reference `REQ-XX / S-XX` in the test's docstring.
 4. Run the task's verification command and confirm the test **fails for
@@ -142,7 +145,10 @@ Any interruption during Dispatch A/B recovers via `[wip]` detection
   - Actually re-runs the verification command and confirms GREEN.
   - Passes the task's spec GIVEN/WHEN/THEN into its own acceptance
     criteria (carried in the dispatch prompt for every dispatch, per
-    template convention — not restated here).
+    template convention — not restated here). Judge THEN clauses as
+    externally observable behavior (state, output, timing) — a THEN that
+    merely names an internal call locks implementation, not behavior; flag
+    it.
 - **Builder vs. verifier disagreement**: if they fail to converge after
   **2 rounds**, escalate to the user for a decision — do not grind past
   that cap.
@@ -247,6 +253,10 @@ Once a task's RED → GREEN → REFACTOR is done:
    the manual verification checklist. The completion report must explicitly
    say "0 TDD tasks" — the K/T-not-applicable case is not an excuse to skip
    this gate.
+8. Once every task is `[x]`, `scripts/stdd_verify.py --change <dir>`
+   re-runs every scenario's `Verification command` and prints an S-XX
+   PASS/FAIL/MISSING coverage table — the spec's scenario list as living
+   documentation, runnable on demand rather than trusted from memory.
 
 If `/stdd-lint` is not installed at any of these checkpoints, **STOP** and
 report "`/stdd-lint` not installed - mechanical check incomplete" (single-source Lint-STOP

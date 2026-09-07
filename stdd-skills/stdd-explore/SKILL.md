@@ -117,6 +117,43 @@ gate. See `templates/handoff-summary.md` for a complete worked example of the
 handoff artifact, including a mindmap appendix and the "Rejected options"
 section format used in Step 6 below.
 
+## Step 5.5 — Example Map (conditional)
+
+WHEN the change involves business rules, state, or combinational logic (more
+than one condition interacting), produce an Example Map before handoff. Pure
+infra changes (dependency bumps, CI config, refactors with no behavior
+change) SKIP this step entirely — do not run it as ritual paperwork when
+there is no rule or state to map.
+
+Build four layers:
+
+- **Story** — the one-sentence feature/behavior this map covers.
+- **Rules** — each distinct business rule governing the behavior, one line
+  each.
+- **Examples** — at least one concrete example per rule, showing the rule in
+  action with real-looking inputs/outputs.
+- **Open Questions** — anything the map surfaces that isn't yet answered;
+  feed these into Step 4's batched, confirm-then-ask questioning rather than
+  guessing.
+
+Worked example:
+
+```
+Story: A discount code reduces order total at checkout.
+Rules:
+  - Expired codes are rejected.
+  - Codes below the order minimum are rejected.
+Examples:
+  - code=SAVE10, order=$50, not expired → total=$45
+  - code=SAVE10, order=$5, minimum=$20 → rejected, error shown
+Open Questions:
+  - Do stacked codes exist, or exactly one code per order?
+```
+
+The map travels in the handoff summary to `stdd-spec` — it is not a new
+file. Step 6's no-files rule below is unaffected: this step does not create
+or write anything on disk.
+
 ## Step 6 — No files except the rejected-options exception
 
 You SHALL NOT write any code or create any files unless the user explicitly
@@ -174,6 +211,16 @@ explore's phases actually ran):
       summary for stdd-spec to write verbatim.
 - [ ] **Next phase named**: Step 7 recommended stdd-uiux (UI surface) or
       stdd-spec (backend/CLI only).
+- [ ] **Business value**: what problem this behavior solves is stated in one
+      sentence.
+- [ ] **Implementation boundary**: the inputs/state/dependencies that affect
+      this behavior are named.
+- [ ] **Verification risk**: the example (from Step 5.5's Example Map, when
+      it ran) most likely to be implemented wrong is called out.
+
+If real PM/QA/domain-expert input fed any of the three items above, record
+the source; otherwise label the answers honestly as AI-assisted perspective
+review, not confirmed domain input.
 
 ## Notes for a fresh session
 

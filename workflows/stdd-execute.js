@@ -1353,8 +1353,8 @@ const redStage = stage(
       log(`task ${task.id}: gwt looks malformed/invalid — falling back to the read-it-yourself RED instruction`);
     }
     const scenarioStep = gwtBlock
-      ? `2. ${gwtBlock}`
-      : `2. Read scenario ${task.id}'s GIVEN/WHEN/THEN from ${dir}/spec.md.`;
+      ? `2. ${gwtBlock}\nJudge THEN clauses as externally observable behavior (state, output, timing) — a THEN that merely names an internal call locks implementation, not behavior; flag it.`
+      : `2. Read scenario ${task.id}'s GIVEN/WHEN/THEN from ${dir}/spec.md. Judge THEN clauses as externally observable behavior (state, output, timing) — a THEN that merely names an internal call locks implementation, not behavior; flag it.`;
     // With a valid gwt inlined, the `#### <id>:` heading inside it already
     // carries the task's own scenario title — repeating task.title in this
     // top line would be redundant, and would risk a title that happens to
@@ -1421,7 +1421,7 @@ const greenStage = stage(
         `STDD GREEN + REFACTOR dispatch for task ${taskLabel(task)} in ${dirOf(task)}.`,
         '',
         `RED output that must stay explained: ${prev.redOutput}`,
-        ...(gwtBlock ? ['', gwtBlock] : []),
+        ...(gwtBlock ? ['', gwtBlock, 'Judge THEN clauses as externally observable behavior (state, output, timing) — a THEN that merely names an internal call locks implementation, not behavior; flag it.'] : []),
         '',
         'GREEN:',
         `1. Write the minimum code that makes \`${task.verificationCommand}\` pass.`,
@@ -1479,8 +1479,8 @@ async function verifyOnce(task, index, round) {
   }
   const gwtBlock = gwtInlineBlock(task, dirOf(task));
   const scenarioStep = gwtBlock
-    ? `3. ${gwtBlock}\nIf in doubt, re-check against the file — the file wins.`
-    : `3. Check scenario ${task.id}'s GIVEN/WHEN/THEN in ${dirOf(task)}/spec.md is actually what the test asserts.`;
+    ? `3. ${gwtBlock}\nIf in doubt, re-check against the file — the file wins. Judge THEN clauses as externally observable behavior (state, output, timing) — a THEN that merely names an internal call locks implementation, not behavior; flag it.`
+    : `3. Check scenario ${task.id}'s GIVEN/WHEN/THEN in ${dirOf(task)}/spec.md is actually what the test asserts. Judge THEN clauses as externally observable behavior (state, output, timing) — a THEN that merely names an internal call locks implementation, not behavior; flag it.`;
   return await agent(
     [
       `Independent verification of STDD task ${taskLabel(task)} in ${dirOf(task)}. Round ${round}.`,

@@ -33,6 +33,22 @@ Prefer `SHALL`/`SHALL NOT` for anything a `Verification command` will check
 mechanically — `SHOULD` reads as advisory and doesn't belong in a scenario
 whose pass/fail a test asserts.
 
+## THEN must be observable, not an implementation checklist
+
+`THEN` describes externally observable behavior — a status, a field, a
+response, a state — never an internal implementation detail such as which
+method gets called. Locking a specific method call into `THEN` freezes the
+implementation and makes the spec brittle to refactors that preserve
+behavior; describing observable state instead defines the behavior the
+implementation must produce, leaving *how* open.
+
+- **Worse**: `THEN RetryManager SHALL call retryService.schedule()`
+- **Better**: `THEN the delivery SHALL remain pending`
+  `AND its next attempt SHALL be scheduled 60 seconds later`
+
+This distinction is a judgment call, not a mechanical one — it is enforced
+by the approval panel / verifier rubric, not by regex lint.
+
 ## Common mistakes
 
 - **Vague THEN**: "the system SHALL handle errors gracefully" — not

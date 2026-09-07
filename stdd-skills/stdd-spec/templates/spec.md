@@ -62,6 +62,18 @@ stateDiagram-v2
 | 2 | 5xx / timeout | > 0 | enqueue retry | S-02 |
 | 3 | 5xx / timeout | 0 | mark failed | S-02 |
 
+## Domain Language
+
+<!-- Conditional section: present because delivery-state terms drift across
+     product, code, tests and docs. Pins down the exact meaning of each
+     contested term and the synonyms that must not be used in its place. -->
+
+| Term | Exact meaning | Do not use |
+|---|---|---|
+| `HOLD` | Delivery paused pending manual operator action; no automatic retry | `failed`, `pending` |
+| `failed` | Retries exhausted; delivery will never be attempted again | `rejected`, `warning` |
+| `pending` | Delivery queued and awaiting its next scheduled attempt | `success`, `HOLD` |
+
 ## Capability: Retry failed outbound webhook deliveries
 
 ### REQ-01: Retry a failed webhook delivery with backoff

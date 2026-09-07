@@ -132,6 +132,15 @@ Include:
   scenarios remain the testable authority. Omit this section when no
   REQ has combinational logic. See `templates/spec.md` for a worked
   example.
+- **Conditional**: if the change introduces a new domain term or an
+  existing term's meaning conflicts across artifacts (product, code, tests,
+  docs — e.g. `HOLD` vs `failed` vs `rejected` being used for the same or
+  different states), add a `## Domain Language` section with a table of
+  columns `Term | Exact meaning | Do not use`, pinning down the exact
+  meaning of each contested term and the synonyms that must not be used in
+  its place. Omit this section for a purely infra change or a spec that
+  reuses only already-established terms. See `templates/spec.md` for a
+  worked example.
 - If `stdd-explore` handed off a rejected-options list (or wrote it directly
   if `spec.md` already existed at that time), write it verbatim now into a
   `## Rejected options` section. This section is non-gated: it does NOT

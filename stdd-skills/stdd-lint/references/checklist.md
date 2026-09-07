@@ -1,6 +1,6 @@
-# Reference: the 15 mechanical checks, at a glance
+# Reference: the 16 mechanical checks, at a glance
 
-Tabulates the 15 checks `stdd-lint` runs. See
+Tabulates the 16 checks `stdd-lint` runs. See
 `SKILL.md` for the full behavior of each check; this page is a
 quick-reference table only.
 
@@ -21,6 +21,7 @@ quick-reference table only.
 | `design-be.md` Mermaid DB-operation notes ↔ table schema | S-58 | `design-be.md` exists and has a "Table schema" section | a Mermaid DB-operation note names a column/table not present in the table schema |
 | State-diagram transition annotation | S-59 | `spec.md` contains a `## State model` section | any transition line (a `-->` line in the section's Mermaid block) lacks an `S-XX` / `no-op` / `forbidden` annotation; OR an annotated `S-XX` is not defined in the same `spec.md` |
 | Decision-table row coverage | S-60 | `spec.md` contains a `## Decision tables` section | any data row's `Scenario` cell is empty or cites an `S-XX` not defined in the same `spec.md`; OR a table in the section has no `Scenario` column |
+| Test-mapping existence | S-61 | `spec.md` exists | a non-`manual` `Test mapping`'s `file::function` is missing/not found on disk — **WARN** if the scenario's `S-XX` isn't `[x]`-marked in `tasks.md` (pre-RED, expected); **FAIL** if it is `[x]`-marked (checks existence/string-presence only, never runs the `Verification command`) |
 
 ## Banned Mermaid constructs (single source of truth — R7-1)
 

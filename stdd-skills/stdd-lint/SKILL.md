@@ -1,6 +1,6 @@
 ---
 name: stdd-lint
-description: 'STDD mechanical checker. A pure rule-based (non-model-judgment) checker that runs the 15 checks catalogued in references/checklist.md (placeholder/coverage/fingerprint/cross-artifact checks) against a single STDD change. Triggers: "/stdd-lint", or any stdd-* skill''s boundary/coverage call.'
+description: 'STDD mechanical checker. A pure rule-based (non-model-judgment) checker that runs the 16 checks catalogued in references/checklist.md (placeholder/coverage/fingerprint/cross-artifact checks) against a single STDD change. Triggers: "/stdd-lint", or any stdd-* skill''s boundary/coverage call.'
 ---
 
 # stdd-lint — Eagle Vision 鷹之視野
@@ -21,7 +21,7 @@ other artifacts, it does not validate `api.yml` itself.
 Run every applicable check below against the target change's
 `STDD/<name>/` directory and return ONE combined report — do not stop at the
 first failing check. See `references/checklist.md` for a one-table summary
-of all 15 checks (trigger condition + FAIL condition, one row each).
+of all 16 checks (trigger condition + FAIL condition, one row each).
 
 ## Check 1 — Placeholder text scan (S-26)
 
@@ -263,6 +263,35 @@ Given `spec.md` contains a `## Decision tables` section:
 - SKIP if `spec.md` has no `## Decision tables` section, stating that
   reason.
 
+## Check 16 — Test-mapping existence (S-61)
+
+Given `spec.md` exists:
+
+- For every scenario whose `Test mapping` is not `manual`, parse the
+  `file::function` pair (per `stdd-spec`'s
+  `references/gwt-and-rfc2119.md:18` field convention).
+- Check the named file exists relative to the target repo root, and that the
+  named function's string (its bare name, e.g. `test_5xx_schedules_retry`)
+  appears somewhere in that file's content.
+- **Phase-aware severity** (STDD test files are created during the execute
+  phase's RED step, so at spec time the mapped file legitimately does not
+  exist yet — see `tasks.md`'s `- [x] \`S-XX\`` / `- [ ] \`S-XX\`` markers,
+  templates/tasks.md:15,29):
+  - If `tasks.md` is absent, OR the scenario's `S-XX` token is not found on
+    an `[x]`-marked task line in `tasks.md` → missing file or missing
+    function → **WARN "test mapping not yet materialized: `<S-XX>`"**
+    (expected pre-RED, not an error).
+  - If the scenario's `S-XX` token IS found on an `[x]`-marked task line →
+    missing file or missing function → **FAIL "test mapping references a
+    file/function that does not exist: `<S-XX>` → `<file::function>`"**,
+    with `file:line`.
+- **Scope**: this check verifies existence only (file present, function name
+  string present) — it never RUNS the `Verification command`; actually
+  executing a scenario's tests to a per-scenario PASS/FAIL result is
+  `scripts/stdd_verify.py`'s job, with `stdd-execute`'s in-loop RED/GREEN
+  verify-dispatch step (`stdd-execute/SKILL.md`'s "one verify dispatch"
+  step) covering those runs — neither is this checker's.
+
 ## Report format
 
 Return one combined report covering every check above that applied (a check
@@ -274,8 +303,8 @@ reference where the artifact structure allows it.
 
 - This is a rule-based, non-model-judgment checker — do not use subjective
   taste calls inside any of the checks above; every check is either a
-  string/pattern match, an ID-extraction comparison, or a `shasum -a 256`
-  recomputation.
+  string/pattern match, an ID-extraction comparison, a `shasum -a 256`
+  recomputation, or a file-existence/string-presence check (Check 16).
 - Checks 1-4 and 6 require no git repository to run (only the prototype
   leakage sub-check under Check 1 needs git, and degrades to the explicit
   "cannot determine scan scope" report when git is unavailable and files aren't named).

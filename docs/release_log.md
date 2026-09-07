@@ -6,6 +6,11 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.12.0 (2026-09-07)
+
+- STDD BDD-layer additions (external review follow-up): stdd-explore gains a conditional Example Map step (Story/Rules/Examples/Open Questions) and a three-perspective pre-handoff check; stdd-spec gains a conditional `## Domain Language` section and an observable-THEN guideline in gwt-and-rfc2119.md; stdd-lint gains Check 16 (S-61, test-mapping existence, phase-aware WARN/FAIL); stdd-execute prompts (SKILL.md + workflows/stdd-execute.js) carry the observable-THEN rubric.
+- New scenario runner `scripts/stdd_verify.py` (+ `tests/test_stdd_verify.py`, 14 tests): per-scenario PASS/FAIL/MISSING table and coverage line from a spec.md's Test mapping / Verification command fields.
+
 ## v0.11.1 (2026-09-07)
 
 - README.md / README.zh-TW.md: neutral role-function table (14 rows, function first) inserted before the fellowship diagram; one positioning sentence in the STDD section — the `## State model` spec section is spec+lint (markdown-level) enforced, no runtime state machine.
