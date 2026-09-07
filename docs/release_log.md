@@ -6,6 +6,11 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.11.1 (2026-09-07)
+
+- README.md / README.zh-TW.md: neutral role-function table (14 rows, function first) inserted before the fellowship diagram; one positioning sentence in the STDD section — the `## State model` spec section is spec+lint (markdown-level) enforced, no runtime state machine.
+- New `docs/experiments/single-agent-vs-tlor.zh-TW.md`: single-agent vs TLOR routing comparison experiment protocol (design only; execution gated on user approval). Docs-only, not installed.
+
 ## v0.11.0 (2026-09-05)
 
 - `noldor-loremaster`: browses with ego-browser first (Bash granted,

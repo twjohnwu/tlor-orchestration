@@ -13,6 +13,27 @@ delegation reliable enough that a coding session can depend on it.
 
 ## The fellowship at a glance
 
+The table below states what each role does in plain terms first; the
+Middle-earth name and pinned model sit alongside it. The mermaid diagram after
+it shows the same roster grouped and wired into the dispatch flow.
+
+| What it does | Role | Model | Use when |
+|---|---|---|---|
+| Targeted lookup of a known symbol/file | rohirrim-outrider | haiku | "Where is X" — exact name, cheap search |
+| Broad/ambiguous sweep where a miss is costly | ranger-pathfinder | sonnet | Repo-wide search with no exact target |
+| Web/docs research, browser fallback | noldor-loremaster | sonnet | Version checks, source-cited answers, SPA research |
+| Implements a clear spec | gondor-builder | sonnet | Feature/change with checkable acceptance criteria |
+| Mechanical batch transforms | dwarf-smith | sonnet | Exact recipe applied across many files |
+| Verifies a diff against stated criteria | eagle-sentinel | opus | Fresh-context read-back, high-risk verification |
+| Open-ended review of a diff | cirdan-shipwright | opus | No criteria list, production-readiness judgment call |
+| Writes/edits prose | bilbo-scribe | opus/medium | Professional articles, de-AI editing |
+| Read-only external-system queries | mirror-of-galadriel | haiku | MCP reads against trackers/docs stores |
+| Enumerated external-system writes | palantir-stone | sonnet | MCP writes — T1, needs explicit user confirmation first |
+| Correctness lens in the adversarial panel | elf-archer | opus | Panel convening, correctness angle |
+| Security/failure lens in the adversarial panel | orc-saboteur | opus | Panel convening, security/failure angle |
+| Simplicity lens in the adversarial panel | hobbit-gardener | opus | Panel convening, simplicity angle |
+| No-role-fits escape hatch | bombadil-freeagent | sonnet/medium (pinned) | Task shape doesn't match any other role |
+
 ```mermaid
 flowchart TD
     M["Maia — main session<br/>decomposes, dispatches, integrates"]
@@ -85,6 +106,9 @@ relays to. [Skills](docs/en/skills.md) has the detail.
 `~/.claude/scripts/` (or the project/repo-level equivalent). An install done
 only via `claude plugin add` also finds them through the plugin's own
 installed directory (`custodyCheck`'s search-location list).
+The `## State model` section named in the STDD spec template is enforced at
+the spec+lint (markdown) level only — there is no runtime state machine in
+the `.py`/`.js` layer.
 
 ## Docs
 

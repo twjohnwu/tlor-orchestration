@@ -10,6 +10,26 @@ English version: [README.md](README.md).
 
 ## 團隊一覽
 
+下表先用中性語言說明每個角色的職能,中土名稱與固定模型並列在旁。後面的
+mermaid 圖則呈現同一組角色如何分組並接入派工流程。
+
+| 職能 | 角色 | 模型 | 何時用 |
+|---|---|---|---|
+| 定點查找已知 symbol/file | rohirrim-outrider | haiku | 「東西在哪」——名稱明確、成本低的查找 |
+| 廣域／模糊掃描,漏查代價高 | ranger-pathfinder | sonnet | 沒有明確目標的全 repo 搜尋 |
+| 網路/文件查證,瀏覽器後援 | noldor-loremaster | sonnet | 版本確認、附來源的答案、SPA 研究 |
+| 照 spec 實作 | gondor-builder | sonnet | 有可驗收準則的功能/改動 |
+| 機械式批次改動 | dwarf-smith | sonnet | 有精確 recipe、套用到多個檔案 |
+| 對準則驗收 diff | eagle-sentinel | opus | 新鮮視角讀回驗證、高風險驗收 |
+| 開放式審查 diff | cirdan-shipwright | opus | 沒有準則清單,判斷是否可上線 |
+| 撰寫／編輯文字 | bilbo-scribe | opus/medium | 專業文章、去 AI 味編輯 |
+| 唯讀查詢外部系統 | mirror-of-galadriel | haiku | 對 tracker/文件庫的 MCP 讀取 |
+| 列舉式寫入外部系統 | palantir-stone | sonnet | MCP 寫入——T1,派工前需使用者明確確認 |
+| 抗辯小組的正確性鏡頭 | elf-archer | opus | 召集小組時的正確性角度 |
+| 抗辯小組的安全/失效鏡頭 | orc-saboteur | opus | 召集小組時的安全/失效角度 |
+| 抗辯小組的簡潔性鏡頭 | hobbit-gardener | opus | 召集小組時的簡潔性角度 |
+| no-role-fits 逃生艙 | bombadil-freeagent | pin sonnet/medium | 任務形狀不合任何既有角色 |
+
 ```mermaid
 flowchart TD
     M["Maia — 主 session<br/>拆解、派工、整合"]
@@ -76,6 +96,7 @@ flowchart TD
 STDD execute 階段的核准 custody chain 與 verifier round cap 是用程式碼強制執行的，不是寫在 prose 裡。做這件事的是 Workflow script `workflows/stdd-execute.js`，以及它執行時轉呼的 custody／fingerprint 裁決程式 `scripts/stdd_custody_check.py`，細節見 [Skills](docs/zh-TW/skills.md)。
 
 `install.sh` 與 `/tlor-init` 會把兩者複製到 `~/.claude/workflows/` 與 `~/.claude/scripts/`（或對應的 project/repo 層路徑）。環境若只跑過 `claude plugin add`、沒跑過 install.sh 或 tlor-init，`custodyCheck` 一樣找得到它們：plugin 自己的安裝目錄就在它的搜尋位置清單裡。
+STDD spec 範本中的 `## State model` 一節只在 spec+lint（markdown）層面強制執行，`.py`/`.js` 程式碼層並沒有對應的 runtime state machine。
 
 ## 文件
 
