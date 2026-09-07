@@ -193,11 +193,12 @@ SKILLS=$(cd "$SKILLS_SRC" && ls -d */ | sed 's|/$||')
 RULES=$(cd "$RULES_SRC" && ls ./*.md | sed 's|^\./||')
 HOOK_FILES="institution_guard.py institution_guard.sh pre_tool_use.sh verify_gate.py dispatch_guard.py"
 WORKFLOWS=$(cd "$WORKFLOWS_SRC" && ls ./*.js | sed 's|^\./||')
-# Only the runtime dependency (the custody-check script `workflows/stdd-execute.js`
-# relays to at runtime, REQ-07/REQ-10) is installed — the rest of scripts/
-# (check_links.py, check_oldname.py, lint_agents_frontmatter.py) is this
-# repo's own CI tooling, not something an installed plugin needs.
-SCRIPTS="stdd_custody_check.py"
+# Only the runtime dependencies (the custody-check script and verify runner
+# `workflows/stdd-execute.js` relays to at runtime, REQ-07/REQ-10) are
+# installed — the rest of scripts/ (check_links.py, check_oldname.py,
+# lint_agents_frontmatter.py) is this repo's own CI tooling, not something
+# an installed plugin needs.
+SCRIPTS="stdd_custody_check.py stdd_verify.py"
 CUSTOMIZE_SRC="$RULES_SRC/customize"
 CUSTOMIZE_FILES=""
 if [ "$WITH_OPTIONAL" -eq 1 ]; then
@@ -736,10 +737,11 @@ for f in $WORKFLOWS; do
   fi
 done
 
-# scripts/stdd_custody_check.py is a runtime dependency workflows/stdd-execute.js
-# relays to at runtime (REQ-07/REQ-10): unconditional overwrite, same treatment
-# as hooks/workflows. The rest of scripts/ (this repo's own CI tooling) is not
-# installed — see the $SCRIPTS definition above.
+# scripts/stdd_custody_check.py and scripts/stdd_verify.py are runtime
+# dependencies workflows/stdd-execute.js relays to at runtime (REQ-07/REQ-10):
+# unconditional overwrite, same treatment as hooks/workflows. The rest of
+# scripts/ (this repo's own CI tooling) is not installed — see the $SCRIPTS
+# definition above.
 [ "$DRY" -eq 1 ] || mkdir -p "$SCRIPTS_DEST"
 for f in $SCRIPTS; do
   if [ "$DRY" -eq 1 ]; then
