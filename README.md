@@ -13,9 +13,11 @@ send it. Dispatch rules, setup skills, and opt-in guard hooks come with them.
 TLOR combines specification-driven development, BDD-style example and scenario
 discovery, and TDD-based execution with independent verification.
 
-The role names come from Middle-earth. That part is decoration — the table
-below leads with each role's function, so the roster reads without any
-knowledge of the source material.
+The role names come from Middle-earth, and so does the hierarchy: a Maia does
+not do field work, so the main session only analyzes the request and
+dispatches; each role carries the name of a figure whose role in the lore
+matches its job here. You need none of that to read the roster — the table
+below leads with each role's function.
 
 繁體中文說明請見 [README.zh-TW.md](README.zh-TW.md).
 

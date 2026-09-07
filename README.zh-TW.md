@@ -8,7 +8,7 @@ TLOR 給 [Claude Code](https://code.claude.com) 一組固定的 subagent 角色�
 
 TLOR 把 specification-driven development、BDD 式的 example 與 scenario 探索，以及搭配獨立驗證的 TDD 執行流程整合在一起。
 
-角色名稱取自中土世界，那只是外衣。下表把職能寫在第一欄，沒讀過原著也讀得懂整份名冊。
+角色名稱取自中土世界，階層設計也是：Maia 不下場做事，所以主 session 只分析需求與派工，實作交給各角色；每個名字都對應該人物在原著裡做的事。不熟原著也讀得懂——下表把職能寫在第一欄。
 
 English version: [README.md](README.md).
 
