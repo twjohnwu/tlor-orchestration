@@ -1,21 +1,29 @@
-# TLOR Orchestration — a Middle-earth fellowship for Claude Code
+# TLOR Orchestration — subagent roles and dispatch rules for Claude Code
 
 [![CI](https://github.com/twjohnwu/tlor-orchestration/actions/workflows/ci.yml/badge.svg)](https://github.com/twjohnwu/tlor-orchestration/actions/workflows/ci.yml)
 [![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftwjohnwu%2Ftlor-orchestration%2Fmain%2F.claude-plugin%2Fplugin.json&query=%24.version&label=version&color=blue)](https://github.com/twjohnwu/tlor-orchestration/blob/main/.claude-plugin/plugin.json)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-An orchestration framework for [Claude Code](https://code.claude.com), themed
-on Middle-earth. Fourteen subagent roles, thirteen with fixed model/effort/tools,
-plus dispatch rules, setup skills, and opt-in guard hooks. The point is to make
-delegation reliable enough that a coding session can depend on it.
+TLOR gives [Claude Code](https://code.claude.com) a fixed roster of subagent
+roles and the rules for handing work to them. Fourteen roles ship with the
+plugin. Each one pins a model and an effort level, and thirteen also pin their
+tool set, so the cost and the permissions of a dispatch are settled before you
+send it. Dispatch rules, setup skills, and opt-in guard hooks come with them.
+
+TLOR combines specification-driven development, BDD-style example and scenario
+discovery, and TDD-based execution with independent verification.
+
+The role names come from Middle-earth. That part is decoration — the table
+below leads with each role's function, so the roster reads without any
+knowledge of the source material.
 
 繁體中文說明請見 [README.zh-TW.md](README.zh-TW.md).
 
-## The fellowship at a glance
+## The roles at a glance
 
-The table below states what each role does in plain terms first; the
-Middle-earth name and pinned model sit alongside it. The mermaid diagram after
-it shows the same roster grouped and wired into the dispatch flow.
+Each row says what the role does first, then gives its name and pinned model.
+The diagram after the table groups the same roster and shows how the main
+session dispatches to it.
 
 | What it does | Role | Model | Use when |
 |---|---|---|---|
@@ -97,27 +105,37 @@ flowchart TD
 
 ## Code-enforced STDD workflow (opt-in)
 
-Two files enforce the STDD execute phase's approval-custody chain and
+Two files hold the STDD execute phase's approval-custody chain and its
 verifier-round cap in code rather than in prose: the Workflow script
-`workflows/stdd-execute.js`, and its runtime dependency
-`scripts/stdd_custody_check.py`, the custody/fingerprint verdict program it
-relays to. [Skills](docs/en/skills.md) has the detail.
-`install.sh`/`/tlor-init` copy both to `~/.claude/workflows/` and
-`~/.claude/scripts/` (or the project/repo-level equivalent). An install done
-only via `claude plugin add` also finds them through the plugin's own
-installed directory (`custodyCheck`'s search-location list).
-The `## State model` section named in the STDD spec template is enforced at
-the spec+lint (markdown) level only — there is no runtime state machine in
-the `.py`/`.js` layer.
+`workflows/stdd-execute.js`, and the program it calls at runtime,
+`scripts/stdd_custody_check.py`, which returns the custody/fingerprint verdict.
+[Skills](docs/en/skills.md) has the detail.
+
+`install.sh` and `/tlor-init` copy both files to `~/.claude/workflows/` and
+`~/.claude/scripts/`, or to the project/repo-level equivalent. If you installed
+only through `claude plugin add`, `custodyCheck` still finds them: the plugin's
+own installed directory is on its search-location list.
+
+The `## State model` section named in the STDD spec template is enforced at the
+spec+lint (markdown) level only — there is no runtime state machine in the
+`.py`/`.js` layer.
+
+v0.12.0 adds a BDD layer that works at that same markdown level. `stdd-explore`
+gains a conditional Example Map step; `stdd-spec` gains a conditional
+`## Domain Language` section; the stdd-execute prompts carry an observable-THEN
+rubric; `stdd-lint`'s Check 16 checks that a scenario's test mapping exists;
+and the scenario runner `scripts/stdd_verify.py` turns a spec.md into a
+per-scenario PASS/FAIL coverage report. When each conditional step applies is
+in [Skills](docs/en/skills.md).
 
 ## Docs
 
-- [Roles & dispatch](docs/en/roles.md) — the worldview, the fourteen-role fellowship, subagent dispatch snippet
-- [Skills](docs/en/skills.md) — full skill detail + the opt-in STDD workflow
+- [Roles & dispatch](docs/en/roles.md) — all fourteen roles in full, the theme behind the names, and the CLAUDE.md dispatch snippet
+- [Skills](docs/en/skills.md) — every skill in detail, plus the opt-in STDD workflow
 - [Rules & hooks](docs/en/rules-and-hooks.md) — the bundled rules files, the agent_doc lazy-load layer, the four opt-in hooks
-- [Installation](docs/en/installation.md) — the two install paths, ownership model, install flags
-- [Maintenance](docs/en/maintenance.md) — notes, honest limits, releasing
-- [History](docs/en/history.md) — project rename history and the versioning reset
+- [Installation](docs/en/installation.md) — the two install paths, who owns which file, the install flags
+- [Maintenance](docs/en/maintenance.md) — notes, honest limits, how a release is cut
+- [History](docs/en/history.md) — the project rename and the versioning reset
 - [STDD reviews](docs/en/stdd-reviews/statusline.md) — per-project full-cycle retrospectives with token accounting
 - [Release log](docs/release_log.md) — full version-by-version history (English only)
 

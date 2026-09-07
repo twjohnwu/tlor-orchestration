@@ -47,12 +47,13 @@ skills is a step the user runs, never one an agent can do on their behalf.
 
 Installed via `install.sh --stdd-role=ALL` or `/tlor-init`'s STDD step.
 
-Not autoloaded — seven of these nine skills implement the Spec-driven
-Test-Driven Development pipeline (the other two archive and query decision
-records), and they land in `~/.claude/skills/` only when you ask
-for them. This round ships the `ALL` profile alone; the role-scoped
-`RD`/`PM`/`UIUX` subsets are deferred, so `install.sh --stdd-role=RD|PM|UIUX`
-prints a deferred message and installs nothing.
+These nine skills are not autoloaded. They land in `~/.claude/skills/` only
+when you ask for them. Seven implement the Spec-driven Test-Driven
+Development pipeline. The other two archive and query decision records.
+
+This round ships the `ALL` profile alone. The role-scoped `RD`/`PM`/`UIUX`
+subsets are deferred, so `install.sh --stdd-role=RD|PM|UIUX` prints a
+deferred message and installs nothing.
 
 | Skill | Middle-earth title | Purpose | When to invoke |
 |---|---|---|---|
@@ -66,22 +67,55 @@ prints a deferred message and installs nothing.
 | `/westmarch-scribe` | Westmarch 記事錄 | Decision capture: archives a filled compact-MADR decision to the project's decision log (or instruction file, or the general decisions log) | Invoked from stdd-explore/stdd-uiux/stdd-spec/stdd-plan's advisory closing step, directly by the user, or proactively on decision-keywords in conversation |
 | `/minas-tirith-archivist` | Minas Tirith 檔案守護者 | Decision query: the read-only counterpart to `/westmarch-scribe`; searches archived decision records (general and project-scoped) and answers with citations, never writes or edits | Asking about past decisions or why a convention exists, or directly by the user |
 
-Both `/westmarch-scribe` and `/minas-tirith-archivist` gate on the tlor rules
-layer being installed (`dispatch.md`/`judgment.md` present) — if not, they
-STOP with "tlor rules not installed — run `/tlor-init` first" rather than
-guessing a location to write or search.
+Both `/westmarch-scribe` and `/minas-tirith-archivist` need the tlor rules
+layer installed, which they detect by looking for `dispatch.md` and
+`judgment.md`. If those are absent, both stop and report "tlor rules not
+installed — run `/tlor-init` first". Neither guesses a place to write to or
+search.
 
 Pipeline order: `stdd-explore → stdd-uiux (conditional) → stdd-spec →
 stdd-plan → stdd-execute`, with `stdd` and `stdd-lint` callable at any point.
 
+### BDD layer (v0.12.0)
+
+Five additions sit on top of those stages, and none of them adds a stage.
+Two are conditional artifacts, one is a rubric carried in the execute
+prompts, and two are checks you can run.
+
+- `stdd-explore` builds an Example Map before handoff when the change
+  involves business rules, state, or more than one condition interacting.
+  The map has four layers: a one-sentence Story, one line per Rule, at
+  least one concrete Example per rule, and the Open Questions the mapping
+  surfaced. Pure infra changes — dependency bumps, CI config, refactors
+  with no behavior change — skip the step entirely.
+- `stdd-spec` adds a `## Domain Language` section to the spec when the
+  change introduces a new domain term, or when one term already means
+  different things across product, code, tests, and docs. It is a table:
+  term, exact meaning, synonyms that must not stand in for it.
+- `stdd-execute` tells both the builder and the verifier to read every THEN
+  as externally observable behavior — state, output, timing. A THEN
+  that only names an internal call gets flagged, because it locks the
+  implementation instead of the behavior.
+- `stdd-lint` Check 16 verifies that test mappings exist. For each scenario
+  it checks that the mapped file is on disk and that the mapped function
+  name appears inside it. Severity follows the phase: WARN while that
+  scenario's task is still unchecked in `tasks.md`, since the test file is
+  written during RED and is supposed to be absent beforehand, then FAIL
+  once the task is marked `[x]`.
+- `scripts/stdd_verify.py` runs the scenarios as a set. It executes each
+  scenario's verification command and prints a per-scenario
+  PASS/FAIL/MISSING table plus one coverage line. MISSING means the
+  verification command or the mapped test file is not there. Exit status is
+  0 only when every selected scenario is PASS.
+
 **STDD test-file guard hook** (`hooks/stdd_test_guard.py`) — an opt-in
-PreToolUse hook enforcing that a test file with an established RED baseline
-can't be rewritten before its task is marked done. Install with
-`install.sh --install-hook` (independent of `--stdd-role`). **Session-
+PreToolUse hook. Once a test file has an established RED baseline, the hook
+blocks rewrites of it until its task is marked done. Install with
+`install.sh --install-hook`, independently of `--stdd-role`. **Session-
 snapshot caveat**: Claude Code reads PreToolUse hooks from `settings.json`
-once, at session start — running `--install-hook` inside an existing or
-`--continue`/`--resume`d session will NOT activate the hook there; verify it
-in a brand-new session only.
+once, at session start. Running `--install-hook` inside an existing session,
+or a `--continue`/`--resume`d one, does NOT activate the hook there. Verify
+it in a brand-new session only.
 
 ## Triggering
 

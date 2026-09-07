@@ -1,17 +1,20 @@
-# TLOR Orchestration — 給 Claude Code 的中土遠征隊
+# TLOR Orchestration — 給 Claude Code 的 subagent 角色與派工規則
 
 [![CI](https://github.com/twjohnwu/tlor-orchestration/actions/workflows/ci.yml/badge.svg)](https://github.com/twjohnwu/tlor-orchestration/actions/workflows/ci.yml)
 [![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftwjohnwu%2Ftlor-orchestration%2Fmain%2F.claude-plugin%2Fplugin.json&query=%24.version&label=version&color=blue)](https://github.com/twjohnwu/tlor-orchestration/blob/main/.claude-plugin/plugin.json)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-中土世界主題的 Claude Code 編排框架：十四個 subagent 角色（其中十三個固定職責），加上派工規則、設定 skill，以及選配的 guard hook。要讓 AI coding session 可靠地把工作委派出去，需要的就是這些。
+TLOR 給 [Claude Code](https://code.claude.com) 一組固定的 subagent 角色，以及把工作交出去的派工規則。plugin 內含十四個角色，每個角色都釘住模型與 effort，其中十三個連可用工具也釘住，所以一次派工的成本與權限在送出前就決定好了。除了角色，還附派工規則、負責安裝設定的 skill，以及選配的 guard hook。
+
+TLOR 把 specification-driven development、BDD 式的 example 與 scenario 探索，以及搭配獨立驗證的 TDD 執行流程整合在一起。
+
+角色名稱取自中土世界，那只是外衣。下表把職能寫在第一欄，沒讀過原著也讀得懂整份名冊。
 
 English version: [README.md](README.md).
 
-## 團隊一覽
+## 角色一覽
 
-下表先用中性語言說明每個角色的職能,中土名稱與固定模型並列在旁。後面的
-mermaid 圖則呈現同一組角色如何分組並接入派工流程。
+每一列先講這個角色做什麼，再列出名稱與釘住的模型。表格後面的圖把同一組角色分組，並畫出主 session 如何派工給它們。
 
 | 職能 | 角色 | 模型 | 何時用 |
 |---|---|---|---|
@@ -93,19 +96,22 @@ flowchart TD
 
 ## Code-enforced STDD 工作流程（選配）
 
-STDD execute 階段的核准 custody chain 與 verifier round cap 是用程式碼強制執行的，不是寫在 prose 裡。做這件事的是 Workflow script `workflows/stdd-execute.js`，以及它執行時轉呼的 custody／fingerprint 裁決程式 `scripts/stdd_custody_check.py`，細節見 [Skills](docs/zh-TW/skills.md)。
+STDD execute 階段的核准 custody chain 與 verifier round cap 寫在程式碼裡，不是寫在 prose 裡。負責的是兩個檔案：Workflow script `workflows/stdd-execute.js`，以及它執行時轉呼、負責給出 custody／fingerprint 裁決的 `scripts/stdd_custody_check.py`。細節見 [Skills](docs/zh-TW/skills.md)。
 
-`install.sh` 與 `/tlor-init` 會把兩者複製到 `~/.claude/workflows/` 與 `~/.claude/scripts/`（或對應的 project/repo 層路徑）。環境若只跑過 `claude plugin add`、沒跑過 install.sh 或 tlor-init，`custodyCheck` 一樣找得到它們：plugin 自己的安裝目錄就在它的搜尋位置清單裡。
-STDD spec 範本中的 `## State model` 一節只在 spec+lint（markdown）層面強制執行，`.py`/`.js` 程式碼層並沒有對應的 runtime state machine。
+`install.sh` 與 `/tlor-init` 會把兩個檔案複製到 `~/.claude/workflows/` 與 `~/.claude/scripts/`，或對應的 project／repo 層路徑。只跑過 `claude plugin add` 的環境也不受影響：plugin 自己的安裝目錄就在 `custodyCheck` 的搜尋位置清單裡。
+
+STDD spec 範本中的 `## State model` 一節只在 spec+lint（markdown）層面強制執行，`.py`／`.js` 程式碼層並沒有對應的 runtime state machine。
+
+v0.12.0 在同一個 markdown 層之上加了一層 BDD：`stdd-explore` 多了條件性的 Example Map 步驟，`stdd-spec` 多了條件性的 `## Domain Language` 一節，stdd-execute 的 prompt 帶著 observable-THEN 準則，`stdd-lint` 的 Check 16 檢查 scenario 的 test mapping 是否存在，新的 scenario runner `scripts/stdd_verify.py` 則把一份 spec.md 轉成逐 scenario 的 PASS／FAIL 涵蓋率報表。兩個條件性步驟各自在什麼情況下適用，見 [Skills](docs/zh-TW/skills.md)。
 
 ## 文件
 
-- [角色與派工](docs/zh-TW/roles.md) — 世界觀、十四角色遠征隊名冊、subagent 派工 snippet
-- [Skills](docs/zh-TW/skills.md) — 完整 skill 細節＋選配的 STDD 工作流程
+- [角色與派工](docs/zh-TW/roles.md) — 十四個角色的完整說明、名稱背後的世界觀，以及 CLAUDE.md 的派工 snippet
+- [Skills](docs/zh-TW/skills.md) — 每個 skill 的完整細節，以及選配的 STDD 工作流程
 - [Rules 與 Hooks](docs/zh-TW/rules-and-hooks.md) — 附帶的 rules 檔案、agent_doc 懶載入層、四個選配 hooks
-- [安裝](docs/zh-TW/installation.md) — 兩種安裝方式、所有權模型、安裝旗標
-- [維護](docs/zh-TW/maintenance.md) — 備註、誠實限制、發布流程
-- [歷史](docs/zh-TW/history.md) — 專案更名沿革與版本重置
+- [安裝](docs/zh-TW/installation.md) — 兩種安裝方式、哪個檔案歸誰管、安裝旗標
+- [維護](docs/zh-TW/maintenance.md) — 備註、誠實限制、怎麼發一個版本
+- [歷史](docs/zh-TW/history.md) — 專案更名與版本重置
 - [STDD reviews](docs/zh-TW/stdd-reviews/statusline.md) — 各專案的完整週期回顧與 token 核算
 - [Release log](docs/release_log.md) — 完整逐版本紀錄（僅英文）
 

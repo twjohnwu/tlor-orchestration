@@ -6,6 +6,11 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.12.1 (2026-09-07)
+
+- Plain-language rewrite of README.md / README.zh-TW.md: upgraded positioning sentence (spec-driven + BDD-style example/scenario discovery + TDD execution with independent verification), function-first prose, stale role-pinning claim fixed (13 of 14 pin tools); neutral table, mermaid diagrams, and badges unchanged.
+- docs/en/skills.md and docs/zh-TW/skills.md: new "BDD layer (v0.12.0)" subsection in the STDD section (Example Map, Domain Language, observable-THEN rubric, Check 16 phase rule, stdd_verify semantics) plus a plain-language pass on the section. Docs-only, not installed.
+
 ## v0.12.0 (2026-09-07)
 
 - STDD BDD-layer additions (external review follow-up): stdd-explore gains a conditional Example Map step (Story/Rules/Examples/Open Questions) and a three-perspective pre-handoff check; stdd-spec gains a conditional `## Domain Language` section and an observable-THEN guideline in gwt-and-rfc2119.md; stdd-lint gains Check 16 (S-61, test-mapping existence, phase-aware WARN/FAIL); stdd-execute prompts (SKILL.md + workflows/stdd-execute.js) carry the observable-THEN rubric.
