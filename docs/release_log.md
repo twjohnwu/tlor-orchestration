@@ -6,6 +6,13 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.12.3 (2026-09-28)
+
+- rules/dispatch.md: new §0 stating the design assumption (the Maia is the top tier; the objective is minimum total cost for a verified result, not maximum delegation); a cost-floor test in §1 (verbatim-authored edits ≤30 lines across ≤2 files are done inline — a dispatch carries a ~33–46k-token context floor before it reads anything); a reduced-tier Maia profile for Opus/Sonnet main sessions; a matching §5 self-verify exception for those edits only; and §3c covering the Workflow tool (opt-in, explicit `model` per `agent()`, never `fable` inside a workflow).
+- rules/risk-tiers.md: local commits are T3 with standing authorization — one verified task per commit, stage only that task's files, `<type>: <what>`; push stays T1; no commit authority for parallel subagents sharing a worktree.
+- rules/delegation-templates.md: §2/§3 gain a COMMIT POLICY line (subagents never commit; out-of-scope changes are reported, never reverted — codifies the 2026-08-14 parallel-revert incident).
+- Prompted by comparing against another user's global CLAUDE.md. The cost-floor figure comes from a session that spent ~480k subagent tokens on seven dispatches whose edits the Maia had already written verbatim.
+
 ## v0.12.2 (2026-09-28)
 
 - Removed `docs/experiments/` (the single-agent vs TLOR experiment protocol from v0.11.1). Five comparison rounds were run outside the repo and are not landing here: the measurement had no discriminative power (blind-review outcomes alternated B/A/tie/A/B across rounds while the dispatching arm always cost more), and every round used Opus as the orchestrator, whereas TLOR is designed for a Fable orchestrator dispatching lower-tier models. Docs-only, not installed.

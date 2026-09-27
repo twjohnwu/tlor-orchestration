@@ -15,9 +15,27 @@ alphabetical proximity — follow the dispatch table below.
 
 # dispatch.md — Role dispatch & delegation rules
 
-Audience: the main-conversation model (the "Maia", usually Opus). Mandatory,
+Audience: the main-conversation model (the "Maia"). Mandatory,
 not advisory. Delegation prompts: `delegation-templates.md`.
 Judgment calls (escalate? done? ask?): `judgment.md`.
+
+## 0. Design assumption — the Maia is the top tier
+
+Every rule below prices delegation on one assumption: the Maia is the most
+expensive model in the session (a Fable-class model), so routing execution to
+cheaper models saves money AND spends the Maia's tokens on what only it does
+well — decomposition, judgment, verification, integration. The objective is
+**minimum total cost and latency for a verified result**, never maximum
+delegation: one subagent with a complete brief beats many fragments, and a
+dispatch whose brief is longer than the work it replaces is a loss.
+
+When the Maia is NOT the top tier (an Opus or Sonnet main session), the
+economics change and §1's thresholds relax — see the "Reduced-tier Maia"
+profile at the end of §1. Nothing else relaxes: the §2 contract, §5
+verification, risk tiers and retry caps apply at every tier. An approved
+plan-mode dispatch table is also binding as approved (see "Plan mode
+requirements" below) — the cost-floor test is for ad-hoc work, not for
+re-litigating a table the user already signed off.
 
 ## 1. The commander does not do field work
 
@@ -42,6 +60,15 @@ dispatching subagents, integrating conclusions, and talking to the user.
 - Edits to files already read into context — ONLY if single file, single
   spot, a few lines, AND not part of an approved batch. An approved set of
   edits across files gets a dispatch plan first (decomposition.md).
+- **Cost-floor test.** An edit the Maia has already authored verbatim (an
+  exact before/after, a version bump, a one-paragraph insert) that is ≤30
+  lines across ≤2 files is done inline — a subagent dispatch carries a fixed
+  context floor of roughly 33–46k tokens before it reads a single line
+  (measured in the statusline review under `docs/en/stdd-reviews/`), so a brief longer
+  than the diff is a loss, not discipline. Verification for such edits is the Maia
+  reading its own diff and running the gate (§5 exception). The test does
+  NOT cover anything that still needs judgment about *what* to write, nor
+  standing rule/config files (next bullet), nor batches beyond ≤2 files.
 - Running one test command and reading its output
 - (Standing rule/config files are NOT exempt just because they're small: a
   wholesale rewrite or cross-file wiring is a batch; author the full new
@@ -50,6 +77,19 @@ dispatching subagents, integrating conclusions, and talking to the user.
 If the user corrects you mid-task for breaking a dispatch rule: STOP fully,
 name the rule you believe you broke, confirm understanding, then resume in
 dispatch mode — never finish the remaining work inline "since you're halfway".
+
+**Reduced-tier Maia profile** (main session is Opus or Sonnet, per §0): the
+MUST-delegate list shrinks to repo-wide scans, web research beyond one
+fetch, and batch edits across more than 5 files; everything else is the
+Maia's call under the cost-floor test. The cost-floor cap (≤30 lines, ≤2
+files) is a ceiling on inline *mechanical* edits and does not move with
+tier — only the MUST-delegate list does. Do not route *routine* work to a
+model more expensive than the Maia — that buys the same judgment twice.
+Paying up is still right where it buys something the Maia lacks: the §5
+independent verifier (a fresh context), the §4 escalation ladder after two
+failed rounds, §3b's reasoning-heavy routing, and roles pinned to opus by
+design (`bilbo-scribe`, `cirdan-shipwright`, the panel lenses). Those rules
+win over this profile.
 
 ## 2. Delegation contract — every dispatch has three parts
 
@@ -133,6 +173,19 @@ contradictory or inconclusive result IS an escalation signal — treat it like
 a failure (§4), don't average it. After opus cracks the pattern, batch the
 remainder on cheap tiers (§4 de-escalation).
 
+### 3c. Workflow tool (scripted multi-agent runs)
+
+Reach for the Workflow tool only when a task has 3+ independent,
+parallelizable subtasks or a pipeline/judge shape. Unless the session has
+opted in — the user typed the "ultracode" keyword, turned the session's
+ultracode toggle on, or asked for a workflow in their own words — propose
+it first in one or two sentences with the rough shape and
+cost, and wait for a yes. Inside a workflow script every `agent()` call sets
+`model` explicitly — `haiku`/`sonnet`/`opus` only, never `fable`; a Fable
+review, if warranted, runs after the workflow as a standalone dispatch.
+Workflow agents are subagents: the §2 contract, the §6 report format, and
+the delegation-templates STOP CONDITIONS apply to each `agent()` prompt.
+
 ## 4. Escalation / de-escalation paths
 
 - **haiku fails once** on a subtask → re-dispatch to `sonnet` immediately
@@ -158,7 +211,9 @@ answer is a fresh dispatch; resume only in that file's two narrow cases.
 ## 5. Verification — never self-certify
 
 The agent (or the main model) that produced work does not get to declare it
-correct. Verification goes to a **fresh-context** checker with no stake in the
+correct — with exactly one exception, the cost-floor case at the end of this
+section (mechanical edits the Maia authored verbatim), and nothing else.
+Verification goes to a **fresh-context** checker with no stake in the
 answer — default role: `eagle-sentinel` (template §5):
 
 - **Files written** → eagle-sentinel with `model: sonnet` reads them back
@@ -172,6 +227,11 @@ answer — default role: `eagle-sentinel` (template §5):
   `hobbit-gardener`) or 2–3 candidates for a judge agent.
 - The verifier gets the acceptance criteria and the artifact — NOT the
   producer's reasoning, which would anchor it.
+- **Cost-floor exception** (§1): a verbatim-authored edit ≤30 lines across
+  ≤2 files is verified by the Maia reading its own diff and running the
+  project's gate. Anything involving judgment about *what* was written keeps
+  the fresh-context checker — the producer's own acceptance criteria are the
+  part most likely to be wrong.
 
 ## 6. Report contract (paste into every dispatch)
 
