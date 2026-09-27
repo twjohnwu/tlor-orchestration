@@ -6,6 +6,10 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.12.2 (2026-09-28)
+
+- Removed `docs/experiments/` (the single-agent vs TLOR experiment protocol from v0.11.1). Five comparison rounds were run outside the repo and are not landing here: the measurement had no discriminative power (blind-review outcomes alternated B/A/tie/A/B across rounds while the dispatching arm always cost more), and every round used Opus as the orchestrator, whereas TLOR is designed for a Fable orchestrator dispatching lower-tier models. Docs-only, not installed.
+
 ## v0.12.1 (2026-09-07)
 
 - Plain-language rewrite of README.md / README.zh-TW.md: upgraded positioning sentence (spec-driven + BDD-style example/scenario discovery + TDD execution with independent verification), function-first prose, stale role-pinning claim fixed (13 of 14 pin tools); neutral table, mermaid diagrams, and badges unchanged.
