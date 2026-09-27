@@ -59,6 +59,11 @@ NON-GOALS: {{explicitly out of scope — no drive-by refactors/fixes}}.
 ALLOWED PATHS: read {{globs}}; write {{globs}} — anything else is out of scope.
 STOP CONDITIONS: an out-of-scope file needs changing, any deletion, or a
 secret/credential encountered → STOP and report; do not improvise.
+COMMIT POLICY: {{pick ONE — default: "do NOT commit; the Maia owns staging
+and commits." | sole writer in its own worktree running several sequential
+tasks: "commit atomically per task as you go."}} Changes you notice outside
+ALLOWED PATHS are reported, never reverted: in a parallel batch they are
+another agent's work.
 {{Optional: "no-codex" — forbid the Codex-first step; the agent implements
 directly. Omit it and gondor-builder tries Codex CLI first when available
 (role default).}}
@@ -78,6 +83,11 @@ NON-GOALS: {{explicitly out of scope — no drive-by refactors/fixes}}.
 ALLOWED PATHS: read {{globs}}; write {{globs}} — anything else is out of scope.
 STOP CONDITIONS: an out-of-scope file needs changing, any deletion, or a
 secret/credential encountered → STOP and report; do not improvise.
+COMMIT POLICY: {{pick ONE — default: "do NOT commit; the Maia owns staging
+and commits." | sole writer in its own worktree running several sequential
+tasks: "commit atomically per task as you go."}} Changes you notice outside
+ALLOWED PATHS are reported, never reverted: in a parallel batch they are
+another agent's work.
 ```
 
 ## 4. Research  (role: noldor-loremaster; `model: opus` override for conflicting-source synthesis)
@@ -125,6 +135,6 @@ Do not trust the producer's summary — it is not included on purpose.
 3. Independent dispatches go in ONE message (parallel tool calls).
 4. Keep the filled prompt under ~60 lines (decomposition.md §4); paste facts
    the agent needs verbatim — it cannot see this conversation.
-5. NON-GOALS / ALLOWED PATHS / STOP CONDITIONS apply to write-capable
+5. NON-GOALS / ALLOWED PATHS / STOP CONDITIONS / COMMIT POLICY apply to write-capable
    dispatches (templates §2/§3); read-only templates (§1/§4/§5) default to
    whole-repo read, write nothing — no need to spell them out.

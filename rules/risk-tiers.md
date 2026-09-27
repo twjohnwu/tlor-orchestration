@@ -17,9 +17,9 @@ rubrics and general commit hygiene.
 
 | Tier | Definition | Example actions | Required protocol |
 |---|---|---|---|
-| **T1 — irreversible / outward-facing** | Cannot be undone by you, or leaves the machine | force-push; delete files not created this session; `git push` to any remote; publish/send/email; spend money; drop a database or table; edit git history; anything touching a project's `main` | **STOP and ask the user first** (batch with other questions), unless the user explicitly requested this exact action this session |
+| **T1 — irreversible / outward-facing** | Cannot be undone by you, or leaves the machine | force-push; delete files not created this session; `git push` to any remote; publish/send/email; spend money; drop a database or table; edit git history; anything that reaches a project's remote `main` (push, merge, tag) | **STOP and ask the user first** (batch with other questions), unless the user explicitly requested this exact action this session |
 | **T2 — hard to undo** | Recoverable but costly: needs a backup, a rebuild, or careful reversal | overwrite/rewrite an existing file wholesale; batch edits across many files; schema/migration changes in a dev database; edits to rules files, CLAUDE.md, AGENTS.md, memory files; deleting scratch data another step still needs; changing CI or container config | **Backup first** (`cp X X.bak-YYYYMMDD`), then act, then fresh-context verification; for judgment-heavy T2, second opinion from an independent high-capability agent |
-| **T3 — reversible** | Undo is one command or one edit away | edits to files already under active work; creating NEW files; running tests/builds; read-only commands; scratchpad writes; starting a local service | Just do it, then verify. No ceremony |
+| **T3 — reversible** | Undo is one command or one edit away | edits to files already under active work; creating NEW files; running tests/builds; read-only commands; scratchpad writes; starting a local service; a local git commit (push stays T1) | Just do it, then verify. No ceremony |
 
 ## Classification rules (apply in order)
 
@@ -50,6 +50,15 @@ Two modifiers:
   once the user confirms the rewrite.
 - **T3 done right**: adding a new test file and running the test suite —
   no backup, no question; quote the test output as verification.
+- **T3 done right (commits)**: a local commit is T3 — one `git reset` undoes
+  it. Commit as soon as a task is verified, one task per commit, staging
+  only that task's files (`git add <paths>`, never `git add -A`), message
+  `<type>: <what changed>` with type in feat/fix/refactor/docs/test/chore/
+  style. This is standing authorization for LOCAL commits, including on a
+  checked-out `main` — what makes `main` T1 is the push, not the commit.
+  Never grant commit authority to parallel subagents sharing a worktree —
+  only a sole writer in its own worktree may commit per task, and then its
+  commit series is what gets verified.
 
 ## Out-of-bounds recovery
 
