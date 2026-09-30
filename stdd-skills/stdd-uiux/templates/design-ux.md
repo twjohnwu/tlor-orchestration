@@ -80,6 +80,9 @@ flowchart TD
 | `color.text.muted` | `#6B7280` | Empty-state caption |
 | `space.card-gap` | `16px` | Gap between subscription cards |
 | `type.heading-1` | `24px / 32px, semibold` | Page title |
+| `motion.duration.press` | `140ms` | Card press feedback |
+| `motion.duration.panel` | `240ms` | Plan-details drawer open (close uses `motion.duration.press`) |
+| `motion.ease.out` | `cubic-bezier(0.23, 1, 0.32, 1)` | Enter/exit (default) |
 
 ### States (REQ-01)
 
@@ -89,6 +92,23 @@ flowchart TD
   retry" with a retry button; never a silent blank screen.
 - **Loading**: skeleton cards matching the `SubscriptionCard` layout, not a
   generic spinner.
+
+### Motion & feedback (REQ-01)
+
+Rules: `references/motion-checklist.md`. Every number here is a token from
+the table above — no ad-hoc values.
+
+| Interaction | Frequency | Purpose | Duration | Easing | Reduced motion |
+|---|---|---|---|---|---|
+| Press a `SubscriptionCard` | occasional | feedback | `motion.duration.press` | `motion.ease.out` | color change instead of scale |
+| Open plan-details drawer | occasional | spatial continuity | `motion.duration.panel` | `motion.ease.out` | fade only, no slide |
+
+Rejected motion (considered, not animated):
+
+- Staggered entrance of the card list on every page load — seen many times
+  a day; the list appears at once.
+- Loading skeleton shimmer — replaced by a static skeleton; no purpose
+  beyond decoration.
 
 ## Design-as-code files
 

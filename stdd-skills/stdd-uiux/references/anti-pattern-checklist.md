@@ -2,7 +2,8 @@
 
 Bundled reference for `stdd-uiux` Step 7's mechanical self-review, distilled
 from [pbakaus/impeccable](https://github.com/pbakaus/impeccable)
-(Apache-2.0). This is a floor, not a taste ceiling: passing
+(Apache-2.0); items 11–13 come from `motion-checklist.md` (MIT, see that
+file). This is a floor, not a taste ceiling: passing
 every item means known common mistakes were avoided, not that the design
 "looks good."
 
@@ -30,6 +31,13 @@ every item means known common mistakes were avoided, not that the design
 9. **Typographic hierarchy** — consistent heading/body/caption distinction.
    Common mistake: two heading levels that render at visually identical
    sizes, so the hierarchy only exists in the markup, not on screen.
-10. **Interaction states listed** — hover/focus/active/disabled at least
-    named. Common mistake: only describing the default and hover states,
-    leaving focus (keyboard) and disabled states undefined.
+10. **Interaction states listed** — hover/focus/active/pressed/disabled at
+    least named. Common mistake: only describing the default and hover
+    states, leaving focus (keyboard) and disabled states undefined.
+11. **Motion earns its place** — every animated interaction passes the
+    frequency gate and names a purpose. Common mistake: animating the action
+    users repeat all day, which reads as lag.
+12. **Reduced motion defined** — drop movement, keep short fades. Common
+    mistake: turning all motion off, so state changes lose their only cue.
+13. **Motion from tokens** — durations and easings reference motion tokens.
+    Common mistake: a different hand-typed duration on every component.
