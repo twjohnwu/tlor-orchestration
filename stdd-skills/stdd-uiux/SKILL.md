@@ -150,8 +150,16 @@ straight to freeform prose.
   - Information architecture
   - Layout (markdown tables/blocks as sketches)
   - Component hierarchy
-  - Design tokens (color, typography, spacing)
+  - Design tokens (color, typography, spacing, motion)
   - States: empty, error, and loading
+  - Motion & feedback: which interactions animate, each with its frequency,
+    purpose, duration/easing token, and reduced-motion behavior, plus a
+    rejected-motion list (candidates considered and not animated, with the
+    reason). Reduced motion means less movement, not none: keep short
+    fades so state changes stay visible. Rules:
+    `references/motion-checklist.md`. Mark the section `N/A` only when
+    the surface has no transitions of any kind, eased hover color
+    changes included.
 - Every section SHALL cite the relevant `REQ-ID`(s) it supports.
 - If a project canonical design guideline was found in Step 4, the MASTER
   section here is "cite guideline + delta only" per that step — don't repeat
@@ -196,7 +204,14 @@ of re-deriving the list from scratch.
 8. Does color usage carry clear semantic meaning (not decorative misuse)?
 9. Is typographic hierarchy consistent (clear distinction between
    heading/body/caption)?
-10. Are interaction states (hover/focus/active/disabled) at least listed?
+10. Are interaction states (hover/focus/active/pressed/disabled) at least
+    listed?
+11. Does every animated interaction pass the frequency gate and name its
+    purpose (`references/motion-checklist.md` §1)?
+12. Is reduced-motion behavior defined for every animated interaction —
+    reduced, not simply switched off?
+13. Do durations and easings come from motion tokens, rather than ad-hoc
+    numbers?
 
 State explicitly in your report: **this checklist is a floor, not a taste
 ceiling** — passing it means known common mistakes were avoided, not that the
@@ -296,9 +311,12 @@ this skill (`stdd-uiux`) is the one that handles it:
   Mermaid `flowchart` example for user flows, and a requirements-checklist
   appendix. Use it as the format to follow in Step 5, not something to copy
   verbatim into a real change.
-- `references/anti-pattern-checklist.md` — the same 10-item checklist as
+- `references/anti-pattern-checklist.md` — the same 13-item checklist as
   Step 7, distilled with a one-line common-mistake note per item, for a
   quick scan pass instead of re-deriving the list.
+- `references/motion-checklist.md` — design-level motion rules (frequency
+  gate, timing and easing budgets, interaction feel, reduced motion)
+  backing Step 5's `Motion & feedback` section and Step 7 items 11–13.
 
 ## Notes for a fresh session
 

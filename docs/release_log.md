@@ -6,6 +6,10 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.12.4 (2026-09-30)
+
+- stdd-skills/stdd-uiux: design-ux.md gains a `Motion & feedback` section (which interactions animate, each with frequency, purpose, duration/easing token and reduced-motion behavior, plus a rejected-motion list); new `references/motion-checklist.md` holds the design-level rules (frequency gate, timing and easing budgets, interaction feel, reduced motion), distilled from emilkowalski/skills (MIT); Step 7's self-review grows from 10 to 13 items (motion earns its place, reduced motion defined, motion from tokens) and item 10 adds the pressed state. Implementation techniques (CSS, animation libraries) stay out — they belong to the build phase.
+
 ## v0.12.3 (2026-09-28)
 
 - rules/dispatch.md: new §0 stating the design assumption (the Maia is the top tier; the objective is minimum total cost for a verified result, not maximum delegation); a cost-floor test in §1 (verbatim-authored edits ≤30 lines across ≤2 files are done inline — a dispatch carries a ~33–46k-token context floor before it reads anything); a reduced-tier Maia profile for Opus/Sonnet main sessions; a matching §5 self-verify exception for those edits only; and §3c covering the Workflow tool (opt-in, explicit `model` per `agent()`, never `fable` inside a workflow).
