@@ -17,6 +17,7 @@
 |---|---|---|---|
 | `rohirrim-outrider` | Rohirrim outrider | haiku / low | Fast, cheap, targeted lookup: "where is X / how does Y work" |
 | `ranger-pathfinder` | Ranger of the North | sonnet / low | Broad, thorough read-only sweep when a miss is costly |
+| `Explore` | Ranger of the North (mirror) | sonnet / low | Same as ranger-pathfinder; exists so plan mode's built-in Explore name resolves to this role |
 | `noldor-loremaster` | Noldorin loremaster | sonnet / medium | Web/docs research with sources and versions; fact vs inference |
 | `dwarf-smith` | Dwarven smith | sonnet / low | Fully-specified mechanical work; never improvises |
 | `gondor-builder` | Mason of Gondor | sonnet / medium | Implements a clear spec with local judgment; design stays with the Maia |
