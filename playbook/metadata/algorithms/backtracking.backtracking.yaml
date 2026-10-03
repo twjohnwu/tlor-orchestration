@@ -1,0 +1,53 @@
+id: backtracking.backtracking
+name: Backtracking
+category: [backtracking]
+aliases: [backtracking, n_queens, all_permutations, all_combinations, subset_sum, combination_sum, sudoku]
+signals:
+  - all permutations
+  - all subsets
+  - all combinations
+  - place without conflict
+  - combination sum target
+  - fill grid constraints
+  - list every solution
+preconditions:
+  size_is_nonnegative_int: true
+  bool_rejected: true
+  partial_solution_checkable: true
+  small_input: true
+avoid_when:
+  - count only   # -> dp.one_dimensional
+  - graph paths   # -> graph.traversal.dfs
+  - greedy works   # -> greedy or sorted scan
+  - no pruning   # -> itertools generators
+complexity:
+  time: "O(P * k) with P up to n!/(n-k)!"
+  space: "O(k + d) beyond output, d distinct values"
+related: [graph.traversal.dfs, dp.one_dimensional]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: backtracking/n_queens.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: backtracking/sudoku.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: backtracking/combination_sum.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: backtracking/all_combinations.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: backtracking/n_queens.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: backtracking/subset_sum.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT

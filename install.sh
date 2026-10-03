@@ -873,10 +873,12 @@ echo "NOTE: open a NEW Claude Code session to load the roles and skills (both ar
 
 echo ""
 echo "HOOKS: institution_guard.py, institution_guard.sh, pre_tool_use.sh, verify_gate.py, and dispatch_guard.py are now copied to $HOOKS_DEST."
-echo "  They still need wiring into a hooks.json (PreToolUse/Stop) and the"
-echo "  TLOR_INSTITUTION_GUARD / TLOR_VERIFY_GATE / TLOR_DISPATCH_GUARD env vars to activate — the"
-echo "  plugin route (claude plugin add twjohnwu/tlor-orchestration) wires this"
-echo "  automatically; install.sh only places the files."
+echo "  They still need wiring into a hooks.json (PreToolUse/Stop) — the plugin"
+echo "  route (claude plugin add twjohnwu/tlor-orchestration) wires that; install.sh"
+echo "  only places the files. Neither route sets the activation env vars: add"
+echo "  TLOR_INSTITUTION_GUARD / TLOR_VERIFY_GATE / TLOR_DISPATCH_GUARD = \"1\" to the"
+echo "  \"env\" block of ~/.claude/settings.json (a shell profile is not read when"
+echo "  Claude Code starts outside a shell, e.g. the desktop app)."
 
 echo ""
 echo "ROUTING: rules already auto-load on their own (.claude/rules/ is a native auto-load location)."

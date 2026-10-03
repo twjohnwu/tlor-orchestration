@@ -2,7 +2,7 @@
 description: How to split a task into dispatches before delegating to subagents
 managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
 audience: all
-version: 0.9.3
+version: 0.9.4
 ---
 
 # decomposition.md — How to split a task before dispatching
@@ -52,7 +52,7 @@ Parallelism lives INSIDE a step, never across steps.
 a written dispatch plan MUST name its executor: a role from dispatch.md §3
 (rohirrim-outrider, ranger-pathfinder, noldor-loremaster, dwarf-smith,
 gondor-builder, eagle-sentinel, or a panel lens), or a generic subagent with
-an explicit `model`. A step with no named executor defaults to "dispatch it",
+an explicit `model`, or `codex (Maia-direct, §3d)` for implement-shaped steps (dispatch.md §3d). A step with no named executor defaults to "dispatch it",
 never "the Maia does it inline". The name **"Maia" (the main session) may
 appear only in these four slots**: decomposition, integration/reconciliation,
 talking to the user, and the dispatch.md §1 MAY-do-inline exceptions. Before

@@ -1,0 +1,44 @@
+id: linked_list.fast_slow_pointers
+name: Fast / Slow Pointers
+category: [linked-list]
+aliases: [floyds_cycle_detection, floyd_cycle, has_loop, cycle_detection, middle_element_of_linked_list, tortoise_hare]
+signals:
+  - linked list cycle
+  - cycle start node
+  - detect loop
+  - middle of linked list
+  - O(1) extra space
+  - tortoise and hare
+  - repeated value functional graph
+preconditions:
+  single_successor: true
+  node_identity: true
+  no_mutation_during_walk: true
+avoid_when:
+  - indexed array                 # -> array.two_pointers
+  - multiple successors           # -> graph.traversal.bfs
+  - need cycle nodes              # -> visited-set walk (hashing.hash_map)
+  - value-equal nodes             # -> visited-set walk (hashing.hash_map)
+complexity:
+  time: "O(n)"
+  space: "O(1)"
+related: [array.two_pointers]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: data_structures/linked_list/floyds_cycle_detection.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: data_structures/linked_list/middle_element_of_linked_list.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: data_structures/linked_list/has_loop.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: search/floyd_cycle_detection_algo.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT

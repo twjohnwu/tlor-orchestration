@@ -1,0 +1,50 @@
+id: graph.traversal.dfs
+name: Depth-First Search
+category: [graph, traversal]
+aliases: [dfs, depth_first_search, depthfirstsearch, depth_first_search_adjacency_list]
+signals:
+  - reachable from source
+  - connected component
+  - go as deep as possible
+  - depth-first order
+  - count reachable nodes
+  - detect cycle in graph
+  - preorder traversal
+preconditions:
+  adjacency_mapping: true
+  source_is_node: true
+  neighbours_are_keys: true
+avoid_when:
+  - fewest edges            # -> graph.traversal.bfs
+  - level order             # -> graph.traversal.bfs
+  - dependency ordering     # -> graph.topological_sort
+  - enumerate all paths     # -> backtracking.backtracking
+  - weighted shortest path  # -> graph.shortest_path.dijkstra
+  - undirected components   # -> graph.union_find
+complexity:
+  time: "O(V + E)"
+  space: "O(V)"
+related: [graph.traversal.bfs, graph.topological_sort, backtracking.backtracking]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: graphs/depth_first_search.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: graphs/depth_first_search_2.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: graph/depth_first_search.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: graph/depth_first_search_with_stack.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/graphtheory/DepthFirstSearchAdjacencyListRecursive.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT

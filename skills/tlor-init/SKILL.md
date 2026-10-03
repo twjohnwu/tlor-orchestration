@@ -66,11 +66,12 @@ relocated by hand. Apply this 3-branch check to each of
 (Project/repo level installs use plain directories — this institution layout
 is a `~/.claude/` concept only.)
 
-Then install the 14 agent role definitions from the plugin's `agents/`
+Then install the 15 agent role definitions from the plugin's `agents/`
 directory to `<target>/agents/`:
 
 - rohirrim-outrider.md
 - ranger-pathfinder.md
+- Explore.md
 - noldor-loremaster.md
 - dwarf-smith.md
 - gondor-builder.md
@@ -319,21 +320,22 @@ Present available hooks with clear descriptions:
    editing rules/CLAUDE.md/AGENTS.md files. Enforces "commander doesn't do
    field work" — edits must go through subagent dispatch. Subagents are
    always allowed through.
-   - Activated by setting `TLOR_INSTITUTION_GUARD=1` in your environment
+   - Activated by setting `TLOR_INSTITUTION_GUARD=1` in `~/.claude/settings.json` `env`
    - Python-first, bash fallback if Python 3 unavailable
 
 2. **verify_gate** (Stop): Blocks turn completion when code files were edited
    but no test command was detected. Enforces fail-then-pass evidence.
-   - Activated by setting `TLOR_VERIFY_GATE=1` in your environment
+   - Activated by setting `TLOR_VERIFY_GATE=1` in `~/.claude/settings.json` `env`
    - Requires Python 3
 
 3. **dispatch_guard** (PreToolUse): Unconditionally denies Agent dispatches
-   with `subagent_type: general-purpose`, `claude`, `explore`, or `plan`.
+   with `subagent_type: general-purpose`, `claude`, or `plan`; `explore` is
+   allowed only when the `Explore.md` mirror role is installed.
    The named `subagent_type: bombadil-freeagent` is allowed only with a
    `no-role-fits reason: ...` line in the prompt (model/effort now pinned in
    the role's frontmatter; a per-call `model` override stays optional).
    Redirects naming slips to the pinned roles (dispatch.md §3).
-   - Activated by setting `TLOR_DISPATCH_GUARD=1` in your environment
+   - Activated by setting `TLOR_DISPATCH_GUARD=1` in `~/.claude/settings.json` `env`
    - Requires Python 3
 
 Let the user choose per-hook: install or skip. Do NOT install any hook without
@@ -344,15 +346,25 @@ For hooks chosen: copy `hooks/institution_guard.py`, `hooks/institution_guard.sh
 (dispatcher entry point), `hooks/verify_gate.py`, and `hooks/dispatch_guard.py`
 from the plugin bundle
 to `~/.claude/institution/hooks/` (this lands at
-`~/.claude/hooks/` through the Step 3 symlink). Then explain that activation
-is still via environment variables. Tell the user to add the relevant env
-var to their shell profile:
+`~/.claude/hooks/` through the Step 3 symlink). Then explain that activation is still via environment variables, and that
+the plugin's `hooks.json` does not set them. Tell the user to add the
+relevant env vars to the `env` block of `~/.claude/settings.json` — not a
+shell profile: `~/.zshrc`/`~/.bashrc` are only read when Claude Code is
+launched from a shell, so a desktop-app session would run with every guard
+silent. Merge into any existing `env` keys; do not overwrite them:
 
-```bash
-# Add to ~/.zshrc or ~/.bashrc
-export TLOR_INSTITUTION_GUARD=1  # Enable institution file guard
-export TLOR_VERIFY_GATE=1        # Enable test verification gate
+```json
+{
+  "env": {
+    "TLOR_INSTITUTION_GUARD": "1",
+    "TLOR_VERIFY_GATE": "1",
+    "TLOR_DISPATCH_GUARD": "1"
+  }
+}
 ```
+
+The change takes effect in a new Claude Code process (`/clear` does not
+reload settings).
 
 ### Step 11: Install workflow scripts
 

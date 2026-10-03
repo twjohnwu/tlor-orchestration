@@ -1,0 +1,51 @@
+# playbook/metadata/algorithms/<id>.yaml — one per entry; build_index.py reads these
+id: graph.shortest_path.bellman_ford
+name: Bellman-Ford
+category: [graph, shortest-path]
+aliases: [bellman_ford, bellman-ford, bellmanford, spfa]
+signals:
+  - negative edge weights
+  - shortest path
+  - negative cycle
+  - single source
+  - detect arbitrage
+  - at most k edges
+  - difference constraints
+preconditions:
+  negative_edges: true
+  negative_cycle_reachable: false
+  nan_weights: false
+  source_in_graph: true
+  neighbours_are_nodes: true
+avoid_when:
+  - non-negative weights    # -> graph.shortest_path.dijkstra
+  - unweighted graph        # -> graph.traversal.bfs
+  - all-pairs paths         # -> floyd-warshall
+  - DAG input               # -> graph.topological_sort
+complexity:
+  time: "O(V * E)"
+  space: "O(V + E)"
+related: [graph.shortest_path.dijkstra]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: graphs/bellman_ford.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: dynamic_programming/bellman_ford.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/graphtheory/BellmanFordEdgeList.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT
+  - repo: ADJA/algos
+    path: Graphs/BellmanFord.cpp
+    commit: 244d382be168208d669db0f90ea64cc6be06e3d2
+    license: MIT
+  - repo: imeplusplus/icpc-notebook
+    path: graphs/spfa.cpp
+    commit: d6db5cb0e077ed674fd16828f3c1e452a222d103
+    license: MIT

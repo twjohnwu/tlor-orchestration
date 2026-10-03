@@ -32,7 +32,7 @@
 
 ## Agent docs（agent_doc/，懶載入）
 
-角色專屬、條件觸發的參考文件。被派工的 subagent 只在觸發條件成立時才 Read（機器上有 codex、頁面只有 JS 殼、判定進入 HIGH-RISK），其餘派工一個字都不用付。分工判準：rules/ 放**每個 context 都必須知道**的，agent_doc/ 放**某個角色偶爾需要**的。
+角色專屬、條件觸發的參考文件。被派工的 subagent（§3d 則是 Maia）只在觸發條件成立時才 Read（機器上有 codex、頁面只有 JS 殼、判定進入 HIGH-RISK），其餘派工一個字都不用付。分工判準：rules/ 放**每個 context 都必須知道**的，agent_doc/ 放**某個角色偶爾需要**的。
 
 | 子層 | 擁有者 | 安裝行為 |
 |---|---|---|
@@ -43,7 +43,8 @@
 | 文件 | 讀者 | 觸發條件 |
 |---|---|---|
 | `codex-cli.md` | 任何要呼叫 Codex CLI 的角色 | 組 codex 呼叫之前 |
-| `builder-codex.md` | gondor-builder、dwarf-smith | 機器上有 codex 且派工沒寫 `no-codex` |
+| `builder-codex.md` | Maia（dispatch.md §3d） | 機器上有 codex、派工沒寫 `no-codex`、屬 implement 類任務 |
+| `algorithms/README.md`（＋`INDEX.md`、各 entry） | gondor-builder；Maia 的 codex brief | 規格沒定做法的演算法子問題 |
 | `eagle-codex-prescreen.md` | eagle-sentinel | HIGH-RISK 判定 + 有 codex + 沒寫 `no-codex` |
 | `noldor-browser.md` | noldor-loremaster | WebFetch 只拿到 JS 空殼；也收錄 bot-verifier（CAPTCHA）留窗協議 |
 | `bilbo-scribe.md` | bilbo-scribe | 每次派工的第一步——routing table ＋共用寫作核心（六步流程、五維度自評、事實保存） |
@@ -59,12 +60,12 @@
 
 ## Hooks（選配）
 
-四個 hook **預設皆靜默**——前三個靠環境變數啟用，第四個靠註冊安裝。任何內部錯誤一律 fail-open（放行，不擋工作）。`install.sh` 會複製 hook 腳本，但不接線也不啟用（不寫 `hooks.json`、不設環境變數）；要接線請走 plugin 安裝。
+四個 hook **預設皆靜默**——前三個靠環境變數啟用，第四個靠註冊安裝。任何內部錯誤一律 fail-open（放行，不擋工作）。`install.sh` 會複製 hook 腳本，但不接線也不啟用（不寫 `hooks.json`、不設環境變數）。plugin 安裝會接好 `hooks.json`，但兩種方式都不設環境變數——請寫進 `~/.claude/settings.json` 的 `env` 區塊；shell profile 在非 shell 啟動（例如 desktop app）時不會被讀取。
 
 | Hook | 事件 | 說明 | env key |
 |---|---|---|---|
 | `institution_guard` | PreToolUse | 擋主 session 直接 Edit/Write 制度檔（`~/.claude/institution/`、`rules/`、`agents/`，以及任何位置的 `CLAUDE.md`／`AGENTS.md`）——執行「指揮官不下場」；subagent 的編輯一律放行 | `TLOR_INSTITUTION_GUARD=1` |
-| `dispatch_guard` | PreToolUse | 擋派工到 `general-purpose`／`claude`／`explore`／`plan`；`bombadil-freeagent` 需 prompt 內帶 `no-role-fits` 字樣才放行（model/effort 已在 frontmatter pin 定，per-call `model` 覆寫為選配） | `TLOR_DISPATCH_GUARD=1` |
+| `dispatch_guard` | PreToolUse | 擋派工到 `general-purpose`／`claude`／`plan`；`explore` 只在已安裝 `Explore.md` 鏡像角色時放行；`bombadil-freeagent` 需 prompt 內帶 `no-role-fits` 字樣才放行（model/effort 已在 frontmatter pin 定，per-call `model` 覆寫為選配） | `TLOR_DISPATCH_GUARD=1` |
 | `verify_gate` | Stop | 攔「沒有證據的完成宣稱」：本輪改了程式碼卻沒跑測試指令，擋回一次要求補 fail-then-pass 證據 | `TLOR_VERIFY_GATE=1` |
 | `stdd_test_guard` | PreToolUse | STDD 執行期保護：`tasks.md` 中 `[wip]` 任務所引用的測試檔，在該任務標成 `[x]` 前不得再被 Edit/Write | 無啟用 env；由 `install.sh --install-hook` 註冊進 `settings.json` |
 

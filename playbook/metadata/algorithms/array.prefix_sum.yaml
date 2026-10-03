@@ -1,0 +1,37 @@
+id: array.prefix_sum
+name: Prefix Sum
+category: [array]
+aliases: [prefix_sum, prefix_sums, prefix_2d, cumulative_sum, partial_sum]
+signals:
+  - range sum query
+  - subarray sum
+  - cumulative sum
+  - many queries static array
+  - prefix total
+  - sum of rectangle in grid
+  - subarray equals target
+preconditions:
+  integer_elements: true
+  static_array: true
+  invertible_operation: true
+  bounds_inclusive_valid: true
+avoid_when:
+  - array updates                  # -> Fenwick tree or segment tree
+  - min or max                     # -> sparse table or segment tree
+  - single range                   # -> plain loop
+  - best window                    # -> array.sliding_window
+complexity:
+  time: "O(n + q)"
+  space: "O(n)"
+related: [array.sliding_window, hashing.hash_map]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: data_structures/arrays/prefix_sum.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: range_queries/prefix_sum_array.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT

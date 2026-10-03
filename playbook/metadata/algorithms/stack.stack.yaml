@@ -1,0 +1,53 @@
+id: stack.stack
+name: Stack
+category: [stack]
+aliases: [stack, stack_using_array, stack_using_linked_list, balanced_parentheses, postfix_evaluation]
+signals:
+  - balanced brackets
+  - matching parentheses
+  - last in first out
+  - postfix evaluation
+  - undo history
+  - innermost first
+  - iterative instead of recursion
+preconditions:
+  input_type: string
+  closer_mapping_fixed: true
+  pop_only_when_nonempty: true
+avoid_when:
+  - arrival order   # -> collections.deque queue
+  - next greater   # -> stack.monotonic_stack
+  - smallest pending   # -> heap.priority_queue
+  - fewest steps   # -> graph.traversal.bfs
+  - random access   # -> list / array
+complexity:
+  time: "O(n)"
+  space: "O(n)"
+related: [stack.monotonic_stack, graph.traversal.dfs]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: data_structures/stacks/balanced_parentheses.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: data_structures/stacks/stack.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: data_structures/stacks/postfix_evaluation.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: data_structures/stack.hpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/datastructures/stack/Stack.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/datastructures/stack/IntStack.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT

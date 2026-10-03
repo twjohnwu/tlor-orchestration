@@ -42,7 +42,7 @@ this directory to tools that read AGENTS.md but know nothing about
 
 ## Agent docs (agent_doc/, lazy-load)
 
-Role-specific reference docs that load on a condition. A dispatched subagent
+Role-specific reference docs that load on a condition. A dispatched subagent (or, for §3d, the Maia)
 Reads them only when its trigger fires (a codex-capable machine, a JS-only
 page, a HIGH-RISK verdict), so the text costs nothing in every other
 dispatch. The division of labor: rules/ holds what EVERY context must know,
@@ -57,7 +57,8 @@ agent_doc/ holds what one role needs sometimes.
 | Doc | Read by | Trigger |
 |---|---|---|
 | `codex-cli.md` | any role calling the Codex CLI | before composing a codex invocation |
-| `builder-codex.md` | gondor-builder, dwarf-smith | codex present and the dispatch does not say `no-codex` |
+| `builder-codex.md` | the Maia (dispatch.md §3d) | codex present, brief not marked `no-codex`, implement-shaped task |
+| `algorithms/README.md` (+ `INDEX.md`, entries) | gondor-builder; the Maia's codex brief | an algorithmic sub-problem the spec leaves open |
 | `eagle-codex-prescreen.md` | eagle-sentinel | HIGH-RISK verdict + codex present + no `no-codex` |
 | `noldor-browser.md` | noldor-loremaster | WebFetch returns a JS-only shell; also holds the bot-verifier (CAPTCHA) leave-the-browser-open protocol |
 | `bilbo-scribe.md` | bilbo-scribe | FIRST step of every dispatch — routing table + shared writing core (six-step workflow, five-dimension self-score, fact preservation) |
@@ -77,12 +78,15 @@ All four hooks are **silent by default**: an environment variable turns on
 the first three, registration turns on the fourth. Every one of them fails
 open on an internal error, so the call goes through and a bug in a hook never
 blocks your work. `install.sh` copies the hook scripts but does not wire or
-activate them (no `hooks.json`, no env vars) — use the plugin route for that.
+activate them (no `hooks.json`, no env vars) — the plugin route wires
+`hooks.json`, but neither route sets the env vars. Put them in the `env`
+block of `~/.claude/settings.json`; a shell profile is skipped when Claude
+Code starts outside a shell (e.g. the desktop app).
 
 | Hook | Event | What it does | Env key |
 |---|---|---|---|
 | `institution_guard` | PreToolUse | Blocks the main session from Edit/Write on institution files (`~/.claude/institution/`, `rules/`, `agents/`, and any `CLAUDE.md`/`AGENTS.md` anywhere) — enforces "the commander doesn't do field work"; subagent edits pass through | `TLOR_INSTITUTION_GUARD=1` |
-| `dispatch_guard` | PreToolUse | Denies dispatches to `general-purpose`/`claude`/`explore`/`plan`; `bombadil-freeagent` passes only when its prompt carries a `no-role-fits` mention (model/effort are pinned in its frontmatter; a per-call `model` override stays optional) | `TLOR_DISPATCH_GUARD=1` |
+| `dispatch_guard` | PreToolUse | Denies dispatches to `general-purpose`/`claude`/`plan`, and to `explore` unless the `Explore.md` mirror role is installed; `bombadil-freeagent` passes only when its prompt carries a `no-role-fits` mention (model/effort are pinned in its frontmatter; a per-call `model` override stays optional) | `TLOR_DISPATCH_GUARD=1` |
 | `verify_gate` | Stop | Catches "done" claims with no evidence: if code files were edited this turn and no test command was run, it blocks the turn once, asking for fail-then-pass evidence | `TLOR_VERIFY_GATE=1` |
 | `stdd_test_guard` | PreToolUse | STDD execute-phase protection: a test file cited by a `[wip]` task in `tasks.md` cannot be edited or rewritten until that task is marked `[x]` | none — registered into `settings.json` by `install.sh --install-hook` |
 

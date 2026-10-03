@@ -1,0 +1,22 @@
+{"query": "longest substring without repeating characters", "candidates": ["array.two_pointers", "array.sliding_window"], "expected": "array.sliding_window"}
+{"query": "find a pair in a sorted array summing to a target", "candidates": ["array.two_pointers", "array.sliding_window"], "expected": "array.two_pointers"}
+{"query": "find the first element in a sorted array that is at least x", "candidates": ["search.binary_search", "array.two_pointers"], "expected": "search.binary_search"}
+{"query": "fewest steps through an unweighted maze", "candidates": ["graph.traversal.bfs", "graph.shortest_path.dijkstra"], "expected": "graph.traversal.bfs"}
+{"query": "cheapest route over weighted roads with non-negative costs", "candidates": ["graph.traversal.bfs", "graph.shortest_path.dijkstra"], "expected": "graph.shortest_path.dijkstra"}
+{"query": "maximum sum of a contiguous window of size k", "candidates": ["array.two_pointers", "array.sliding_window", "search.binary_search"], "expected": "array.sliding_window"}
+{"query": "shortest path from a source when some edge weights are negative", "candidates": ["graph.shortest_path.bellman_ford", "graph.shortest_path.dijkstra"], "expected": "graph.shortest_path.bellman_ford"}
+{"query": "cheapest route with non-negative edge weights from a single source", "candidates": ["graph.shortest_path.bellman_ford", "graph.shortest_path.dijkstra"], "expected": "graph.shortest_path.dijkstra"}
+{"query": "order courses so prerequisites come first", "candidates": ["graph.traversal.bfs", "graph.traversal.dfs", "graph.topological_sort"], "expected": "graph.topological_sort"}
+{"query": "fewest hops from a source in an unweighted graph level by level", "candidates": ["graph.traversal.bfs", "graph.traversal.dfs", "graph.topological_sort"], "expected": "graph.traversal.bfs"}
+{"query": "count connected components by going as deep as possible", "candidates": ["graph.traversal.bfs", "graph.traversal.dfs", "graph.topological_sort"], "expected": "graph.traversal.dfs"}
+{"query": "autocomplete all words that share a prefix", "candidates": ["string.trie", "hashing.hash_map"], "expected": "string.trie"}
+{"query": "have we seen this key before with O(1) lookup", "candidates": ["string.trie", "hashing.hash_map"], "expected": "hashing.hash_map"}
+{"query": "find all occurrences of a pattern in a text in linear time", "candidates": ["string.kmp", "string.trie"], "expected": "string.kmp"}
+{"query": "find a pair with target sum in a sorted array with O(1) extra space", "candidates": ["array.two_pointers", "hashing.hash_map"], "expected": "array.two_pointers"}
+{"query": "two sum in an unsorted array using complement lookup", "candidates": ["array.two_pointers", "hashing.hash_map"], "expected": "hashing.hash_map"}
+{"query": "longest substring with a constraint over a running window", "candidates": ["array.sliding_window", "array.prefix_sum"], "expected": "array.sliding_window"}
+{"query": "many range sum queries on a static array", "candidates": ["array.sliding_window", "array.prefix_sum"], "expected": "array.prefix_sum"}
+{"query": "next greater element for each position", "candidates": ["stack.monotonic_stack", "heap.priority_queue"], "expected": "stack.monotonic_stack"}
+{"query": "k-th largest element and extract min from a stream", "candidates": ["stack.monotonic_stack", "heap.priority_queue"], "expected": "heap.priority_queue"}
+{"query": "minimum number of coins to make an amount", "candidates": ["dp.one_dimensional", "dp.two_dimensional"], "expected": "dp.one_dimensional"}
+{"query": "edit distance between two strings", "candidates": ["dp.one_dimensional", "dp.two_dimensional"], "expected": "dp.two_dimensional"}

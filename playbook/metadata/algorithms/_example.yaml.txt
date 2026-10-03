@@ -1,0 +1,26 @@
+# playbook/metadata/algorithms/<id>.yaml — one per entry; build_index.py reads these
+id: graph.shortest_path.dijkstra
+name: Dijkstra's Algorithm
+category: [graph, shortest-path]
+aliases: [dijkstra, dijkstra-shortest-path, sssp-nonnegative]
+signals:
+  - weighted graph
+  - shortest path
+  - non-negative edge weights
+  - single source
+preconditions:
+  negative_edges: false
+avoid_when:
+  - graph contains negative edge weights   # -> graph.shortest_path.bellman_ford
+  - unweighted graph                       # -> graph.traversal.bfs
+complexity:
+  time: "O((V + E) log V)"
+  space: "O(V + E)"
+related: [graph.shortest_path.bellman_ford, graph.traversal.bfs, graph.shortest_path.a_star]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: graphs/dijkstra.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT

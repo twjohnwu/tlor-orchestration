@@ -1,0 +1,47 @@
+id: graph.traversal.bfs
+name: Breadth-First Search
+category: [graph, traversal]
+aliases: [bfs, breadth_first_search, breadthfirstsearch, breadth_first_search_adjacency_list, bfs_grid_shortest_path]
+signals:
+  - fewest edges
+  - minimum number of hops
+  - shortest path unweighted graph
+  - level by level
+  - reachable from source
+  - grid maze equal step cost
+  - nearest node
+preconditions:
+  adjacency_mapping: true
+  source_is_node: true
+  neighbours_are_keys: true
+  equal_edge_cost: true
+avoid_when:
+  - weighted graph                # -> graph.shortest_path.dijkstra
+  - different edge costs          # -> graph.shortest_path.dijkstra
+  - depth-first order             # -> graph.traversal.dfs
+  - wide graph reachability  # -> graph.traversal.dfs
+  - zero-one weights              # -> 0-1 BFS (deque) or graph.shortest_path.dijkstra
+  - DAG dependency ordering       # -> graph.topological_sort
+complexity:
+  time: "O(V + E)"
+  space: "O(V)"
+related: [graph.traversal.dfs, graph.shortest_path.dijkstra, graph.topological_sort]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: graphs/breadth_first_search.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: graphs/breadth_first_search_shortest_path.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: graph/breadth_first_search.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/graphtheory/BreadthFirstSearchAdjacencyList.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT

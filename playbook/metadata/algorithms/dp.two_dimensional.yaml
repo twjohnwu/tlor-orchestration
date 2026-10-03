@@ -1,0 +1,54 @@
+id: dp.two_dimensional
+name: 2-D Dynamic Programming
+category: [dynamic-programming]
+aliases: [knapsack, 0_1_knapsack, lcs, longest_common_subsequence, edit_distance, matrix_chain_multiplication]
+signals:
+  - longest common subsequence
+  - edit distance
+  - 0/1 knapsack
+  - capacity limit
+  - two sequences alignment
+  - grid dp
+preconditions:
+  input_type: sequence
+  table_fits_memory: true
+avoid_when:
+  - single index        # -> dp.one_dimensional
+  - fractional items    # -> greedy by ratio
+  - huge capacity       # -> meet-in-the-middle
+  - subset state        # -> bitmask DP
+complexity:
+  time: "O(n*m)"
+  space: "O(n*m); O(min(n, m)) with a rolling row if the shorter sequence is passed as b"
+related: [dp.one_dimensional]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: dynamic_programming/knapsack.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: dynamic_programming/edit_distance.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: knapsack/knapsack.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: dynamic_programming/longest_common_subsequence.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: dynamic_programming/edit_distance.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/dp/LongestCommonSubsequence.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/dp/Knapsack_01.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT

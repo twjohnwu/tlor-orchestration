@@ -1,0 +1,63 @@
+{"query": "Given a sorted list of integers, find two numbers that add up to a target without using extra memory beyond constant space.", "expected": "array.two_pointers"}
+{"query": "Remove duplicates from a sorted array in place and return the new length, overwriting elements as we scan from both indices.", "expected": "array.two_pointers"}
+{"query": "Check whether a string reads the same forwards and backwards by comparing characters moving inward from the two ends using two pointers.", "expected": "array.two_pointers"}
+{"query": "Find the longest contiguous substring that contains no repeated characters, while scanning the input once from left to right.", "expected": "array.sliding_window"}
+{"query": "Compute the maximum sum of any k consecutive elements in an array of numbers, updating the running total as the range moves.", "expected": "array.sliding_window"}
+{"query": "Return the smallest contiguous subarray whose sum is at least a given positive threshold, expanding and shrinking the window as needed.", "expected": "array.sliding_window"}
+{"query": "We receive thousands of queries asking for the sum of elements between index l and r on a static array; each must answer fast.", "expected": "array.prefix_sum"}
+{"query": "Count the number of contiguous subarrays whose elements sum exactly to k, where values may be negative, using cumulative totals and a lookup.", "expected": "array.prefix_sum"}
+{"query": "Precompute cumulative sums so that range sum queries on an immutable array run in constant time after linear preprocessing, a prefix sum approach.", "expected": "array.prefix_sum"}
+{"query": "Locate a value in a sorted array in logarithmic time and return its index, or minus one when it is absent.", "expected": "search.binary_search"}
+{"query": "Find the minimum capacity of a conveyor that ships all packages within D days, where feasibility is monotonic in the capacity.", "expected": "search.binary_search"}
+{"query": "A sorted array was rotated at an unknown pivot; find a target value in it in O(log n) by halving the search range.", "expected": "search.binary_search"}
+{"query": "Given an unsorted array and a target, return the indices of two numbers adding up to it in a single pass.", "expected": "hashing.hash_map"}
+{"query": "Group words that are anagrams of each other by building a canonical key per word and collecting words under the same key.", "expected": "hashing.hash_map"}
+{"query": "Count how often each element occurs in a large list and report the first value seen twice, using a dictionary for constant lookups.", "expected": "hashing.hash_map"}
+{"query": "Detect whether a singly linked list contains a cycle without using extra memory or marking visited nodes.", "expected": "linked_list.fast_slow_pointers"}
+{"query": "Find the middle node of a singly linked list in one traversal, without first computing its length.", "expected": "linked_list.fast_slow_pointers"}
+{"query": "Given a linked list with a loop, return the node where the cycle begins using the tortoise and hare technique.", "expected": "linked_list.fast_slow_pointers"}
+{"query": "Validate that a string of brackets such as parentheses, square and curly braces is properly nested and every opener is closed in order.", "expected": "stack.stack"}
+{"query": "Evaluate a postfix arithmetic expression given as tokens, pushing operands and applying each operator to the most recent two values.", "expected": "stack.stack"}
+{"query": "Implement an undo feature for an editor where the most recently performed action is always the first one reverted, last in first out.", "expected": "stack.stack"}
+{"query": "For each day in a temperature series, compute how many days you must wait until a warmer day, in linear time.", "expected": "stack.monotonic_stack"}
+{"query": "For every element in an array find the next greater element to its right, scanning once and keeping candidates in decreasing order.", "expected": "stack.monotonic_stack"}
+{"query": "Find the area of the largest rectangle in a histogram of bar heights by tracking bars with increasing heights on a monotonic stack.", "expected": "stack.monotonic_stack"}
+{"query": "Return the k largest elements from a stream of numbers while keeping only k items in memory at any time.", "expected": "heap.priority_queue"}
+{"query": "Merge k already sorted lists into a single sorted list by repeatedly extracting the smallest head element among all lists.", "expected": "heap.priority_queue"}
+{"query": "Maintain a running median of a data stream where numbers arrive one at a time, using two heaps balanced against each other.", "expected": "heap.priority_queue"}
+{"query": "Find the minimum number of moves to get from the start cell to the exit in an unweighted grid maze with walls.", "expected": "graph.traversal.bfs"}
+{"query": "Given an unweighted graph, compute the fewest edges between a source node and every other node, exploring level by level with a queue.", "expected": "graph.traversal.bfs"}
+{"query": "Transform one word into another by changing a single letter at a time through dictionary words, finding the shortest transformation sequence length.", "expected": "graph.traversal.bfs"}
+{"query": "Count the number of separate islands in a grid of land and water cells by exploring each connected region recursively.", "expected": "graph.traversal.dfs"}
+{"query": "Visit every node reachable from a starting vertex by following edges as deep as possible and then backing up, recording visit order.", "expected": "graph.traversal.dfs"}
+{"query": "Detect whether a directed graph has a cycle by tracking which nodes are on the current recursion path during a depth first walk.", "expected": "graph.traversal.dfs"}
+{"query": "Given a stream of friendships between people, determine how many separate friend groups exist after each new connection is added.", "expected": "graph.union_find"}
+{"query": "Detect the redundant edge in an undirected graph that closes a cycle, by checking whether both endpoints already belong to the same component.", "expected": "graph.union_find"}
+{"query": "Merge account records that share any email address into groups, using a disjoint set structure with path compression and union by rank.", "expected": "graph.union_find"}
+{"query": "Given courses with prerequisites, decide whether all courses can be completed and output a valid order to take them.", "expected": "graph.topological_sort"}
+{"query": "Order build tasks so every task runs only after the tasks it depends on, and report an error when dependencies form a cycle.", "expected": "graph.topological_sort"}
+{"query": "Produce a linear ordering of the vertices of a directed acyclic graph such that every edge goes from earlier to later, via in-degree counting.", "expected": "graph.topological_sort"}
+{"query": "Find the cheapest route between two cities on a road network where every road has a non-negative travel time.", "expected": "graph.shortest_path.dijkstra"}
+{"query": "Compute the minimum delay for a signal to reach all nodes in a weighted directed graph with positive edge weights from a given source.", "expected": "graph.shortest_path.dijkstra"}
+{"query": "Shortest path from one source in a weighted graph with no negative edges, using a priority queue to always expand the closest unsettled node.", "expected": "graph.shortest_path.dijkstra"}
+{"query": "Compute cheapest paths from a source in a weighted graph where some edges have negative costs, and flag any negative cycle reachable from it.", "expected": "graph.shortest_path.bellman_ford"}
+{"query": "Find the cheapest flight from origin to destination using at most k stops, relaxing all edges repeatedly for k plus one rounds.", "expected": "graph.shortest_path.bellman_ford"}
+{"query": "Detect arbitrage in currency exchange rates by looking for a negative cycle after taking logarithms, relaxing every edge up to V minus one times.", "expected": "graph.shortest_path.bellman_ford"}
+{"query": "Given a list of meeting start and end times, find the largest number of meetings one room can host without any overlapping.", "expected": "greedy.interval_scheduling"}
+{"query": "Return the minimum number of intervals to remove so that the remaining intervals do not overlap, sorting by finishing time first.", "expected": "greedy.interval_scheduling"}
+{"query": "Merge all overlapping time ranges in a list into the smallest set of non-overlapping ranges, after sorting them by start.", "expected": "greedy.interval_scheduling"}
+{"query": "Generate all subsets of a list of distinct numbers, building each candidate step by step and undoing the last choice after recursion.", "expected": "backtracking.backtracking"}
+{"query": "Place n queens on a chessboard so that none attack each other, and return every valid arrangement found by exploring and pruning.", "expected": "backtracking.backtracking"}
+{"query": "Enumerate every permutation of a collection of elements, choosing an unused item at each position and then unchoosing it to try alternatives.", "expected": "backtracking.backtracking"}
+{"query": "A climber can take one or two steps at a time; count the distinct ways to reach the top of n stairs.", "expected": "dp.one_dimensional"}
+{"query": "Given house values along a street, maximize the loot without robbing two adjacent houses, using a table indexed by position.", "expected": "dp.one_dimensional"}
+{"query": "Find the fewest coins needed to make up an amount given unlimited denominations, building answers for smaller amounts first in a single array.", "expected": "dp.one_dimensional"}
+{"query": "Compute the length of the longest common subsequence between two strings using a table indexed by prefix lengths of each.", "expected": "dp.two_dimensional"}
+{"query": "Find the minimum number of insert, delete and replace operations to turn one word into another, filling a grid of subproblem results.", "expected": "dp.two_dimensional"}
+{"query": "Count unique paths from the top left to the bottom right of a grid with obstacles, moving only right or down.", "expected": "dp.two_dimensional"}
+{"query": "Build an autocomplete feature that returns every stored word starting with the characters a user has typed so far.", "expected": "string.trie"}
+{"query": "Implement a dictionary supporting insert, exact word lookup and checking whether any stored word begins with a given prefix, sharing common leading characters.", "expected": "string.trie"}
+{"query": "Store a large set of words in a prefix tree so we can search for words with a wildcard character quickly.", "expected": "string.trie"}
+{"query": "Find every position where a pattern occurs in a long text in linear time, including overlapping matches, avoiding re-comparing characters after a mismatch.", "expected": "string.kmp"}
+{"query": "Precompute the longest proper prefix that is also a suffix for each position of a pattern, then use it to skip ahead on mismatch.", "expected": "string.kmp"}
+{"query": "Locate substring occurrences in guaranteed O(n plus m) time without ever backing up in the text, the way KMP does.", "expected": "string.kmp"}

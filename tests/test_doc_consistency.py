@@ -200,7 +200,7 @@ def _agent_role_names_from_skill_step3(text):
     ("install the N agent role definitions" followed by a `- <name>.md`
     bullet block)."""
     step3_match = re.search(
-        r"install the \d+ agent role definitions.*?\n((?:- [a-z0-9-]+\.md\n)+)",
+        r"install the \d+ agent role definitions.*?\n((?:- [A-Za-z0-9-]+\.md\n)+)",
         text,
         re.DOTALL,
     )
@@ -208,7 +208,7 @@ def _agent_role_names_from_skill_step3(text):
         "no Step 3 'install the N agent role definitions' bullet list found "
         "in SKILL.md"
     )
-    return set(re.findall(r"- ([a-z0-9-]+)\.md", step3_match.group(1)))
+    return set(re.findall(r"- ([A-Za-z0-9-]+)\.md", step3_match.group(1)))
 
 
 def test_skill_step3_install_list_matches_agents_dir_glob_exactly():
@@ -485,3 +485,47 @@ def test_stdd_plan_skill_states_the_merged_task_id_line_format():
         "(a single backtick token joining the merged scenario ids with a "
         "comma) anywhere in its text"
     )
+
+
+def _split_frontmatter(text):
+    """Return (frontmatter, body) split at the closing '---' line."""
+    lines = text.splitlines(keepends=True)
+    assert lines and lines[0].strip() == "---", "missing opening frontmatter fence"
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            return "".join(lines[1:i]), "".join(lines[i + 1:])
+    raise AssertionError("missing closing frontmatter fence")
+
+
+def _frontmatter_value(frontmatter, key):
+    match = re.search(rf"^{key}:[ \t]*(.*)$", frontmatter, re.MULTILINE)
+    assert match, f"no `{key}:` in frontmatter"
+    return match.group(1).strip()
+
+
+def test_explore_mirror_matches_ranger_pathfinder_except_name_and_description():
+    """agents/Explore.md is a mirror of ranger-pathfinder under the built-in
+    name; only `name` and `description` may differ, so drift is caught here."""
+    mirror = (AGENTS_DIR / "Explore.md").read_text(encoding="utf-8")
+    source = (AGENTS_DIR / "ranger-pathfinder.md").read_text(encoding="utf-8")
+    mirror_fm, mirror_body = _split_frontmatter(mirror)
+    source_fm, source_body = _split_frontmatter(source)
+
+    assert _frontmatter_value(mirror_fm, "name") == "Explore"
+    for key in ("version", "model", "effort", "tools"):
+        assert _frontmatter_value(mirror_fm, key) == _frontmatter_value(source_fm, key), (
+            f"Explore.md frontmatter `{key}` differs from ranger-pathfinder.md"
+        )
+
+    if mirror_body != source_body:
+        mirror_lines = mirror_body.splitlines()
+        source_lines = source_body.splitlines()
+        for n in range(max(len(mirror_lines), len(source_lines))):
+            a = mirror_lines[n] if n < len(mirror_lines) else "<EOF>"
+            b = source_lines[n] if n < len(source_lines) else "<EOF>"
+            if a != b:
+                raise AssertionError(
+                    f"Explore.md body differs from ranger-pathfinder.md at body "
+                    f"line {n + 1}: {a!r} != {b!r}"
+                )
+        raise AssertionError("Explore.md body differs from ranger-pathfinder.md (whitespace)")

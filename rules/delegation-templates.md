@@ -64,9 +64,6 @@ and commits." | sole writer in its own worktree running several sequential
 tasks: "commit atomically per task as you go."}} Changes you notice outside
 ALLOWED PATHS are reported, never reverted: in a parallel batch they are
 another agent's work.
-{{Optional: "no-codex" — forbid the Codex-first step; the agent implements
-directly. Omit it and gondor-builder tries Codex CLI first when available
-(role default).}}
 ```
 
 ## 3. Refactor / batch change  (role: dwarf-smith; `model: haiku` override if the recipe is trivially exact)
