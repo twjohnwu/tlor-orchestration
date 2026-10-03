@@ -1,0 +1,49 @@
+id: graph.union_find
+name: Union-Find (DSU)
+category: [graph, data-structure]
+aliases: [union_find, unionfind, dsu, disjoint_set, dsu_union_rank, dsu_path_compression]
+signals:
+  - same component
+  - connected components
+  - merge groups
+  - disjoint sets
+  - cycle in undirected graph
+  - Kruskal spanning tree
+  - incremental connectivity
+preconditions:
+  elements_indexed_0_to_n_minus_1: true
+  n_known_upfront: true
+  merges_only: true
+  directed_graph: false
+avoid_when:
+  - edge deletions       # -> rollback DSU / offline divide and conquer
+  - path needed          # -> graph.traversal.dfs
+  - directed reachability  # -> graph.traversal.dfs
+  - static graph         # -> graph.traversal.dfs
+complexity:
+  time: "O(alpha(n)) amortized per operation, O(n) build"
+  space: "O(n)"
+related: [graph.traversal.dfs]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: data_structures/disjoint_set/disjoint_set.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: data_structures/disjoint_set/alternate_disjoint_set.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: data_structures/dsu_union_rank.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: data_structures/dsu_path_compression.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/datastructures/unionfind/UnionFind.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT

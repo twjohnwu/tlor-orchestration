@@ -1,0 +1,46 @@
+# playbook/metadata/algorithms/<id>.yaml — one per entry; build_index.py reads these
+id: stack.monotonic_stack
+name: Monotonic Stack
+category: [stack]
+aliases: [monotonic_stack, next_greater_element, largest_rectangle_histogram, stock_span_problem, monotonic_queue]
+signals:
+  - next greater element
+  - next smaller element
+  - nearest larger value
+  - stock span
+  - largest rectangle in histogram
+  - one pass instead of nested scan
+preconditions:
+  input_is_sequence_of_real_numbers: true
+  nan_allowed: false
+  bool_items_allowed: false
+  fixed_strict_or_nonstrict_order: true
+  nearest_dominating_element_only: true
+avoid_when:
+  - fixed-size window         # -> array.sliding_window
+  - arbitrary range queries   # -> sparse table
+  - all dominating pairs      # -> nested scan
+  - online middle inserts     # -> balanced tree
+complexity:
+  time: "O(n)"
+  space: "O(n)"
+related: [stack.stack, array.sliding_window]
+confidence: medium
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: data_structures/stacks/next_greater_element.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: data_structures/stacks/largest_rectangle_histogram.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: data_structures/stacks/stock_span_problem.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: data_structures/queues/monotonic_queue.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT

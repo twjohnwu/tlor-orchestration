@@ -1,0 +1,50 @@
+id: heap.priority_queue
+name: Heap / Priority Queue
+category: [heap]
+aliases: [heap, min_heap, max_heap, binary_heap, binaryheap, priority_queue, priority_queue_using_list]
+signals:
+  - top k
+  - k-th largest
+  - k-th smallest
+  - extract min
+  - priority queue
+  - running median
+  - merge sorted streams
+  - next best item
+preconditions:
+  items_totally_ordered: true
+  pop_only_when_nonempty: true
+  no_in_place_mutation: true
+avoid_when:
+  - sort once   # -> sorted
+  - arrival order   # -> collections.deque queue
+  - newest first   # -> stack.stack
+  - rank queries   # -> balanced tree
+  - few levels   # -> bucket queue
+complexity:
+  time: "push/pop O(log n), peek O(1), build O(n)"
+  space: "O(n)"
+related: [graph.shortest_path.dijkstra, greedy.interval_scheduling]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: data_structures/heap/heap.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: data_structures/heap/min_heap.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: data_structures/queues/priority_queue_using_list.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: data_structures/binaryheap.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/datastructures/priorityqueue/BinaryHeap.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT
