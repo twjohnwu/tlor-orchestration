@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -76,6 +77,28 @@ def repo_root(sources_root: Path, tier: str, repo: dict) -> Path:
     return sources_root / tier.capitalize() / repo["local_dir"]
 
 
+def head_commit(root: Path):
+    """`git rev-parse HEAD` of a clone, or None when it is not a git checkout."""
+    if not (root / ".git").exists():
+        return None
+    try:
+        proc = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"],
+                              stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                              universal_newlines=True)
+    except OSError:
+        return None
+    return proc.stdout.strip() if proc.returncode == 0 else None
+
+
+def commit_warning(root: Path, repo: dict):
+    """A warning string when the clone's HEAD differs from sources.yaml, else None."""
+    head = head_commit(root)
+    pinned = str(repo.get("commit"))
+    if head is None or head == pinned:
+        return None
+    return "WARNING: %s HEAD %s != sources.yaml commit %s" % (repo["repo"], head, pinned)
+
+
 def scan_repo(root: Path, repo: dict) -> list:
     rows = []
     for dirpath, dirnames, filenames in os.walk(str(root)):
@@ -130,6 +153,9 @@ def main(argv: list = None) -> int:
             if not root.is_dir():
                 print("missing repo dir: %s" % root, file=sys.stderr)
                 return 1
+            warning = commit_warning(root, repo)
+            if warning:
+                print(warning, file=sys.stderr)
             rows = scan_repo(root, repo)
             for row in rows:
                 fh.write(json.dumps(row, sort_keys=True) + "\n")

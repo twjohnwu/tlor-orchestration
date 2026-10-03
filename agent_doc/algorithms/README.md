@@ -11,11 +11,11 @@ over a sequence) and the right approach is not already fixed by the spec.
    weighted graph, tree, intervals), the ask (shortest, longest, count,
    exists, k-th), and hard constraints (sorted?, negative weights?,
    contiguous?, streaming?).
-2. `Grep` those words in `INDEX.md` (one row per algorithm: id | signals |
+2. `Grep` those words in `~/.claude/agent_doc/algorithms/INDEX.md` (one row per algorithm: id | signals |
    avoid_when | confidence). Take at most 3 candidate ids. The
    `avoid_when` cell holds short cues only; the alternative to use for
    each cue is named in the entry's **Do Not Use When** section.
-3. `Read` each candidate's entry `<id>.md`. Compare the task against
+3. `Read` each candidate's entry `~/.claude/agent_doc/algorithms/<id>.md`. Compare the task against
    **Preconditions** and **Do Not Use When** first; a single violated
    precondition rejects the candidate even if the signals match.
 4. Implement from **Core Invariant** + **Algorithm**; adapt the
@@ -27,6 +27,8 @@ over a sequence) and the right approach is not already fixed by the spec.
 Do NOT load every entry into context. INDEX → one entry is the budget.
 If no candidate survives step 3, say so and solve it from first
 principles; do not force the nearest entry.
+
+Paths above are the installed location; inside the tlor-orchestration repo the same files live under `agent_doc/algorithms/`.
 
 ## Entry format
 

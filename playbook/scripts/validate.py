@@ -11,6 +11,7 @@ every entry in --entries-dir except README.md and INDEX.md.
 from __future__ import annotations
 
 import argparse
+import ast
 import os
 import re
 import subprocess
@@ -87,8 +88,26 @@ def known_commits(sources_path: Path) -> set:
     return known
 
 
+def canonical_blocks(text: str) -> list:
+    """Python blocks under `## Canonical Implementation` (a valid entry has one)."""
+    return PY_BLOCK_RE.findall(section_body(text, "## Canonical Implementation"))
+
+
 def py37_problems(code: str) -> list:
     problems = []
+    if sys.version_info >= (3, 8):
+        # feature_version cannot target a grammar newer than the running
+        # interpreter, so on 3.7 itself only the regex checks below apply.
+        # Newer interpreters (3.9+ pegen) stop enforcing feature_version for
+        # some 3.8 syntax, so positional-only parameters are also walked for.
+        try:
+            tree = ast.parse(code, feature_version=(3, 7))
+        except SyntaxError as exc:
+            problems.append("syntax newer than 3.7 (%s)" % exc.msg)
+        else:
+            if any(getattr(node.args, "posonlyargs", None) for node in ast.walk(tree)
+                   if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda))):
+                problems.append("positional-only parameters ('/')")
     if WALRUS_RE.search(code):
         problems.append("walrus operator ':='")
     if MATCH_RE.search(code):
@@ -143,7 +162,7 @@ def validate_id(algo_id: str, args, report: Report) -> None:
     problems = distill.check_sections(text, distill.TEMPLATE_PATH.read_text(encoding="utf-8"))
     report.line(not problems, "sections complete and in order", "; ".join(problems))
 
-    blocks = PY_BLOCK_RE.findall(section_body(text, "## Canonical Implementation"))
+    blocks = canonical_blocks(text)
     report.line(len(blocks) == 1, "exactly one python block in Canonical Implementation",
                 "found %d" % len(blocks))
     if len(blocks) == 1:

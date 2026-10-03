@@ -141,6 +141,15 @@ def test_walrus_fails(trio):
     assert "FAIL python block is 3.7-compatible" in proc.stdout
 
 
+@pytest.mark.skipif(sys.version_info < (3, 8), reason="feature_version check needs 3.8+")
+def test_positional_only_params_fail(trio):
+    code = GOOD_CODE.replace("def double(x: int)", "def double(x: int, /)")
+    (trio / "entries" / "demo.double.md").write_text(make_entry(code=code), encoding="utf-8")
+    proc = run_validate(trio)
+    assert proc.returncode == 1
+    assert "FAIL python block is 3.7-compatible" in proc.stdout
+
+
 def test_union_annotation_fails(trio):
     code = GOOD_CODE.replace("-> int:", "-> int | None:")
     (trio / "entries" / "demo.double.md").write_text(make_entry(code=code), encoding="utf-8")

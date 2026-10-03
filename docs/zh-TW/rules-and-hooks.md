@@ -44,6 +44,7 @@
 |---|---|---|
 | `codex-cli.md` | 任何要呼叫 Codex CLI 的角色 | 組 codex 呼叫之前 |
 | `builder-codex.md` | Maia（dispatch.md §3d） | 機器上有 codex、派工沒寫 `no-codex`、屬 implement 類任務 |
+| `algorithms/README.md`（＋`INDEX.md`、各 entry） | gondor-builder；Maia 的 codex brief | 規格沒定做法的演算法子問題 |
 | `eagle-codex-prescreen.md` | eagle-sentinel | HIGH-RISK 判定 + 有 codex + 沒寫 `no-codex` |
 | `noldor-browser.md` | noldor-loremaster | WebFetch 只拿到 JS 空殼；也收錄 bot-verifier（CAPTCHA）留窗協議 |
 | `bilbo-scribe.md` | bilbo-scribe | 每次派工的第一步——routing table ＋共用寫作核心（六步流程、五維度自評、事實保存） |

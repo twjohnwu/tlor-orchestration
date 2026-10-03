@@ -5,6 +5,7 @@ Fixture trees under tmp_path only — the real source clones are never read.
 """
 import importlib
 import json
+import subprocess
 import sys
 
 from conftest import REPO_ROOT
@@ -136,3 +137,27 @@ def test_unmatched_hint_when_no_primary(tmp_path):
     data = json.loads((out_dir / "graph.nothing.json").read_text())
     assert data["sources"] == []
     assert "zzz_nothing" in data["unmatched_hint"]
+
+
+def _git_clone(tmp_path):
+    root = tmp_path / "clone"
+    root.mkdir()
+    (root / "a.py").write_text("x = 1\n")
+    env_cfg = ["-c", "user.name=t", "-c", "user.email=t@example.com"]
+    subprocess.check_call(["git", "init", "-q", str(root)])
+    subprocess.check_call(["git", "-C", str(root), "add", "a.py"])
+    subprocess.check_call(["git", "-C", str(root)] + env_cfg + ["commit", "-q", "-m", "x"])
+    head = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"],
+                                   universal_newlines=True).strip()
+    return root, head
+
+
+def test_commit_warning_on_head_mismatch(tmp_path):
+    root, head = _git_clone(tmp_path)
+    assert scan_sources.commit_warning(root, {"repo": "o/r", "commit": head}) is None
+    warning = scan_sources.commit_warning(root, {"repo": "o/r", "commit": "0" * 40})
+    assert warning.startswith("WARNING:") and head in warning
+
+
+def test_commit_warning_skipped_without_git(tmp_path):
+    assert scan_sources.commit_warning(tmp_path, {"repo": "o/r", "commit": "0" * 40}) is None

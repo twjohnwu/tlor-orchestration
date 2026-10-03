@@ -197,7 +197,9 @@ name this executor as `codex (Maia-direct, §3d)`.
 1. Once per session run `command -v codex`. Absent → skip this section
    for the rest of the session and dispatch the pinned role.
 2. Present, and the brief does not carry `no-codex` → snapshot
-   `git status --porcelain` and `git rev-parse HEAD`, write the brief
+   `git status --porcelain --untracked-files=all` and `git rev-parse HEAD`;
+   if any path inside ALLOWED PATHS is already dirty in that snapshot, mark
+   the brief `no-codex` (post-run attribution needs those files clean), write the brief
    exactly as for the role (template §2 or §3: goal, acceptance, ALLOWED
    PATHS, STOP CONDITIONS, no commits) and run it with `codex exec` per
    `agent_doc/codex-cli.md` (single-quoted heredoc, `</dev/null`,
@@ -212,8 +214,9 @@ name this executor as `codex (Maia-direct, §3d)`.
    acceptance criteria and the working tree, not codex's summary.
 5. Fall back to the pinned role when ANY of: codex exits non-zero or
    reports STOP; HEAD moved (codex committed — STOP, report, let the user
-   decide); a path absent from the pre-run snapshot and outside ALLOWED
-   PATHS now shows in `git status` (STOP and report the paths — never
+   decide); a path outside ALLOWED PATHS shows in
+   `git status --porcelain --untracked-files=all` that was absent from the
+   pre-run snapshot (STOP and report the paths — never
    revert them, they may be the user's or a sibling's work); eagle-sentinel
    REFUTES; the task carries a step codex is known to skip (spec edits,
    fingerprint updates — `agent_doc/codex-cli.md` pitfalls). Before the

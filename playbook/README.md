@@ -49,6 +49,7 @@ Dependencies: Python 3.7+ (scripts and canonical implementations must run on 3.7
    agent does with Grep). Prints Recall@3, MRR, Top-1, Constraint
    Violation Rate, Wrong Algorithm Rate, and n. With few entries the
    numbers are smoke checks, not quality claims.
+   The eval queries were written next to the signal lists, so the numbers are a regression floor, not an independent quality measurement; add held-out queries written without reading INDEX.md before trusting them.
 
 ## Why no database
 
