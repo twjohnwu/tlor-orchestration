@@ -49,7 +49,7 @@ Dependencies: Python 3.7+ (scripts and canonical implementations must run on 3.7
    agent does with Grep). Prints Recall@3, MRR, Top-1, Constraint
    Violation Rate, Wrong Algorithm Rate, and n. With few entries the
    numbers are smoke checks, not quality claims.
-   The eval queries were written next to the signal lists, so the numbers are a regression floor, not an independent quality measurement; add held-out queries written without reading INDEX.md before trusting them.
+   The in-sample sets were written next to the signal lists, so their numbers are a regression floor. `eval/heldout.jsonl` (63 queries) was written by a context-isolated agent that never read INDEX.md or the metadata; `evaluate.py` reports it in a separate block and the two must never be merged. As of 2026-10-04 (21 entries): in-sample Top-1 0.929 / Recall@3 0.952 (n=84); held-out Top-1 0.825 / Recall@3 0.889 (n=63). The IDF weighting and signal-bigram bonus were chosen on the in-sample sets only; held-out misses were read after the fact and not tuned against. The scorer is a token proxy for what an agent does with Grep: it cannot read negation ("no negative edges" still matches negative-edge rows), so it under-reports what a model reading the row would get.
 
 ## Why no database
 
@@ -57,7 +57,7 @@ Agents reach this playbook through installed markdown plus Grep/Read; a
 plugin install carries no Python dependency guarantee and no embedding
 model. Under ~100 entries a one-row-per-algorithm INDEX is exact and
 cheap. Revisit SQLite/FTS5 (and only then vectors) when the taxonomy
-passes ~100 entries or Grep demonstrably misses in `evaluate.py`.
+passes ~100 entries or Grep demonstrably misses in `evaluate.py`. Re-run `evaluate.py` after every batch of entries and record both blocks here; a held-out drop is the signal to revisit INDEX signals or the retriever.
 
 ## Confidence rules (from the source plan)
 

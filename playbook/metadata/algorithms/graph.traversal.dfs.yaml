@@ -20,6 +20,7 @@ avoid_when:
   - dependency ordering     # -> graph.topological_sort
   - enumerate all paths     # -> backtracking.backtracking
   - weighted shortest path  # -> graph.shortest_path.dijkstra
+  - undirected components   # -> graph.union_find
 complexity:
   time: "O(V + E)"
   space: "O(V)"

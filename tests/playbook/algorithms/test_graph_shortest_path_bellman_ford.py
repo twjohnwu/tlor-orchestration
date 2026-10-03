@@ -96,3 +96,19 @@ def test_precondition_reject_negative_cycle_and_negative_self_loop():
         bellman_ford({"a": [("b", 1)], "b": [("a", -2)]}, "a")
     with pytest.raises(ValueError):
         bellman_ford({"a": [("a", -1)]}, "a")
+
+
+def test_edge_huge_int_weight():
+    # math.isfinite(10**400) raises OverflowError; a huge int is a valid weight.
+    g = {"a": [("b", 10 ** 400)], "b": [("c", -(10 ** 400))], "c": []}
+    assert bellman_ford(g, "a") == {"a": 0, "b": 10 ** 400, "c": 0}
+
+
+def test_edge_float_overflow_is_rejected_not_missed():
+    # The sum -1e308 + -1e308 saturates to -inf; the negative cycle must not slip by.
+    with pytest.raises(ValueError):
+        bellman_ford({"a": [("b", -1e308)], "b": [("a", -1e308)]}, "a")
+    # Same overflow on the positive side fails consistently instead of returning inf.
+    with pytest.raises(ValueError):
+        bellman_ford({"a": [("b", 1e308)], "b": [("c", 1e308)], "c": []}, "a")
+    assert bellman_ford({"a": [("b", 1e308)], "b": []}, "a") == {"a": 0, "b": 1e308}

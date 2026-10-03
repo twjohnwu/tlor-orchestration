@@ -52,7 +52,8 @@ sources:
 - The source is a key of the mapping.
 - Every neighbour that appears in an adjacency list is also a key.
 - Nodes are hashable.
-- Every weight is a finite real number (bool, NaN and infinity rejected); negative weights are allowed.
+- Every weight is a real number (bool, NaN and infinite floats rejected); negative weights are allowed. Ints of any size are accepted.
+- Weights are small enough that every candidate distance stays finite in float arithmetic; an overflowing sum is rejected with `ValueError` (it would otherwise saturate to infinity and hide a negative cycle).
 - No negative-weight cycle is reachable from the source (detected at run time, raises).
 
 ## Core Invariant
@@ -80,8 +81,9 @@ def bellman_ford(graph: Graph, source: Hashable) -> Dict[Hashable, float]:
     """Shortest distance from source to every reachable node; negative edges allowed.
 
     Unreachable nodes are absent from the result.
-    Raises ValueError for a missing node, a bad weight (bool, NaN, infinite)
-    or a negative cycle reachable from the source.
+    Raises ValueError for a missing node, a bad weight (bool, NaN, infinite),
+    weights too large for float arithmetic, or a negative cycle reachable
+    from the source.
     """
     if source not in graph:
         raise ValueError("source %r is not a node of the graph" % (source,))
@@ -91,22 +93,37 @@ def bellman_ford(graph: Graph, source: Hashable) -> Dict[Hashable, float]:
         for v, w in pairs:
             if v not in graph:
                 raise ValueError("edge %r -> %r points to an unknown node" % (u, v))
-            if isinstance(w, bool) or not isinstance(w, Real) or not math.isfinite(w):
+            if isinstance(w, bool) or not isinstance(w, Real):
+                raise ValueError("edge %r -> %r has invalid weight %r" % (u, v, w))
+            if isinstance(w, float) and not math.isfinite(w):  # isfinite(int) can overflow
                 raise ValueError("edge %r -> %r has invalid weight %r" % (u, v, w))
             edges.append((u, v, w))
+
+    def candidate(u, v, w):
+        # A saturated -inf would make every later "< dist" test False and hide a
+        # negative cycle, so treat any non-finite sum as a precondition failure.
+        try:
+            total = dist[u] + w
+        except OverflowError:  # huge int + float
+            total = float("inf")
+        if isinstance(total, float) and not math.isfinite(total):
+            raise ValueError("edge %r -> %r: weights too large for float arithmetic" % (u, v))
+        return total
 
     dist = {source: 0}  # type: Dict[Hashable, float]
     for _ in range(len(graph) - 1):
         changed = False
         for u, v, w in edges:
-            if u in dist and (v not in dist or dist[u] + w < dist[v]):
-                dist[v] = dist[u] + w
-                changed = True
+            if u in dist:
+                total = candidate(u, v, w)
+                if v not in dist or total < dist[v]:
+                    dist[v] = total
+                    changed = True
         if not changed:
             return dist  # converged early: no negative cycle is reachable
     # Verification pass: any further improvement proves a reachable negative cycle.
     for u, v, w in edges:
-        if u in dist and (v not in dist or dist[u] + w < dist[v]):
+        if u in dist and (v not in dist or candidate(u, v, w) < dist[v]):
             raise ValueError("negative cycle reachable from source %r" % (source,))
     return dist
 ```
@@ -129,11 +146,12 @@ Time: O(V * E) — at most V - 1 rounds plus one check pass, each scanning all E
 - Test a zero-weight cycle: must terminate with correct distances and no error.
 - Test an unreachable node: it must be absent, never reported as 0 or as a huge sentinel.
 - Test relaxing from a node that has no distance yet: it must be skipped (an "infinity + negative weight" sentinel can fake a path in fixed-width languages).
+- Test huge weights: a `10**400` int is valid; two `-1e308` edges between two nodes must raise `ValueError` (the float sum saturates to -inf and a naive check misses the cycle).
 - Test a single-node graph and a self loop (negative self loop is a negative cycle).
 - Test that the verification pass runs after the last round; skipping it silently returns wrong distances.
 
 ## Production Considerations
-- Python ints never overflow; in fixed-width languages a sentinel infinity must not be added to a weight, so skip unreached tails explicitly.
+- Python ints never overflow, but float sums do: near +-1e308 a sum saturates to infinity and `-inf + w < -inf` is False, which would miss a negative cycle, so the implementation raises on any non-finite candidate. Use integers or `Fraction` when weights are that large. In fixed-width languages a sentinel infinity must not be added to a weight, so skip unreached tails explicitly.
 - Floating-point weights can make a zero-sum cycle look slightly negative; use integers or fractions when exactness matters.
 - Cost is quadratic on dense graphs; for non-negative weights switch to Dijkstra, or use potentials from one Bellman-Ford run (Johnson) to reuse Dijkstra.
 - The loop is iterative, so there is no recursion-depth risk.

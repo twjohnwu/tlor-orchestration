@@ -24,7 +24,7 @@ over a sequence) and the right approach is not already fixed by the spec.
 5. Copy the entry's **Common Failure Modes** into your test list.
 6. In the report cite the entry id and the precondition check you made.
 
-Do NOT load every entry into context. INDEX → one entry is the budget.
+Do NOT load every entry into context. The budget is INDEX plus at most three candidate entries, usually one.
 If no candidate survives step 3, say so and solve it from first
 principles; do not force the nearest entry.
 

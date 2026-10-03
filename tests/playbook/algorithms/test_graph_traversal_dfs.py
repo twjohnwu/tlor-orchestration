@@ -87,3 +87,34 @@ def test_precondition_reject_missing_source():
 def test_precondition_reject_neighbour_not_a_key():
     with pytest.raises(ValueError):
         dfs({0: [1]}, 0)
+
+
+has_cycle = mod.has_cycle
+
+
+def test_cycle_diamond_is_acyclic():
+    # A plain visited set would call this cyclic: node 3 is reached twice.
+    diamond = {0: [1, 2], 1: [3], 2: [3], 3: []}
+    assert has_cycle(diamond) is False
+
+
+def test_cycle_directed_triangle_and_self_loop():
+    assert has_cycle({0: [1], 1: [2], 2: [0]}) is True
+    assert has_cycle({0: [0]}) is True
+    assert has_cycle({0: [1], 1: [], 2: [1]}) is False
+
+
+def test_cycle_undirected():
+    path = {0: [1], 1: [0, 2], 2: [1]}
+    triangle = {0: [1, 2], 1: [0, 2], 2: [0, 1]}
+    assert has_cycle(path, directed=False) is False
+    assert has_cycle(triangle, directed=False) is True
+    assert has_cycle({0: [0]}, directed=False) is True
+    # treated as directed, the path's parent edges are 2-cycles
+    assert has_cycle(path) is True
+
+
+def test_cycle_disconnected_and_validation():
+    assert has_cycle({0: [], 1: [2], 2: [1]}) is True
+    with pytest.raises(ValueError):
+        has_cycle({0: [1]})
