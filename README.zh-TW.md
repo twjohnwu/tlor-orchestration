@@ -4,7 +4,7 @@
 [![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftwjohnwu%2Ftlor-orchestration%2Fmain%2F.claude-plugin%2Fplugin.json&query=%24.version&label=version&color=blue)](https://github.com/twjohnwu/tlor-orchestration/blob/main/.claude-plugin/plugin.json)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-TLOR 給 [Claude Code](https://code.claude.com) 一組固定的 subagent 角色，以及把工作交出去的派工規則。plugin 內含十四個角色，每個角色都釘住模型與 effort，其中十三個連可用工具也釘住，所以一次派工的成本與權限在送出前就決定好了。除了角色，還附派工規則、負責安裝設定的 skill，以及選配的 guard hook。
+TLOR 給 [Claude Code](https://code.claude.com) 一組固定的 subagent 角色，以及把工作交出去的派工規則。plugin 內含十五個角色，每個角色都釘住模型與 effort，其中十四個連可用工具也釘住，所以一次派工的成本與權限在送出前就決定好了。除了角色，還附派工規則、負責安裝設定的 skill，以及選配的 guard hook。
 
 TLOR 把 specification-driven development、BDD 式的 example 與 scenario 探索，以及搭配獨立驗證的 TDD 執行流程整合在一起。
 
@@ -76,7 +76,7 @@ flowchart TD
     M --> BF
     ES -. 建議召集 .-> PANEL
     M -- 召集 --> PANEL
-    BUILD -. "有裝 codex 才走 codex-first" .-> CX
+    M -. "有裝 codex 才走 codex-first（§3d）" .-> CX
     ES -. "HIGH-RISK 預審" .-> CX
 ```
 
@@ -106,10 +106,10 @@ v0.12.0 在同一個 markdown 層之上加了一層 BDD：`stdd-explore` 多了�
 
 ## 文件
 
-- [角色與派工](docs/zh-TW/roles.md) — 十四個角色的完整說明、名稱背後的世界觀，以及 CLAUDE.md 的派工 snippet
+- [角色與派工](docs/zh-TW/roles.md) — 十五個角色的完整說明、名稱背後的世界觀，以及 CLAUDE.md 的派工 snippet
 - [Skills](docs/zh-TW/skills.md) — 每個 skill 的完整細節，以及選配的 STDD 工作流程
 - [Rules 與 Hooks](docs/zh-TW/rules-and-hooks.md) — 附帶的 rules 檔案、agent_doc 懶載入層、四個選配 hooks
-- [安裝](docs/zh-TW/installation.md) — 兩種安裝方式、哪個檔案歸誰管、安裝旗標
+- [安裝](docs/zh-TW/installation.md) — 兩種安裝方式、哪個檔案歸誰管、安裝旗標，以及選配的 Serena／Codex
 - [維護](docs/zh-TW/maintenance.md) — 備註、誠實限制、怎麼發一個版本
 - [歷史](docs/zh-TW/history.md) — 專案更名與版本重置
 - [STDD reviews](docs/zh-TW/stdd-reviews/statusline.md) — 各專案的完整週期回顧與 token 核算

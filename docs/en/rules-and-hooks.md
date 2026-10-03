@@ -42,7 +42,7 @@ this directory to tools that read AGENTS.md but know nothing about
 
 ## Agent docs (agent_doc/, lazy-load)
 
-Role-specific reference docs that load on a condition. A dispatched subagent
+Role-specific reference docs that load on a condition. A dispatched subagent (or, for §3d, the Maia)
 Reads them only when its trigger fires (a codex-capable machine, a JS-only
 page, a HIGH-RISK verdict), so the text costs nothing in every other
 dispatch. The division of labor: rules/ holds what EVERY context must know,
@@ -57,7 +57,7 @@ agent_doc/ holds what one role needs sometimes.
 | Doc | Read by | Trigger |
 |---|---|---|
 | `codex-cli.md` | any role calling the Codex CLI | before composing a codex invocation |
-| `builder-codex.md` | gondor-builder, dwarf-smith | codex present and the dispatch does not say `no-codex` |
+| `builder-codex.md` | the Maia (dispatch.md §3d) | codex present, brief not marked `no-codex`, implement-shaped task |
 | `eagle-codex-prescreen.md` | eagle-sentinel | HIGH-RISK verdict + codex present + no `no-codex` |
 | `noldor-browser.md` | noldor-loremaster | WebFetch returns a JS-only shell; also holds the bot-verifier (CAPTCHA) leave-the-browser-open protocol |
 | `bilbo-scribe.md` | bilbo-scribe | FIRST step of every dispatch — routing table + shared writing core (six-step workflow, five-dimension self-score, fact preservation) |

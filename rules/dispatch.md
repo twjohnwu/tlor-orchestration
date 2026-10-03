@@ -1,8 +1,8 @@
 ---
-description: Role dispatch and delegation rules for the fourteen tlor-orchestration roles
+description: Role dispatch and delegation rules for the fifteen tlor-orchestration roles
 managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
 audience: all
-version: 0.9.3
+version: 0.10.0
 ---
 
 ## Agent routing priority
@@ -186,6 +186,51 @@ review, if warranted, runs after the workflow as a standalone dispatch.
 Workflow agents are subagents: the §2 contract, the §6 report format, and
 the delegation-templates STOP CONDITIONS apply to each `agent()` prompt.
 
+### 3d. Codex-first implement path (Maia-direct)
+
+Applies to implement-shaped work — anything the §3 table would route to
+`gondor-builder` or `dwarf-smith`. Invoking the Codex CLI is a dispatch to
+an external executor, not inline field work; reading its diff line by line
+would be. Full flow: `~/.claude/agent_doc/builder-codex.md`. In a plan,
+name this executor as `codex (Maia-direct, §3d)`.
+
+1. Once per session run `command -v codex`. Absent → skip this section
+   for the rest of the session and dispatch the pinned role.
+2. Present, and the brief does not carry `no-codex` → snapshot
+   `git status --porcelain` and `git rev-parse HEAD`, write the brief
+   exactly as for the role (template §2 or §3: goal, acceptance, ALLOWED
+   PATHS, STOP CONDITIONS, no commits) and run it with `codex exec` per
+   `agent_doc/codex-cli.md` (single-quoted heredoc, `</dev/null`,
+   background). One codex attempt per subtask — never two. Never run two
+   codex jobs in the same worktree at once, and never alongside a
+   write-capable role dispatch in that worktree: post-run attribution
+   needs a quiet tree.
+3. Read back ONLY codex's final summary, `git status --porcelain`,
+   `git diff --stat`, and `git rev-parse HEAD`. Never pull the full diff
+   into the main context.
+4. §5 verification is unchanged and mandatory: `eagle-sentinel` gets the
+   acceptance criteria and the working tree, not codex's summary.
+5. Fall back to the pinned role when ANY of: codex exits non-zero or
+   reports STOP; HEAD moved (codex committed — STOP, report, let the user
+   decide); a path absent from the pre-run snapshot and outside ALLOWED
+   PATHS now shows in `git status` (STOP and report the paths — never
+   revert them, they may be the user's or a sibling's work); eagle-sentinel
+   REFUTES; the task carries a step codex is known to skip (spec edits,
+   fingerprint updates — `agent_doc/codex-cli.md` pitfalls). Before the
+   fallback dispatch, save codex's in-scope changes with
+   `git diff -- <ALLOWED PATHS> > <scratchpad>/codex-<subtask>.patch`,
+   restore those paths that were clean in the pre-run snapshot, and put
+   the patch path plus what codex left half-done in the `retry-of:` line.
+   The fallback counts as the subtask's first role-tier attempt under
+   §4's caps.
+
+Mark `no-codex` in the brief when the change needs this session's MCP
+tools, touches institution files under `~/.claude/` (codex's shell is not
+covered by institution_guard, so this is honor-only — keep it), or is a
+batch the Maia has already authored verbatim (cost-floor, §1 — do it
+inline). Rationale: a codex run costs the Maia a few hundred tokens of
+read-back; a role dispatch costs the 33–46k floor before any work starts.
+
 ## 4. Escalation / de-escalation paths
 
 - **haiku fails once** on a subtask → re-dispatch to `sonnet` immediately
@@ -255,18 +300,17 @@ Required annotations:
 - **Parallelism**: mark which phases can run concurrently vs sequential,
   state the dependency.
 - **Executor naming**: every step must name its executor — a tlor-orchestration role,
-  a generic subagent with explicit `model`, or "Maia".
+  a generic subagent with explicit `model`, `codex (Maia-direct, §3d)`, or "Maia".
 - **Model justification**: the "Why" column must state why this tier was chosen.
 - **Effort justification**: the "Effort" column must match the agent's
   frontmatter default or state why it differs.
 
 **Dispatch is mandatory, not advisory.** Every step assigned to a subagent in
-the table MUST be dispatched via the Agent tool — the Maia must not execute
-those steps inline. §1 ("The commander does not do field work") applies to
+the table MUST be dispatched via the Agent tool — or, for a step whose executor is `codex (Maia-direct, §3d)`,
+run through the §3d flow — the Maia must not execute those steps inline. §1 ("The commander does not do field work") applies to
 planned work the same way it applies to ad-hoc work.
 
-Plan mode's default "Only use built-in search" is overridden — use
-tlor-orchestration roles per the dispatch table above.
+Plan mode's default "Only use built-in search" is overridden — use tlor-orchestration roles per the dispatch table above. The built-in `Explore` name now resolves to the plugin's mirror of `ranger-pathfinder` (same model, tools and contract), so a plan-mode Explore dispatch is acceptable; still prefer `rohirrim-outrider` for targeted lookups. Built-in `Plan` stays denied by dispatch_guard.
 
 Before writing the final plan file, invoke the `westron-plainspeech` skill
 (ships with this plugin) — it applies the plain-language checks in

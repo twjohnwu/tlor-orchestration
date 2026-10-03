@@ -32,7 +32,7 @@
 
 ## Agent docs（agent_doc/，懶載入）
 
-角色專屬、條件觸發的參考文件。被派工的 subagent 只在觸發條件成立時才 Read（機器上有 codex、頁面只有 JS 殼、判定進入 HIGH-RISK），其餘派工一個字都不用付。分工判準：rules/ 放**每個 context 都必須知道**的，agent_doc/ 放**某個角色偶爾需要**的。
+角色專屬、條件觸發的參考文件。被派工的 subagent（§3d 則是 Maia）只在觸發條件成立時才 Read（機器上有 codex、頁面只有 JS 殼、判定進入 HIGH-RISK），其餘派工一個字都不用付。分工判準：rules/ 放**每個 context 都必須知道**的，agent_doc/ 放**某個角色偶爾需要**的。
 
 | 子層 | 擁有者 | 安裝行為 |
 |---|---|---|
@@ -43,7 +43,7 @@
 | 文件 | 讀者 | 觸發條件 |
 |---|---|---|
 | `codex-cli.md` | 任何要呼叫 Codex CLI 的角色 | 組 codex 呼叫之前 |
-| `builder-codex.md` | gondor-builder、dwarf-smith | 機器上有 codex 且派工沒寫 `no-codex` |
+| `builder-codex.md` | Maia（dispatch.md §3d） | 機器上有 codex、派工沒寫 `no-codex`、屬 implement 類任務 |
 | `eagle-codex-prescreen.md` | eagle-sentinel | HIGH-RISK 判定 + 有 codex + 沒寫 `no-codex` |
 | `noldor-browser.md` | noldor-loremaster | WebFetch 只拿到 JS 空殼；也收錄 bot-verifier（CAPTCHA）留窗協議 |
 | `bilbo-scribe.md` | bilbo-scribe | 每次派工的第一步——routing table ＋共用寫作核心（六步流程、五維度自評、事實保存） |
