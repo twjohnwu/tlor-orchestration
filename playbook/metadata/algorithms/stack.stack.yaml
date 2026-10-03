@@ -17,8 +17,9 @@ preconditions:
 avoid_when:
   - arrival order   # -> collections.deque queue
   - next greater   # -> stack.monotonic_stack
-  - smallest pending   # -> heap
+  - smallest pending   # -> heap.priority_queue
   - fewest steps   # -> graph.traversal.bfs
+  - random access   # -> list / array
 complexity:
   time: "O(n)"
   space: "O(n)"

@@ -24,7 +24,7 @@ avoid_when:
   - adversarial keys        # -> tree map or seeded hash
 complexity:
   time: "O(1) average per op, O(n) worst case"
-  space: "O(n)"
+  space: "O(peak n) — the table never shrinks"
 related: [array.prefix_sum, array.two_pointers]
 confidence: high
 review_required: false

@@ -82,8 +82,11 @@ class BinaryMinHeap:
         for item in self._a:
             self._check(item, self._a[0])
         # Heapify: repair every internal node, deepest first.
-        for i in range(len(self._a) // 2 - 1, -1, -1):
-            self._sift_down(i)
+        try:
+            for i in range(len(self._a) // 2 - 1, -1, -1):
+                self._sift_down(i, self._a[i], len(self._a))
+        except TypeError as exc:
+            raise ValueError("items are not mutually comparable: %s" % exc)
 
     def __len__(self) -> int:
         return len(self._a)
@@ -97,17 +100,28 @@ class BinaryMinHeap:
         # Validate first so a rejected item leaves the heap untouched.
         self._check(item, self._a[0] if self._a else item)
         self._a.append(item)
-        self._sift_up(len(self._a) - 1)
+        try:
+            self._sift_up(len(self._a) - 1)
+        except TypeError as exc:
+            # The sift compares read-only before moving anything, so dropping the
+            # appended item restores the heap exactly.
+            self._a.pop()
+            raise ValueError("%r is not comparable with the heap items: %s" % (item, exc))
 
     def pop(self) -> Any:
         if not self._a:
             raise ValueError("pop from an empty heap")
-        last = self._a.pop()
-        if not self._a:
-            return last
+        if len(self._a) == 1:
+            return self._a.pop()
         top = self._a[0]
-        self._a[0] = last
-        self._sift_down(0)
+        last = self._a[-1]
+        try:
+            # Sift `last` down from the root over the first n-1 slots; nothing is
+            # written until every comparison succeeded, so a failure changes nothing.
+            self._sift_down(0, last, len(self._a) - 1)
+        except TypeError as exc:
+            raise ValueError("heap items are not mutually comparable: %s" % exc)
+        self._a.pop()
         return top
 
     @staticmethod
@@ -124,18 +138,19 @@ class BinaryMinHeap:
     def _sift_up(self, i: int) -> None:
         a = self._a
         item = a[i]
+        path = [i]  # slots the item passes through; decided before any write
         while i > 0:
             parent = (i - 1) // 2
             if not item < a[parent]:
                 break
-            a[i] = a[parent]
+            path.append(parent)
             i = parent
-        a[i] = item
+        self._shift(path, item)
 
-    def _sift_down(self, i: int) -> None:
+    def _sift_down(self, i: int, item: Any, n: int) -> None:
+        """Place item at slot i and sift it down within the first n slots."""
         a = self._a
-        n = len(a)
-        item = a[i]
+        path = [i]
         while True:
             child = 2 * i + 1
             if child >= n:
@@ -144,9 +159,16 @@ class BinaryMinHeap:
                 child += 1
             if not a[child] < item:
                 break
-            a[i] = a[child]
+            path.append(child)
             i = child
-        a[i] = item
+        self._shift(path, item)
+
+    def _shift(self, path: List[int], item: Any) -> None:
+        """Pull each slot's value one step along path, then drop item at its end."""
+        a = self._a
+        for k in range(len(path) - 1):
+            a[path[k]] = a[path[k + 1]]
+        a[path[-1]] = item
 ```
 
 ## Complexity
@@ -175,7 +197,8 @@ Time: push and pop are O(log n) — each walks one root-to-leaf path of a tree w
 - In Python prefer `heapq` (`heappush`, `heappop`, `heapify`, `nlargest`, `nsmallest`): it is a C-accelerated min heap on a plain list. The class here is for understanding or for when a custom ordering or index map is needed. For a max heap with `heapq`, push negated keys.
 - `queue.PriorityQueue` wraps `heapq` with locking for threads; use it only when threads share the queue.
 - Comparability is checked against one existing element only (the root, or the first item at build time); this is a guard against common mixed-type mistakes, not a proof of a total order over all items (for example NaN nested inside a tuple passes).
-- Use a counter as a tiebreaker for stable order and so payloads are never compared.
+- Push `(priority, seq, payload)` tuples with a monotonically increasing `seq` so payloads are never compared and arrival order breaks ties (the dijkstra entry does this).
+- A tuple pair that compares fine at the root can still fail deeper (for example `(1, 2)`, then `(2, 'a')`, then `(2, 3)`); the class turns that into `ValueError` and leaves the heap unchanged, but the fix is the `seq` tiebreaker, not catching the error.
 - Peek and pop on empty differ between sources (Java returns null, the Python max heap raises a bare exception, the C++ min read is unchecked); pick one explicit behaviour and test it.
 - To track the k largest of a stream, keep a min heap of size k and replace the root when a bigger item arrives: O(n log k) time, O(k) space.
 - Sorting with a heap is O(n log n) but not stable and usually slower than the built-in sort in Python.

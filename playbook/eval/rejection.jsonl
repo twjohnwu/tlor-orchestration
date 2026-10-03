@@ -8,3 +8,15 @@
 {"query": "find a value in a sorted array", "algorithm": "search.binary_search", "expected": "accept"}
 {"query": "fewest moves in an unweighted graph", "algorithm": "graph.traversal.bfs", "expected": "accept"}
 {"query": "pair with a given sum in a sorted array", "algorithm": "array.two_pointers", "expected": "accept"}
+{"query": "order tasks in a cyclic graph of dependencies", "algorithm": "graph.topological_sort", "expected": "reject"}
+{"query": "shortest path with negative edge weights", "algorithm": "graph.shortest_path.dijkstra", "expected": "reject"}
+{"query": "shortest path in a weighted graph where edges have different costs", "algorithm": "graph.traversal.bfs", "expected": "reject"}
+{"query": "search for a value in an unsorted array", "algorithm": "search.binary_search", "expected": "reject"}
+{"query": "look up words by exact match only", "algorithm": "string.trie", "expected": "reject"}
+{"query": "small one-off search for a pattern in a text", "algorithm": "string.kmp", "expected": "reject"}
+{"query": "support edge deletions that split a component", "algorithm": "graph.union_find", "expected": "reject"}
+{"query": "choose weighted intervals to maximize total profit", "algorithm": "greedy.interval_scheduling", "expected": "reject"}
+{"query": "order courses in a DAG of prerequisites", "algorithm": "graph.topological_sort", "expected": "accept"}
+{"query": "check whether two nodes are in the same component as edges arrive", "algorithm": "graph.union_find", "expected": "accept"}
+{"query": "maximum number of non-overlapping meetings in one room", "algorithm": "greedy.interval_scheduling", "expected": "accept"}
+{"query": "find all occurrences of a pattern in a long text", "algorithm": "string.kmp", "expected": "accept"}

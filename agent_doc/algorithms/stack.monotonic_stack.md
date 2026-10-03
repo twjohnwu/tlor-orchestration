@@ -44,7 +44,7 @@ sources:
 - Elements are inserted in the middle or the order changes online: use a balanced tree.
 
 ## Preconditions
-- The input is a finite sequence (not a string) of real numbers; `bool` items are rejected.
+- The input is a finite sequence or iterable (not a string) of real numbers; `bool` items are rejected. The canonical code copies it with `list(values)` first, so a generator is safe.
 - No item is NaN (NaN has no consistent order, so the stack invariant breaks).
 - The comparison is one fixed strict or non-strict order, chosen before coding (ties decided up front).
 - Only the nearest dominating element on one side is wanted, not every one.
@@ -66,13 +66,14 @@ Scanning left to right, the stack holds indices of items that have not yet met a
 from __future__ import annotations
 
 from numbers import Real
-from typing import List, Sequence
+from typing import Iterable, List
 
 
-def next_greater_indices(values: Sequence[float]) -> List[int]:
+def next_greater_indices(values: Iterable[float]) -> List[int]:
     """For each position, the index of the next strictly greater item, or -1."""
     if isinstance(values, (str, bytes, bytearray)):
         raise ValueError("values must be a sequence of numbers, got %s" % type(values).__name__)
+    values = list(values)  # materialise: a generator would be consumed by the check below
     for item in values:
         if isinstance(item, bool) or not isinstance(item, Real) or (isinstance(item, float) and item != item):
             raise ValueError("values must be real numbers and not NaN, got %r" % (item,))

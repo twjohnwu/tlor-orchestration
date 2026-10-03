@@ -88,7 +88,7 @@ class DisjointSet:
 
     def _check(self, x: int) -> None:
         if isinstance(x, bool) or not isinstance(x, int) or not 0 <= x < len(self._parent):
-            raise ValueError("element %r is not an index in 0..%d" % (x, len(self._parent) - 1))
+            raise ValueError("element %r is not an index in a set of %d elements" % (x, len(self._parent)))
 
     def find(self, x: int) -> int:
         self._check(x)
@@ -127,21 +127,21 @@ Time: O(n) to build, then O(alpha(n)) amortized per find/union with both union b
 - Union by rank — keeps an upper bound on tree height instead of exact sizes; same bounds, cannot answer group-size queries.
 - Compression only or rank only — each alone gives O(log n) per operation, not O(alpha(n)); both together are needed for the near-constant bound.
 - Path halving or splitting — one-pass iterative compression, no second loop and no recursion.
-- Recursive find — shorter code (parent[x] = find(parent[x])) but recursion depth can reach n before the trees are flat.
+- Recursive find — shorter code (parent[x] = find(parent[x])); with union by size depth stays near log2 n, but deep paths arise if linking ignores size/rank or a parent array is built by hand, and then recursion can reach n.
 - Rollback DSU — union by size without compression, with an undo stack, for offline deletion.
 - Weighted DSU — stores an offset to the parent so relative differences between elements can be answered.
 - Hash-keyed DSU — dictionary parents for non-integer or sparse keys.
 
 ## Common Failure Modes
 - Test that union of two elements already in one group returns False and leaves the group count unchanged.
-- Test that find on a long chain built by repeated unions does not recurse deeply (use the iterative form).
+- Test that find on a deep path (a hand-built parent array, or linking that ignores size) does not recurse deeply; use the iterative form.
 - Test that union compares roots, not the raw arguments, before linking (linking non-roots corrupts sizes).
 - Test that the group count drops by exactly one per successful merge and never otherwise.
 - Test that an out-of-range or negative index raises instead of silently wrapping (Python negative indexing hides it).
 - Test that size queries use the root's size, since sizes of non-roots are stale.
 
 ## Production Considerations
-- Use the iterative find; recursive versions overflow the stack on adversarial input in many languages and in CPython.
+- Use the iterative find; with union by size trees stay shallow, but a recursive find still overflows the stack if linking ignores size/rank or the parent array is built by hand.
 - Element keys that are not dense integers need a mapping step; a dictionary-backed DSU costs extra memory and hashing time.
 - Compression mutates state during a read, so concurrent readers need a lock or a compression-free find.
 - Merging cannot be undone; if deletions are needed, switch to a rollback design up front.
@@ -161,9 +161,9 @@ Time: O(n) to build, then O(alpha(n)) amortized per find/union with both union b
 - TheAlgorithms/Python data_structures/disjoint_set/disjoint_set.py — node-based form with union by rank and recursive path compression; ranks bump only on equal-rank merges.
 - TheAlgorithms/Python data_structures/disjoint_set/alternate_disjoint_set.py — list-backed form that tracks set counts and returns a success flag from merge (basis for union returning a bool).
 - TheAlgorithms/C-Plus-Plus data_structures/dsu_union_rank.cpp — rank-only variant, documents O(log n) find without compression.
-- TheAlgorithms/C-Plus-Plus data_structures/dsu_path_compression.cpp — compression-only variant. Its comments claim O(1) find for one heuristic alone; that is looser than the standard analysis (single heuristic gives O(log n) amortized), so the bound here follows the source below, not that comment.
+- TheAlgorithms/C-Plus-Plus data_structures/dsu_path_compression.cpp — path compression plus union by depth (swap on depth, increment on tie). Its comments claim O(1) find, which is loose against the true O(alpha(n)) with both heuristics, so the bound here follows the source below, not that comment.
 - williamfiset/Algorithms .../unionfind/UnionFind.java — union by size plus compression, states O(alpha(n)) amortized, rejects non-positive size, offers connected, component size and component count.
-- Skipped as not evidence for this entry: data_structures/disjoint_set/__init__.py (empty) and the secondary notebooks (used only for awareness of rollback/persistent variants).
+- Skipped as not evidence for this entry: data_structures/disjoint_set/__init__.py (empty), data_structures/disjoint_set.cpp, graph/connected_components_with_dsu.cpp, ConnectedComponentsUnionFind.java, and the secondary notebooks (used only for awareness of rollback/persistent variants).
 
 ## License Provenance
 | repository | path | commit | license |

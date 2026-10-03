@@ -108,3 +108,27 @@ def test_precondition_reject_mixed_constructor():
         Heap([1, "a"])
     with pytest.raises(ValueError):
         Heap([1, None])
+
+
+def test_precondition_reject_deep_tuple_conflict_leaves_heap_unchanged():
+    # (1, 2) at the root is comparable with everything pushed, so the root-only
+    # check passes; (2, 'a') vs (2, 3) only collides during the pop's sift-down.
+    h = Heap([(1, 2)])
+    h.push((2, "a"))
+    h.push((2, 3))
+    snapshot = list(h._a)
+    with pytest.raises(ValueError):
+        h.pop()
+    assert len(h) == 3
+    assert list(h._a) == snapshot
+    assert h.peek() == (1, 2)
+
+
+def test_precondition_reject_failed_push_restores_storage():
+    # Index 3's parent is (2, 'a'); the root-only check passes, the sift-up fails.
+    h = Heap([(1, 2), (2, "a"), (5, 5)])
+    snapshot = list(h._a)
+    with pytest.raises(ValueError):
+        h.push((2, 3))
+    assert list(h._a) == snapshot
+    assert len(h) == 3

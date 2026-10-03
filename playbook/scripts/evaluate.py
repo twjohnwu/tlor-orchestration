@@ -2,7 +2,15 @@
 """Evaluate the keyword lookup agents use over agent_doc/algorithms/INDEX.md.
 
 Stdlib only. The retriever tokenizes the query and scores each INDEX row by
-token overlap with id + name + signals (avoid_when tokens count negative).
+IDF-weighted token overlap with id + name + signals (avoid_when tokens count
+negative with the same weight), plus +1.0 per adjacent query bigram that is
+also a bigram of one of the row's signal phrases. idf = log((N+1)/(df+1)) + 1,
+N = INDEX rows, df = rows whose id+name+signals contain the token, so a token
+present in every row weighs ~1 (the "+1" floor keeps it from vanishing exactly
+when N is tiny) and a rare token weighs much more. The weighted sum is divided
+by sqrt(row token count) so rows with long signal lists do not win merely by
+having more tokens to match; the bigram bonus is added after normalization
+because it is already a specific, row-independent signal.
 Hyphenated negation compounds stay one token (non-negative -> nonnegative);
 other hyphens split. Rejection is separate from scoring: an avoid_when phrase
 matches the query when ALL its tokens appear in the query (phrases of <=3
@@ -16,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -35,6 +44,7 @@ SPLIT_RE = re.compile(r"[^a-z0-9]+")
 NEGATION_COMPOUND_RE = re.compile(r"\bnon-(?=[a-z0-9])")
 REJECT_ALL_TOKENS_MAX = 3  # phrases up to this length need every token
 REJECT_MIN_TOKENS = 2      # longer phrases need this many tokens
+PHRASE_BONUS = 1.0         # per matched signal-phrase bigram
 CELL_SPLIT_RE = re.compile(r"(?<!\\)\|")
 
 
@@ -78,25 +88,48 @@ def prepare(row: dict) -> dict:
     neg = set()
     for phrase in row["avoid_when"]:
         neg.update(tokenize(phrase))
+    bigrams = set()
+    for phrase in row["signals"].split(";"):
+        toks = tokenize(phrase)
+        bigrams.update(zip(toks, toks[1:]))
     row["pos"] = pos
+    row["bigrams"] = bigrams
     row["neg"] = neg - pos
     return row
 
 
-def score_row(query_tokens: set, row: dict):
-    hits = sorted(query_tokens & row["pos"])
-    misses = sorted(query_tokens & row["neg"])
-    return len(hits) - len(misses), hits, misses
+def idf_table(rows: list) -> dict:
+    """token -> idf over the rows' positive token sets (id+name+signals)."""
+    n = len(rows)
+    df = {}
+    for row in rows:
+        for tok in row["pos"]:
+            df[tok] = df.get(tok, 0) + 1
+    return {tok: math.log((n + 1) / (d + 1)) + 1 for tok, d in df.items()}
+
+
+def score_row(query_tokens: list, row: dict, idf: dict, default_idf: float):
+    """Return (score, hits, misses). Tokens unseen in any row get default_idf (max)."""
+    q = set(query_tokens)
+    hits = sorted(q & row["pos"])
+    misses = sorted(q & row["neg"])
+    weight = lambda t: idf.get(t, default_idf)
+    raw = sum(weight(t) for t in hits) - sum(weight(t) for t in misses)
+    score = raw / math.sqrt(max(len(row["pos"]), 1))
+    score += PHRASE_BONUS * len(row["bigrams"] & set(zip(query_tokens, query_tokens[1:])))
+    return score, hits, misses
 
 
 def retrieve(query: str, rows: list, k: int, restrict=None) -> list:
     """Top-k [(id, score, reason)] with score > 0, best first (ties by id)."""
-    q = set(tokenize(query))
+    q = tokenize(query)
+    idf = idf_table(rows)
+    default_idf = math.log(len(rows) + 1) + 1 if rows else 1.0  # df=0
     scored = []
     for row in rows:
         if restrict is not None and row["id"] not in restrict:
             continue
-        score, hits, misses = score_row(q, row)
+        score, hits, misses = score_row(q, row, idf, default_idf)
         if restrict is None and score <= 0:
             continue
         reason = "matched: " + (", ".join(hits) if hits else "-")
@@ -129,14 +162,12 @@ def ratio(num: int, den: int):
     return None if den == 0 else num / den
 
 
-def evaluate(rows: list, eval_dir: Path, k: int) -> dict:
-    by_id = {r["id"]: r for r in rows}
-    misses = {"retrieval": [], "selection": [], "rejection": []}
-
-    retrieval = load_jsonl(eval_dir / "retrieval.jsonl")
+def retrieval_block(cases: list, rows: list, k: int) -> dict:
+    """Retrieval counters + miss list for one case set (used for in-sample and held-out)."""
     hit_k = top1 = 0
     rr_sum = 0.0
-    for case in retrieval:
+    misses = []
+    for case in cases:
         ranked = [r[0] for r in retrieve(case["query"], rows, k)]
         if case["expected"] in ranked:
             hit_k += 1
@@ -145,8 +176,33 @@ def evaluate(rows: list, eval_dir: Path, k: int) -> dict:
             if rank == 1:
                 top1 += 1
         if not ranked or ranked[0] != case["expected"]:
-            misses["retrieval"].append("%s -> got %s, expected %s" % (
+            misses.append("%s -> got %s, expected %s" % (
                 case["query"], ranked[0] if ranked else "(none)", case["expected"]))
+    return {"hit_k": hit_k, "top1": top1, "rr_sum": rr_sum, "misses": misses}
+
+
+def heldout_result(cases: list, rows: list, k: int) -> dict:
+    ret = retrieval_block(cases, rows, k)
+    n = len(cases)
+    return {
+        "n": n,
+        "metrics": {
+            "recall@%d" % k: ratio(ret["hit_k"], n),
+            "mrr": None if not n else ret["rr_sum"] / n,
+            "top1": ratio(ret["top1"], n),
+        },
+        "misses": ret["misses"],
+    }
+
+
+def evaluate(rows: list, eval_dir: Path, k: int, heldout=None) -> dict:
+    by_id = {r["id"]: r for r in rows}
+    misses = {"retrieval": [], "selection": [], "rejection": []}
+
+    retrieval = load_jsonl(eval_dir / "retrieval.jsonl")
+    ret = retrieval_block(retrieval, rows, k)
+    hit_k, top1, rr_sum = ret["hit_k"], ret["top1"], ret["rr_sum"]
+    misses["retrieval"] = ret["misses"]
 
     selection = load_jsonl(eval_dir / "selection.jsonl")
     sel_ok = 0
@@ -173,7 +229,7 @@ def evaluate(rows: list, eval_dir: Path, k: int) -> dict:
                 case["query"], case["algorithm"], got, case["expected"]))
 
     sel_top1 = ratio(sel_ok, len(selection))
-    return {
+    result = {
         "k": k,
         "n": {"retrieval": len(retrieval), "selection": len(selection),
               "rejection": len(rejection), "rejection_reject_cases": reject_cases},
@@ -186,6 +242,9 @@ def evaluate(rows: list, eval_dir: Path, k: int) -> dict:
         },
         "misses": misses,
     }
+    if heldout is not None:
+        result["heldout"] = heldout_result(load_jsonl(heldout), rows, k)
+    return result
 
 
 def fmt(value) -> str:
@@ -211,6 +270,16 @@ def render(result: dict) -> str:
         items = result["misses"][name]
         lines.append("Misses: %s (%d)" % (name, len(items)))
         lines += ["  - " + i for i in items]
+    held = result.get("heldout")
+    if held is not None:
+        hm = held["metrics"]
+        lines += ["", "Held-out (blind) retrieval",
+                  "| metric | value | n |", "|---|---|---|"]
+        lines += ["| %s | %s | %d |" % (name, fmt(hm[key]), held["n"])
+                  for name, key in (("Recall@%d" % k, "recall@%d" % k), ("MRR", "mrr"), ("Top-1", "top1"))]
+        lines.append("")
+        lines.append("Misses: held-out retrieval (%d)" % len(held["misses"]))
+        lines += ["  - " + i for i in held["misses"]]
     return "\n".join(lines)
 
 
@@ -218,6 +287,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--index", type=Path, default=DEFAULT_INDEX)
     parser.add_argument("--eval-dir", type=Path, default=DEFAULT_EVAL_DIR)
+    parser.add_argument("--heldout", type=Path, default=None,
+                        help="blind retrieval set, reported separately "
+                             "(default: <eval-dir>/heldout.jsonl if it exists)")
     parser.add_argument("--k", type=int, default=3)
     parser.add_argument("--json", action="store_true", help="print JSON instead of a table")
     args = parser.parse_args()
@@ -227,7 +299,10 @@ def main() -> int:
               file=sys.stderr)
         return 1
     rows = [prepare(r) for r in parse_index(args.index)]
-    result = evaluate(rows, args.eval_dir, args.k)
+    heldout = args.heldout
+    if heldout is None and (args.eval_dir / "heldout.jsonl").is_file():
+        heldout = args.eval_dir / "heldout.jsonl"
+    result = evaluate(rows, args.eval_dir, args.k, heldout)
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))
     else:

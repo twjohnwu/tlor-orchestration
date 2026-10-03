@@ -52,7 +52,7 @@ sources:
 - The source is a key of the mapping.
 - Every neighbour that appears in an adjacency list is also a key.
 - Nodes are hashable.
-- Every weight is a finite number that is >= 0: negative, NaN and infinite weights are rejected (zero-weight edges are fine).
+- Every weight is a finite number that is >= 0: bool, negative, NaN and infinite weights are rejected (zero-weight edges are fine).
 
 ## Core Invariant
 Nodes leave the min-heap in nondecreasing order of tentative distance. When a node is popped for the first time its distance is final, because any other route to it must pass through a node still in the heap whose distance is at least as large, and weights cannot be negative. Stale heap entries (a larger distance for an already settled node) are skipped on pop.
@@ -78,7 +78,7 @@ def dijkstra(graph: Graph, source: Hashable) -> Dict[Hashable, float]:
     """Shortest distance from source to every reachable node.
 
     Unreachable nodes are absent from the result.
-    Raises ValueError for a missing node or a negative, NaN or infinite weight.
+    Raises ValueError for a missing node or a bool, negative, NaN or infinite weight.
     """
     if source not in graph:
         raise ValueError("source %r is not a node of the graph" % (source,))
@@ -89,7 +89,7 @@ def dijkstra(graph: Graph, source: Hashable) -> Dict[Hashable, float]:
         for v, w in edges:
             if v not in graph:
                 raise ValueError("edge %r -> %r points to an unknown node" % (u, v))
-            if not 0 <= w < float("inf"):  # also rejects NaN and infinity
+            if isinstance(w, bool) or not 0 <= w < float("inf"):  # also rejects NaN and infinity
                 raise ValueError("edge %r -> %r has invalid weight %r" % (u, v, w))
         adjacency[u] = edges
 

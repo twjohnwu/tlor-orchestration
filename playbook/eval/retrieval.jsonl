@@ -18,3 +18,67 @@
 {"query": "shortest path in a weighted graph with non-negative edge weights from a single source", "expected": "graph.shortest_path.dijkstra"}
 {"query": "minimum travel time across a network where every link has a positive delay", "expected": "graph.shortest_path.dijkstra"}
 {"query": "single source shortest paths with a priority queue on weighted edges", "expected": "graph.shortest_path.dijkstra"}
+{"query": "answer many range sum queries on a static array", "expected": "array.prefix_sum"}
+{"query": "sum of the elements between two indices asked repeatedly", "expected": "array.prefix_sum"}
+{"query": "count subarrays whose sum equals a target", "expected": "array.prefix_sum"}
+{"query": "total of a rectangle inside a grid for many queries", "expected": "array.prefix_sum"}
+{"query": "have we seen this value before while scanning", "expected": "hashing.hash_map"}
+{"query": "count the frequency of each element", "expected": "hashing.hash_map"}
+{"query": "group items by a key", "expected": "hashing.hash_map"}
+{"query": "find two numbers in an unsorted array that add up to a target using complement lookup", "expected": "hashing.hash_map"}
+{"query": "detect a cycle in a linked list", "expected": "linked_list.fast_slow_pointers"}
+{"query": "find the middle node of a linked list in one pass", "expected": "linked_list.fast_slow_pointers"}
+{"query": "find the start node of a loop in a linked list", "expected": "linked_list.fast_slow_pointers"}
+{"query": "find a repeated value with O(1) extra space tortoise and hare", "expected": "linked_list.fast_slow_pointers"}
+{"query": "check balanced brackets in an expression", "expected": "stack.stack"}
+{"query": "evaluate a postfix expression", "expected": "stack.stack"}
+{"query": "undo history of editor actions last in first out", "expected": "stack.stack"}
+{"query": "match parentheses innermost first", "expected": "stack.stack"}
+{"query": "next greater element for each position", "expected": "stack.monotonic_stack"}
+{"query": "stock span for each day", "expected": "stack.monotonic_stack"}
+{"query": "largest rectangle in a histogram", "expected": "stack.monotonic_stack"}
+{"query": "nearest larger value to the right of each element in one pass", "expected": "stack.monotonic_stack"}
+{"query": "find the k-th largest element", "expected": "heap.priority_queue"}
+{"query": "top k frequent items", "expected": "heap.priority_queue"}
+{"query": "maintain a running median of a stream", "expected": "heap.priority_queue"}
+{"query": "merge sorted streams extracting the min each time", "expected": "heap.priority_queue"}
+{"query": "count connected components by going as deep as possible", "expected": "graph.traversal.dfs"}
+{"query": "detect a cycle in a graph with depth-first order", "expected": "graph.traversal.dfs"}
+{"query": "count nodes reachable from a source", "expected": "graph.traversal.dfs"}
+{"query": "preorder traversal of a tree", "expected": "graph.traversal.dfs"}
+{"query": "are two nodes in the same component after merging groups", "expected": "graph.union_find"}
+{"query": "incremental connectivity as edges are added", "expected": "graph.union_find"}
+{"query": "Kruskal minimum spanning tree", "expected": "graph.union_find"}
+{"query": "detect a cycle in an undirected graph with disjoint sets", "expected": "graph.union_find"}
+{"query": "course schedule with prerequisites first", "expected": "graph.topological_sort"}
+{"query": "build order of dependencies", "expected": "graph.topological_sort"}
+{"query": "topological order of a DAG", "expected": "graph.topological_sort"}
+{"query": "detect cycle in directed graph of tasks", "expected": "graph.topological_sort"}
+{"query": "shortest path with negative edge weights from a single source", "expected": "graph.shortest_path.bellman_ford"}
+{"query": "detect a negative cycle or arbitrage", "expected": "graph.shortest_path.bellman_ford"}
+{"query": "shortest path using at most k edges", "expected": "graph.shortest_path.bellman_ford"}
+{"query": "solve difference constraints", "expected": "graph.shortest_path.bellman_ford"}
+{"query": "maximum number of non-overlapping intervals", "expected": "greedy.interval_scheduling"}
+{"query": "activity selection", "expected": "greedy.interval_scheduling"}
+{"query": "fewest intervals to remove so the rest do not overlap", "expected": "greedy.interval_scheduling"}
+{"query": "merge overlapping ranges", "expected": "greedy.interval_scheduling"}
+{"query": "generate all permutations of a list", "expected": "backtracking.backtracking"}
+{"query": "place n queens on a board", "expected": "backtracking.backtracking"}
+{"query": "enumerate all combinations that sum to a target", "expected": "backtracking.backtracking"}
+{"query": "solve a sudoku by trying and undoing choices", "expected": "backtracking.backtracking"}
+{"query": "minimum number of coins to make an amount", "expected": "dp.one_dimensional"}
+{"query": "number of ways to climb stairs", "expected": "dp.one_dimensional"}
+{"query": "maximum sum with no two adjacent elements", "expected": "dp.one_dimensional"}
+{"query": "longest increasing subsequence length", "expected": "dp.one_dimensional"}
+{"query": "longest common subsequence of two strings", "expected": "dp.two_dimensional"}
+{"query": "edit distance between two words", "expected": "dp.two_dimensional"}
+{"query": "0/1 knapsack with a capacity limit", "expected": "dp.two_dimensional"}
+{"query": "minimum cost using a prefix pair state over two strings", "expected": "dp.two_dimensional"}
+{"query": "autocomplete words sharing a prefix", "expected": "string.trie"}
+{"query": "check whether any word starts with a given prefix", "expected": "string.trie"}
+{"query": "dictionary of words with insert and delete", "expected": "string.trie"}
+{"query": "prefix lookup over a set of words", "expected": "string.trie"}
+{"query": "find all occurrences of a pattern in a text", "expected": "string.kmp"}
+{"query": "longest prefix that is also a suffix", "expected": "string.kmp"}
+{"query": "smallest period of a string", "expected": "string.kmp"}
+{"query": "substring search in linear time with overlapping matches", "expected": "string.kmp"}

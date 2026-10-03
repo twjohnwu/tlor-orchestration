@@ -59,3 +59,10 @@ def test_precondition_reject_bad_items():
 def test_edge_huge_int():
     assert fn([10**400]) == [-1]
     assert fn([10**400, 10**401]) == [1, -1]
+
+
+def test_edge_generator_and_tuple_input():
+    assert fn(x for x in [3, 1, 4, 1, 5]) == [2, 2, 4, 4, -1]
+    assert fn((2, 2)) == [-1, -1]
+    with pytest.raises(ValueError):
+        fn(x for x in [1, float("nan")])

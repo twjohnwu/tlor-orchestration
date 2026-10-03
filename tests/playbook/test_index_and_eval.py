@@ -6,6 +6,7 @@ them synthetic tmp_path trees; the real playbook/ content is never read.
 """
 import importlib
 import json
+import math
 import subprocess
 import sys
 from pathlib import Path
@@ -213,3 +214,49 @@ def test_evaluate_cli_exits_zero_and_json(tmp_path):
     assert proc.returncode == 0, proc.stderr
     data = json.loads(proc.stdout)
     assert data["metrics"]["top1"] == 0.0 and data["metrics"]["wrong_algorithm_rate"] is None
+
+
+def test_heldout_reported_separately(tmp_path):
+    index = _index(tmp_path)
+    ev = tmp_path / "eval"
+    ev.mkdir()
+    _jsonl(ev / "retrieval.jsonl", [{"query": "search a sorted array", "expected": "search.binary_search"}])
+    held = tmp_path / "blind.jsonl"
+    _jsonl(held, [
+        {"query": "search a sorted array", "expected": "search.binary_search"},
+        {"query": "zzz", "expected": "search.binary_search"},
+    ])
+    rows = [evaluate.prepare(r) for r in evaluate.parse_index(index)]
+    res = evaluate.evaluate(rows, ev, 3, held)
+    assert res["n"]["retrieval"] == 1 and res["metrics"]["top1"] == 1.0
+    assert res["heldout"]["n"] == 2
+    assert res["heldout"]["metrics"]["top1"] == pytest.approx(0.5)
+    assert res["heldout"]["misses"] == ["zzz -> got (none), expected search.binary_search"]
+    assert res["misses"]["retrieval"] == []
+    assert "Held-out (blind) retrieval" in evaluate.render(res)
+    assert "heldout" not in evaluate.evaluate(rows, ev, 3)
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPTS_DIR / "evaluate.py"), "--index", str(index),
+         "--eval-dir", str(ev), "--heldout", str(held), "--json"], capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stderr
+    assert json.loads(proc.stdout)["heldout"]["n"] == 2
+
+
+def test_idf_generic_token_near_zero_unique_token_full_weight(tmp_path):
+    rows = [evaluate.prepare(r) for r in evaluate.parse_index(_index(tmp_path))]
+    rows = [dict(r, pos=r["pos"] | {"common"}) for r in rows]  # token shared by every row
+    idf = evaluate.idf_table(rows)
+    n = len(rows)
+    assert idf["common"] == pytest.approx(1.0)                      # log(1) + 1: floor only
+    assert idf["unweighted"] == pytest.approx(math.log((n + 1) / 2) + 1)  # in one row only
+    assert idf["unweighted"] > idf["common"]
+
+
+def test_phrase_bigram_bonus():
+    row = evaluate.prepare({"id": "x.y", "name": "Xy", "signals": "prefix tree; two pointers",
+                            "avoid_when": []})
+    assert ("prefix", "tree") in row["bigrams"]
+    idf = {t: 1.0 for t in row["pos"]}
+    adjacent, _, _ = evaluate.score_row(evaluate.tokenize("prefix tree lookup"), row, idf, 1.0)
+    apart, _, _ = evaluate.score_row(evaluate.tokenize("tree of prefix"), row, idf, 1.0)
+    assert adjacent == pytest.approx(apart + evaluate.PHRASE_BONUS)

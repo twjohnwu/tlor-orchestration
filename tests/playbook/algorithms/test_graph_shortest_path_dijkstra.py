@@ -103,6 +103,12 @@ def test_precondition_reject_infinite_weight(bad):
         dijkstra({"a": [("b", bad)], "b": []}, "a")
 
 
+@pytest.mark.parametrize("bad", [True, False])
+def test_precondition_reject_bool_weight(bad):
+    with pytest.raises(ValueError):
+        dijkstra({"a": [("b", bad)], "b": []}, "a")
+
+
 def test_unit_float_weights():
     g = {"s": [("a", 0.5), ("b", 2.25)], "a": [("b", 1.5)], "b": []}
     assert dijkstra(g, "s") == {"s": 0, "a": 0.5, "b": 2.0}
