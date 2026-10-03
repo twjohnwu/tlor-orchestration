@@ -1,0 +1,43 @@
+# playbook/metadata/algorithms/<id>.yaml — one per entry; build_index.py reads these
+id: hashing.hash_map
+name: Hash Map Lookup
+category: [hashing]
+aliases: [hash_map, hashmap, hash_table, hashing, unordered_map]
+signals:
+  - seen before
+  - complement lookup
+  - two sum unsorted
+  - frequency count
+  - group by key
+  - O(1) lookup
+  - deduplicate
+preconditions:
+  hashable_keys: true
+  stable_key_hash: true
+  max_load_exclusive_range: [0, 1]
+  capacity_positive_int: true
+avoid_when:
+  - sorted key order        # -> balanced tree or search.binary_search
+  - range queries           # -> balanced tree or array.prefix_sum
+  - sorted space-limited     # -> array.two_pointers
+  - small dense ints        # -> plain array
+  - adversarial keys        # -> tree map or seeded hash
+complexity:
+  time: "O(1) average per op, O(n) worst case"
+  space: "O(n)"
+related: [array.prefix_sum, array.two_pointers]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: data_structures/hashing/hash_map.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: hashing/chaining.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/datastructures/hashtable/HashTableLinearProbing.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT
