@@ -1,0 +1,53 @@
+id: graph.topological_sort
+name: Topological Sort
+category: [graph, dag]
+aliases: [topological_sort, topological_sorting, toposort, topo_sort, kahn, kahns_algorithm]
+signals:
+  - topological order
+  - dependency order
+  - prerequisites first
+  - build order
+  - course schedule
+  - detect cycle in directed graph
+  - DAG ordering
+preconditions:
+  adjacency_mapping: true
+  directed_graph: true
+  successors_are_keys: true
+  acyclic: true
+avoid_when:
+  - undirected graph        # -> graph.traversal.dfs
+  - shortest distances      # -> graph.shortest_path.dijkstra
+  - cyclic graph            # -> strongly connected components, then sort the condensation
+  - smallest-first order    # -> heap-based Kahn (see Variants)
+complexity:
+  time: "O(V + E)"
+  space: "O(V + E)"
+related: [graph.traversal.dfs, graph.traversal.bfs]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: graphs/kahns_algorithm_topo.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: graphs/g_topological_sort.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: graph/topological_sort.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: graph/topological_sort_by_kahns_algo.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/graphtheory/Kahns.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/graphtheory/TopologicalSortAdjacencyList.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT

@@ -1,0 +1,44 @@
+id: greedy.interval_scheduling
+name: Greedy Interval Scheduling
+category: [greedy, intervals]
+aliases: [interval_scheduling, activity_selection, merge_intervals, job_sequencing, minimum_waiting_time]
+signals:
+  - max non-overlapping intervals
+  - activity selection
+  - meeting scheduling one room
+  - fewest intervals to remove
+  - merge overlapping ranges
+  - minimize total waiting time
+preconditions:
+  integer_bounds: true
+  start_le_end: true
+  single_resource: true
+  input_known_upfront: true
+avoid_when:
+  - weighted intervals             # -> dynamic programming with binary search
+  - count rooms                    # -> heap.priority_queue
+  - multiple resources             # -> general scheduling or flow model
+  - online arrival                 # -> no greedy guarantee; buffer then sort
+complexity:
+  time: "O(n log n)"
+  space: "O(n)"
+related: [heap.priority_queue]
+confidence: medium
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: greedy_methods/activity_selection.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: other/activity_selection.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: data_structures/arrays/merge_intervals.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: greedy_methods/minimum_waiting_time.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
