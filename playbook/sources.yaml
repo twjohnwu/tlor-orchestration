@@ -1,0 +1,41 @@
+# playbook/sources.yaml — evidence repositories. Clones live OUTSIDE this repo;
+# point PLAYBOOK_SOURCES_ROOT (or --sources-root) at a directory holding
+# Primary/<local_dir> and Secondary/<local_dir>. All six are MIT.
+primary:
+  - repo: TheAlgorithms/Python
+    url: https://github.com/TheAlgorithms/Python
+    local_dir: TheAlgorithms-Python
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+    languages: [python]
+  - repo: TheAlgorithms/C-Plus-Plus
+    url: https://github.com/TheAlgorithms/C-Plus-Plus
+    local_dir: "TheAlgorithms -C-Plus-Plus"
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+    languages: [cpp]
+  - repo: williamfiset/Algorithms
+    url: https://github.com/williamfiset/Algorithms
+    local_dir: williamfiset-algorithms
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT
+    languages: [java]
+  - repo: ADJA/algos
+    url: https://github.com/ADJA/algos
+    local_dir: ADJA-algos
+    commit: 244d382be168208d669db0f90ea64cc6be06e3d2
+    license: MIT
+    languages: [cpp]
+secondary:
+  - repo: GabrielCFormiga/Code-Library
+    url: https://github.com/GabrielCFormiga/Code-Library
+    local_dir: GabrielCFormiga-Code-Library
+    commit: 0314ee2c3bde6dbbc0d7dffc83a9066c577cf72e
+    license: MIT
+    languages: [cpp]
+  - repo: imeplusplus/icpc-notebook
+    url: https://github.com/imeplusplus/icpc-notebook
+    local_dir: imeplusplus-icpc-notebook
+    commit: d6db5cb0e077ed674fd16828f3c1e452a222d103
+    license: MIT
+    languages: [cpp]

@@ -1,0 +1,6 @@
+{"query": "longest substring without repeating characters", "candidates": ["array.two_pointers", "array.sliding_window"], "expected": "array.sliding_window"}
+{"query": "find a pair in a sorted array summing to a target", "candidates": ["array.two_pointers", "array.sliding_window"], "expected": "array.two_pointers"}
+{"query": "find the first element in a sorted array that is at least x", "candidates": ["search.binary_search", "array.two_pointers"], "expected": "search.binary_search"}
+{"query": "fewest steps through an unweighted maze", "candidates": ["graph.traversal.bfs", "graph.shortest_path.dijkstra"], "expected": "graph.traversal.bfs"}
+{"query": "cheapest route over weighted roads with non-negative costs", "candidates": ["graph.traversal.bfs", "graph.shortest_path.dijkstra"], "expected": "graph.shortest_path.dijkstra"}
+{"query": "maximum sum of a contiguous window of size k", "candidates": ["array.two_pointers", "array.sliding_window", "search.binary_search"], "expected": "array.sliding_window"}

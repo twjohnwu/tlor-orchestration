@@ -1,0 +1,20 @@
+{"query": "find two numbers in a sorted array that add up to a target", "expected": "array.two_pointers"}
+{"query": "remove duplicates in place from a sorted array", "expected": "array.two_pointers"}
+{"query": "check whether a string is a palindrome by comparing from both ends", "expected": "array.two_pointers"}
+{"query": "merge two sorted arrays using a pointer in each", "expected": "array.two_pointers"}
+{"query": "longest substring without repeating characters", "expected": "array.sliding_window"}
+{"query": "maximum sum of any contiguous subarray of fixed size k", "expected": "array.sliding_window"}
+{"query": "smallest contiguous subarray whose sum is at least a target of positive numbers", "expected": "array.sliding_window"}
+{"query": "longest run of ones after flipping at most k zeros", "expected": "array.sliding_window"}
+{"query": "find the index of a target value in a sorted array in logarithmic time", "expected": "search.binary_search"}
+{"query": "find the smallest value of a parameter that satisfies a monotonic condition", "expected": "search.binary_search"}
+{"query": "locate the first position where a sorted sequence is greater than or equal to x", "expected": "search.binary_search"}
+{"query": "search a rotated sorted array for a target", "expected": "search.binary_search"}
+{"query": "minimum number of steps to reach a target cell in an unweighted grid", "expected": "graph.traversal.bfs"}
+{"query": "shortest path in an unweighted graph from a source node", "expected": "graph.traversal.bfs"}
+{"query": "visit nodes level by level from a starting node", "expected": "graph.traversal.bfs"}
+{"query": "find the fewest moves between two states when every move costs the same", "expected": "graph.traversal.bfs"}
+{"query": "cheapest route from one city to all others with non-negative road costs", "expected": "graph.shortest_path.dijkstra"}
+{"query": "shortest path in a weighted graph with non-negative edge weights from a single source", "expected": "graph.shortest_path.dijkstra"}
+{"query": "minimum travel time across a network where every link has a positive delay", "expected": "graph.shortest_path.dijkstra"}
+{"query": "single source shortest paths with a priority queue on weighted edges", "expected": "graph.shortest_path.dijkstra"}

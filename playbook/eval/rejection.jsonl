@@ -1,0 +1,10 @@
+{"query": "shortest path in a graph where some edges have negative weights", "algorithm": "graph.shortest_path.dijkstra", "expected": "reject"}
+{"query": "best subset of arbitrary non-contiguous elements chosen from an array", "algorithm": "array.sliding_window", "expected": "reject"}
+{"query": "find a target in an unsorted array", "algorithm": "search.binary_search", "expected": "reject"}
+{"query": "shortest path in a weighted graph with different edge costs", "algorithm": "graph.traversal.bfs", "expected": "reject"}
+{"query": "find a pair summing to a target in an unsorted array", "algorithm": "array.two_pointers", "expected": "reject"}
+{"query": "cheapest route with non-negative edge weights from one source", "algorithm": "graph.shortest_path.dijkstra", "expected": "accept"}
+{"query": "longest substring with at most two distinct characters", "algorithm": "array.sliding_window", "expected": "accept"}
+{"query": "find a value in a sorted array", "algorithm": "search.binary_search", "expected": "accept"}
+{"query": "fewest moves in an unweighted graph", "algorithm": "graph.traversal.bfs", "expected": "accept"}
+{"query": "pair with a given sum in a sorted array", "algorithm": "array.two_pointers", "expected": "accept"}

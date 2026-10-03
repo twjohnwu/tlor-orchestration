@@ -34,7 +34,7 @@ jobs:
       - name: Check for old-name residue
         run: python3 scripts/check_oldname.py
       - name: Install pytest
-        run: pip install pytest
+        run: pip install pytest pyyaml
       - name: Run hook test suite
         run: pytest tests/ -q
 
