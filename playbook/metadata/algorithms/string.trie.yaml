@@ -1,0 +1,40 @@
+# playbook/metadata/algorithms/<id>.yaml — one per entry; build_index.py reads these
+id: string.trie
+name: Trie
+category: [string, data-structure]
+aliases: [trie, trie_tree, trie_modern, prefix_tree]
+signals:
+  - prefix lookup
+  - autocomplete
+  - words sharing a prefix
+  - starts with
+  - dictionary of words
+  - insert and delete words
+preconditions:
+  key_type: str
+  case_folding: caller-normalised
+  thread_safe: false
+avoid_when:
+  - exact match only        # -> hashing.hash_map
+  - pattern in text         # -> string.kmp
+  - sparse few keys         # -> sorted list + binary search
+  - tight memory            # -> compressed radix trie
+complexity:
+  time: "O(L) per operation, L = key length"
+  space: "O(total characters)"
+related: [hashing.hash_map, string.kmp]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: data_structures/trie/trie.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/datastructures/trie/Trie.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: data_structures/trie_modern.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT

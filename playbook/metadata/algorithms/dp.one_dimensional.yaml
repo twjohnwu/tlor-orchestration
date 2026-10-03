@@ -1,0 +1,61 @@
+id: dp.one_dimensional
+name: 1-D Dynamic Programming
+category: [dynamic-programming]
+aliases: [coin_change, fibonacci, climbing_stairs, house_robber, lis, longest_increasing_subsequence, max_subarray_sum]
+signals:
+  - minimum number of coins
+  - number of ways to climb
+  - no two adjacent
+  - longest increasing subsequence
+  - maximum subarray sum
+  - overlapping subproblems
+preconditions:
+  state_is_single_index: true
+  dependencies_point_to_smaller_states: true
+  optimal_substructure: true
+  coin_values_positive_int: true
+  target_non_negative_int: true
+avoid_when:
+  - two-index state          # -> dp.two_dimensional
+  - enumerate all            # -> backtracking.backtracking
+  - greedy provable          # -> greedy.interval_scheduling
+  - cyclic dependencies      # -> graph.shortest_path.dijkstra
+complexity:
+  time: "O(n * m)"
+  space: "O(n)"
+related: [dp.two_dimensional, backtracking.backtracking]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: dynamic_programming/climbing_stairs.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: dynamic_programming/max_subarray_sum.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: dynamic_programming/coin_change.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: dynamic_programming/house_robber.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/dp/CoinChange.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/dp/examples/houserobber/HouseRobber.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/dp/LongestIncreasingSubsequence.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT
+  - repo: ADJA/algos
+    path: DP/LIS.cpp
+    commit: 244d382be168208d669db0f90ea64cc6be06e3d2
+    license: MIT
