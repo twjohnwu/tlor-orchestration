@@ -159,8 +159,11 @@ scripts to `~/.claude/hooks/`, and skills to `~/.claude/skills/`, and sets up
 the `~/.claude/institution/` symlink layout on first run (see Ownership
 model above). Add `--with-optional` to include the optional rules installed
 from `rules/customize/`. It records manifests so `--uninstall` comes out
-clean. Hook *activation* (env vars, `hooks.json` wiring) still needs the
-plugin route (Option A). `install.sh` only places the files.
+clean. Hook *wiring* (`hooks.json`) still needs the plugin route (Option A);
+`install.sh` only places the files. Neither route sets the activation env
+vars — add them to the `env` block of `~/.claude/settings.json` (see
+[rules-and-hooks.md](rules-and-hooks.md#hooks-opt-in)). A shell profile is
+not enough: the desktop app does not read it.
 
 **`--stdd-role=RD|PM|UIUX|ALL`** — opt-in install of the STDD workflow
 skills (`stdd-skills/*`, non-autoload; see [skills.md](skills.md)). Only

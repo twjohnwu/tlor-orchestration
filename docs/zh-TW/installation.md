@@ -88,7 +88,7 @@ git clone https://github.com/twjohnwu/tlor-orchestration.git
 cd tlor-orchestration && ./install.sh          # --dry-run / --force / --uninstall / --with-optional / --stdd-role=ALL / --install-hook / --skills-dest=PATH
 ```
 
-複製 agents 到 `~/.claude/agents/`、rules 到 `~/.claude/rules/`、hook 腳本到 `~/.claude/hooks/`、skills 到 `~/.claude/skills/`，首次執行時建立 `~/.claude/institution/` symlink layout（見上方所有權模型）。加 `--with-optional` 一併安裝 `rules/customize/` 裡的選裝 rules。寫入 manifest 供 `--uninstall` 精確移除。Hook **啟用**（環境變數、`hooks.json` 接線）仍需走方式 A：`install.sh` 只負責放檔案。
+複製 agents 到 `~/.claude/agents/`、rules 到 `~/.claude/rules/`、hook 腳本到 `~/.claude/hooks/`、skills 到 `~/.claude/skills/`，首次執行時建立 `~/.claude/institution/` symlink layout（見上方所有權模型）。加 `--with-optional` 一併安裝 `rules/customize/` 裡的選裝 rules。寫入 manifest 供 `--uninstall` 精確移除。Hook **接線**（`hooks.json`）仍需走方式 A：`install.sh` 只負責放檔案。兩種方式都不會設定啟用用的環境變數——請加到 `~/.claude/settings.json` 的 `env` 區塊（見 [rules-and-hooks.md](rules-and-hooks.md#hooks選配)）。只寫在 shell profile 不夠，desktop app 不會讀它。
 
 **`--stdd-role=RD|PM|UIUX|ALL`** — 選配安裝 STDD 工作流程 skills（`stdd-skills/*`，非自動載入；見 [skills.md](skills.md)）。本輪僅實作 `ALL`；`RD`/`PM`/`UIUX` 只會印出 deferred 訊息、不安裝任何東西。不加此旗標 → 不裝任何 STDD skill，與這個旗標出現前的行為相同。
 
