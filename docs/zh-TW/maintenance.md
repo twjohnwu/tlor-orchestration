@@ -5,7 +5,7 @@
 ## 備註
 
 - **CLAUDE.md + AGENTS.md 雙檔架構**：`/tlor-init` 會產生一個精簡的 CLAUDE.md（只含幾條最高優先級規則＋`@AGENTS.md` import，交由 harness 自動內聯）以及一份含完整路由表的 AGENTS.md。這樣拆的理由是 AGENTS.md 也能被其他 AI coding 工具（Cursor、Codex 等）讀取，CLAUDE.md 則只有 Claude Code 會讀。（自動載入本身並非 CLAUDE.md 獨有——`.claude/rules/` 底下的檔案在 Claude Code 中同樣會自動載入；見 [installation.md](installation.md) 的 Session 啟動成本一節。）
-- **Serena 為選配**：兩個搜尋角色的 tools 列了 [Serena](https://github.com/oraios/serena) 語意工具；沒裝該 plugin 時角色會 fallback 到 Grep/Glob（指令內已註明）。
+- **Serena 為選配**：兩個搜尋角色的 tools 列了 [Serena](https://github.com/oraios/serena) 語意工具；沒裝該 plugin 時角色會 fallback 到 Grep/Glob（指令內已註明）。安裝步驟見 installation.md 的「選配工具」一節。
 - **Hard Rules 插槽**：派 `eagle-sentinel` 時把你團隊不可協商的慣例貼進 prompt，違反即自動 FAIL。
 - model 名（haiku/sonnet/opus）依 Agent 工具接受值；環境不同請自行改 frontmatter。
 

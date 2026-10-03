@@ -4,7 +4,7 @@
 
 ## 兩種使用方式
 
-- **輕量**：只裝 plugin。安裝後，任何一個新開的 session 都能使用十四個角色（若是在已開啟的 session 中安裝，須先執行 `/reload-plugins`）。請直接以名稱明確呼叫角色，或加上 [roles.md](roles.md) 的 CLAUDE.md snippet 來穩定派工。我們的 headless 測試顯示，僅靠 description 並不能穩定觸發自動派工，所以 snippet 是輕量路線的建議做法。
+- **輕量**：只裝 plugin。安裝後，任何一個新開的 session 都能使用十五個角色（若是在已開啟的 session 中安裝，須先執行 `/reload-plugins`）。請直接以名稱明確呼叫角色，或加上 [roles.md](roles.md) 的 CLAUDE.md snippet 來穩定派工。我們的 headless 測試顯示，僅靠 description 並不能穩定觸發自動派工，所以 snippet 是輕量路線的建議做法。
 - **完整**：再加跑 `/tlor-init`。這會落地 rules 檔案、`~/.claude/institution/` layout（見下）以及 CLAUDE.md/AGENTS.md 路由。Rules 檔案一旦存在就會自行載入，`.claude/rules/` 是原生 auto-load 位置，不需要路由。路由給的是另外三件事：最先讀到的派工紀律提醒、給不讀 `.claude/rules/` 的工具用的 AGENTS.md 介面，以及宣告本框架的角色是你的主要派工對象。
 
 ## 所有權模型
@@ -53,6 +53,28 @@ base 數字適用於每一種安裝方式；合計數字只在你同時裝了選
 ```
 
 更新：我們 bump `version` 後，用 `/plugin marketplace update tlor` 取得。
+
+### 選配工具
+
+兩者都不是必要。搜尋角色會檢查 Serena，缺少時退回 Grep/Glob；Codex 則由 Maia 在走 §3d 之前自行檢查。
+
+**Serena（語意程式碼搜尋）**——供 `rohirrim-outrider`、`ranger-pathfinder`
+與 `Explore` 使用。它們的 `tools:` 行釘住的是 plugin 版工具名稱
+`mcp__plugin_serena_serena__*`。
+
+1. 安裝 `uv`（plugin 以 `uvx` 啟動 Serena）：macOS 上用 `brew install uv`，
+   或參考 https://docs.astral.sh/uv/。
+2. `/plugin install serena@claude-plugins-official`
+3. `/mcp` 應列出 `plugin:serena:serena` 為 connected。
+
+若改用獨立的 `claude mcp add serena …`，工具名稱會變成 `mcp__serena__*`，
+與釘住的名稱不符；角色會 fallback 到 Grep/Glob。沒裝 Serena 一切照常運作，
+只是廣域搜尋較慢。
+
+**Codex CLI（選配的外部 builder）**——供 `rules/dispatch.md` §3d 的 Maia 直呼路徑
+與審查預篩使用。依 OpenAI 的說明安裝 `codex` 執行檔
+（https://github.com/openai/codex），並確認 `command -v codex` 找得到。
+沒裝時會略過 §3d 路徑，實作工作交給釘住的角色。
 
 ### 更新支援
 

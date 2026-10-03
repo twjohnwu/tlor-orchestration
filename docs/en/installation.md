@@ -4,7 +4,7 @@
 
 ## Two ways to use this
 
-- **Lightweight** — just install the plugin. The fourteen roles become available
+- **Lightweight** — just install the plugin. The fifteen roles become available
   in any NEW session after install (in an already-running session, run
   `/reload-plugins` first). Invoke them explicitly by name, or add the
   CLAUDE.md snippet in [roles.md](roles.md) for consistent dispatch — in
@@ -109,6 +109,31 @@ matters to you.
 
 Updates: we bump the `version` field on our side. Refresh with
 `/plugin marketplace update tlor`.
+
+### Optional companions
+
+Neither is required. The search roles check for Serena and fall back to Grep/Glob; the Maia checks for Codex before using the §3d path.
+
+**Serena (semantic code search)** — used by `rohirrim-outrider`,
+`ranger-pathfinder` and `Explore`. Their `tools:` lines pin the plugin
+tool names `mcp__plugin_serena_serena__*`.
+
+1. Install `uv` (the plugin starts Serena with `uvx`): `brew install uv`
+   on macOS, or see https://docs.astral.sh/uv/.
+2. `/plugin install serena@claude-plugins-official`
+3. `/mcp` should list `plugin:serena:serena` as connected.
+
+A standalone `claude mcp add serena …` setup exposes the tools as
+`mcp__serena__*`, which does not match the pinned names; the roles then
+fall back to Grep/Glob. Without Serena everything still works, only
+slower on broad searches.
+
+**Codex CLI (optional external builder)** — used by the Maia-direct path
+in `rules/dispatch.md` §3d and by the review pre-screens. Install the
+`codex` binary per OpenAI's instructions at
+https://github.com/openai/codex and make sure `command -v codex` finds it.
+Without it the §3d path is skipped and implement work goes to the pinned
+roles.
 
 ### Updates
 

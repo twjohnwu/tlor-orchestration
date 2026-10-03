@@ -14,7 +14,7 @@
   section has the measured figures.
 - **Serena tools are optional.** The two search roles list
   [Serena](https://github.com/oraios/serena) semantic tools in `tools`.
-  Without the plugin they fall back to Grep/Glob, as their instructions say.
+  Without the plugin they fall back to Grep/Glob, as their instructions say. Install steps: see [Installation → Optional companions](installation.md#optional-companions).
 - **Hard rules slot**: `eagle-sentinel` treats caller-supplied "Hard Rules"
   (non-negotiable house conventions pasted into its prompt) as auto-FAIL on
   violation. Paste yours when dispatching.
