@@ -1,0 +1,46 @@
+# playbook/metadata/algorithms/<id>.yaml — one per entry; build_index.py reads these
+id: array.sliding_window
+name: Sliding Window
+category: [array, window]
+aliases: [sliding_window, sliding_window_maximum, max_sum_sliding_window, window_sum]
+signals:
+  - contiguous subarray
+  - window of size k
+  - k consecutive elements
+  - longest substring with constraint
+  - maximum of each window
+  - running window sum
+preconditions:
+  contiguous: true
+  window_size_min: 1
+  monotone_validity_for_variable_window: true
+  add_remove_update_supported: true
+avoid_when:
+  - non-contiguous subset         # -> dynamic programming
+  - arbitrary subset              # -> dynamic programming
+  - static range queries          # -> array.prefix_sum
+  - negative values window  # -> array.prefix_sum
+  - running median                # -> two heaps
+complexity:
+  time: "O(n)"
+  space: "O(k)"
+related: [array.two_pointers, array.prefix_sum, stack.monotonic_stack]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: other/sliding_window_maximum.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: maths/max_sum_sliding_window.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: greedy_methods/sliding_window.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/other/SlidingWindowMaximum.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT

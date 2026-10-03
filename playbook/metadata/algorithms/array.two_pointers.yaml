@@ -1,0 +1,41 @@
+id: array.two_pointers
+name: Two Pointers
+category: [array]
+aliases: [two_pointers, two_pointer, twopointers, two_sum, three_sum, pair_sum]
+signals:
+  - sorted array
+  - pair with target sum
+  - two sum sorted
+  - three sum
+  - unique triplets
+  - converge from both ends
+  - O(1) extra space
+preconditions:
+  sorted: true
+  distinct_indices: true
+avoid_when:
+  - unsorted array                # -> hash map of seen values
+  - unsorted input                # -> hash map of seen values
+  - original indices required     # -> hash map of seen values
+  - running window condition      # -> array.sliding_window
+  - single target lookup          # -> search.binary_search
+  - linked list cycle             # -> linked_list.fast_slow_pointers
+complexity:
+  time: "O(n)"
+  space: "O(1)"
+related: [array.sliding_window, search.binary_search, linked_list.fast_slow_pointers]
+confidence: medium
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: maths/two_pointer.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: maths/three_sum.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: maths/two_sum.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT

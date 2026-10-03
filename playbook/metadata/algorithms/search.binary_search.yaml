@@ -1,0 +1,55 @@
+id: search.binary_search
+name: Binary Search
+category: [search]
+aliases: [binary_search, simple_binary_search, bit_binary_search, bisect, lower_bound, upper_bound]
+signals:
+  - sorted array
+  - find position of value
+  - first or last occurrence
+  - insertion point
+  - lower bound upper bound
+  - monotone predicate
+  - search on the answer
+  - O(log n) lookup
+  - logarithmic time
+  - log n
+  - search space halving
+preconditions:
+  sorted: true
+  random_access: true
+  monotone_predicate: true
+avoid_when:
+  - unsorted array                # -> linear scan
+  - unsorted data                 # -> linear scan
+  - membership lookup             # -> hash set or map
+  - pair target sum          # -> array.two_pointers
+  - dynamic min max               # -> heap.priority_queue
+  - linked list                   # -> linear scan or balanced tree
+  - predicate not monotone        # -> linear scan
+complexity:
+  time: "O(log n)"
+  space: "O(1)"
+related: [array.two_pointers, heap.priority_queue]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: searches/binary_search.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: searches/simple_binary_search.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: search/binary_search.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/search/BinarySearch.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT
+  - repo: imeplusplus/icpc-notebook
+    path: data-structures/bit_binary_search.cpp
+    commit: d6db5cb0e077ed674fd16828f3c1e452a222d103
+    license: MIT

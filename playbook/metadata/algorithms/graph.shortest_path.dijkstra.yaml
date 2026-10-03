@@ -1,0 +1,52 @@
+# playbook/metadata/algorithms/<id>.yaml — one per entry; build_index.py reads these
+id: graph.shortest_path.dijkstra
+name: Dijkstra's Algorithm
+category: [graph, shortest-path]
+aliases: [dijkstra, dijkstras, dijkstra_algorithm, dijkstra_heap, dijkstra_set, dijkstras_shortest_path]
+signals:
+  - weighted graph
+  - shortest path
+  - cheapest path
+  - non-negative edge weights
+  - single source
+  - minimum cost to reach
+  - network delay
+preconditions:
+  negative_edges: false
+  nan_weights: false
+  source_in_graph: true
+  neighbours_are_nodes: true
+avoid_when:
+  - negative edge weights         # -> graph.shortest_path.bellman_ford
+  - negative edges                # -> graph.shortest_path.bellman_ford
+  - unweighted graph              # -> graph.traversal.bfs
+  - equal edge costs              # -> graph.traversal.bfs
+  - all-pairs paths      # -> floyd-warshall
+  - admissible heuristic          # -> a-star
+complexity:
+  time: "O((V + E) log V)"
+  space: "O(V + E)"
+related: [graph.traversal.bfs, graph.shortest_path.bellman_ford, heap.priority_queue]
+confidence: high
+review_required: false
+sources:
+  - repo: TheAlgorithms/Python
+    path: graphs/dijkstra.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/Python
+    path: graphs/dijkstra_2.py
+    commit: ef2ecc4d34d17ce6249ba5d3f3c17822dfd7bd50
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: graph/dijkstra.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: TheAlgorithms/C-Plus-Plus
+    path: graph/bidirectional_dijkstra.cpp
+    commit: b64d5ecd022e4eb6b7f3f9a1157f13eccbfa6b78
+    license: MIT
+  - repo: williamfiset/Algorithms
+    path: src/main/java/com/williamfiset/algorithms/graphtheory/DijkstrasShortestPathAdjacencyList.java
+    commit: 08c6d5f3cbee6870f480272404a271cc003b7437
+    license: MIT
