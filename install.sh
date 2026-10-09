@@ -191,14 +191,16 @@ check_evidence_rule_parity() {
 
 SKILLS=$(cd "$SKILLS_SRC" && ls -d */ | sed 's|/$||')
 RULES=$(cd "$RULES_SRC" && ls ./*.md | sed 's|^\./||')
-HOOK_FILES="institution_guard.py institution_guard.sh pre_tool_use.sh verify_gate.py dispatch_guard.py"
+HOOK_FILES="institution_guard.py institution_guard.sh pre_tool_use.sh verify_gate.py dispatch_guard.py plugin_update_sync.py"
 WORKFLOWS=$(cd "$WORKFLOWS_SRC" && ls ./*.js | sed 's|^\./||')
 # Only the runtime dependencies (the custody-check script and verify runner
 # `workflows/stdd-execute.js` relays to at runtime, REQ-07/REQ-10) are
-# installed — the rest of scripts/ (check_links.py, check_oldname.py,
+# installed, plus tlor_sync.py (the non-interactive /tlor-init sync, which
+# writes the same scripts manifest — keep its RUNTIME_SCRIPTS in step) —
+# the rest of scripts/ (check_links.py, check_oldname.py,
 # lint_agents_frontmatter.py) is this repo's own CI tooling, not something
 # an installed plugin needs.
-SCRIPTS="stdd_custody_check.py stdd_verify.py"
+SCRIPTS="stdd_custody_check.py stdd_verify.py tlor_sync.py"
 CUSTOMIZE_SRC="$RULES_SRC/customize"
 CUSTOMIZE_FILES=""
 if [ "$WITH_OPTIONAL" -eq 1 ]; then
