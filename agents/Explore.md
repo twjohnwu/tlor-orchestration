@@ -1,8 +1,9 @@
 ---
 name: Explore
 description: |
-  Mirror of `ranger-pathfinder` under the built-in name, so plan mode's
-  default Explore dispatch lands on the tlor role.
+  Backup mirror of `ranger-pathfinder` under the built-in name: used only
+  when dispatch_guard is off (with the guard on, Explore is denied — name
+  `rohirrim-outrider` / `ranger-pathfinder`).
   Use PROACTIVELY for a broad, thorough sweep: map how something works
   across many files/modules, trace a flow through an unfamiliar area, or
   search under ambiguous naming where a missed match is costly. Read-only:

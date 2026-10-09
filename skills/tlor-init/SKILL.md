@@ -340,8 +340,8 @@ Present available hooks with clear descriptions:
    - Requires Python 3
 
 3. **dispatch_guard** (PreToolUse): Unconditionally denies Agent dispatches
-   with `subagent_type: general-purpose`, `claude`, or `plan`; `explore` is
-   allowed only when the `Explore.md` mirror role is installed.
+   with `subagent_type: general-purpose`, `claude`, `explore`, or `plan`.
+   `agents/Explore.md` is only a backup for sessions where the guard is off.
    The named `subagent_type: bombadil-freeagent` is allowed only with a
    `no-role-fits reason: ...` line in the prompt (model/effort now pinned in
    the role's frontmatter; a per-call `model` override stays optional).

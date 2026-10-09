@@ -147,6 +147,8 @@ copy route (Option B) has no update UI at all. Re-running `install.sh`
 overwrites base rules again, but nothing tells you a new version exists, so
 check the repo's releases/version badge yourself.
 
+**Upgrades.** On the plugin route, the first session after a plugin update syncs the files `/tlor-init` always overwrites — agents (a changed agent is backed up to `.bak-<timestamp>` first), base rules, `agent_doc`, workflows and scripts — and then asks you to run `/tlor-init` for the interactive steps (optional rules, STDD skills, hooks, CLAUDE.md/AGENTS.md routing). It only acts after `/tlor-init` has run once. `install.sh` users upgrade by re-running `install.sh`.
+
 ### Option B — plain copy
 
 ```bash

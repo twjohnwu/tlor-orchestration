@@ -74,8 +74,9 @@ rules/ and agents/: main-session edits are denied, dispatched subagents pass.
 
 ## Hooks (opt-in)
 
-All four hooks are **silent by default**: an environment variable turns on
-the first three, registration turns on the fourth. Every one of them fails
+All five hooks are **silent by default**: an environment variable turns on
+three of them, registration turns on `stdd_test_guard`, and `plugin_update_sync`
+needs no env var (it runs on every plugin install). Every one of them fails
 open on an internal error, so the call goes through and a bug in a hook never
 blocks your work. `install.sh` copies the hook scripts but does not wire or
 activate them (no `hooks.json`, no env vars) — the plugin route wires
@@ -86,7 +87,8 @@ Code starts outside a shell (e.g. the desktop app).
 | Hook | Event | What it does | Env key |
 |---|---|---|---|
 | `institution_guard` | PreToolUse | Blocks the main session from Edit/Write on institution files (`~/.claude/institution/`, `rules/`, `agents/`, and any `CLAUDE.md`/`AGENTS.md` anywhere) — enforces "the commander doesn't do field work"; subagent edits pass through | `TLOR_INSTITUTION_GUARD=1` |
-| `dispatch_guard` | PreToolUse | Denies dispatches to `general-purpose`/`claude`/`plan`, and to `explore` unless the `Explore.md` mirror role is installed; `bombadil-freeagent` passes only when its prompt carries a `no-role-fits` mention (model/effort are pinned in its frontmatter; a per-call `model` override stays optional) | `TLOR_DISPATCH_GUARD=1` |
+| `dispatch_guard` | PreToolUse | Denies dispatches to `general-purpose`/`claude`/`explore`/`plan` (`agents/Explore.md` is only a guard-off backup); `bombadil-freeagent` passes only when its prompt carries a `no-role-fits` mention (model/effort are pinned in its frontmatter; a per-call `model` override stays optional) | `TLOR_DISPATCH_GUARD=1` |
+| `plugin_update_sync` | SessionStart (`startup`) | Plugin route only: when the plugin version differs from `<target>/.tlor-init-state` (written by `/tlor-init`), syncs agents (changed ones backed up), base rules, agent_doc, workflows and scripts via `scripts/tlor_sync.py`, then tells you to run `/tlor-init` for the interactive steps. Silent when `/tlor-init` was never run; never blocks the session | — (always on for plugin installs) |
 | `verify_gate` | Stop | Catches "done" claims with no evidence: if code files were edited this turn and no test command was run, it blocks the turn once, asking for fail-then-pass evidence | `TLOR_VERIFY_GATE=1` |
 | `stdd_test_guard` | PreToolUse | STDD execute-phase protection: a test file cited by a `[wip]` task in `tasks.md` cannot be edited or rewritten until that task is marked `[x]` | none — registered into `settings.json` by `install.sh --install-hook` |
 
