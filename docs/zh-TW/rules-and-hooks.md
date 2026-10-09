@@ -66,7 +66,7 @@
 |---|---|---|---|
 | `institution_guard` | PreToolUse | 擋主 session 直接 Edit/Write 制度檔（`~/.claude/institution/`、`rules/`、`agents/`，以及任何位置的 `CLAUDE.md`／`AGENTS.md`）——執行「指揮官不下場」；subagent 的編輯一律放行 | `TLOR_INSTITUTION_GUARD=1` |
 | `dispatch_guard` | PreToolUse | 擋派工到 `general-purpose`／`claude`／`explore`／`plan`（`agents/Explore.md` 只是 guard 關閉時的備援）；`bombadil-freeagent` 需 prompt 內帶 `no-role-fits` 字樣才放行（model/effort 已在 frontmatter pin 定，per-call `model` 覆寫為選配） | `TLOR_DISPATCH_GUARD=1` |
-| `plugin_update_sync` | SessionStart（`startup`） | 僅 plugin 安裝、僅升級時動作：plugin 版本比 `~/.claude/.tlor-init-state`（由 `/tlor-init` 寫入）新時，透過 `scripts/tlor_sync.py` 同步 user 層安裝的 agents（有改動的先備份，並列出每個備份路徑）、base rules、agent_doc、workflows 與 scripts，再提醒你跑 `/tlor-init` 處理互動步驟。project 層安裝只會收到「請到該處跑 `/tlor-init`」的提醒，不會被寫入。沒跑過 `/tlor-init`、或版本相同或較舊時不動作；絕不擋 session | 預設啟用；`TLOR_AUTO_SYNC=0` 關閉 |
+| `plugin_update_sync` | SessionStart（`startup`） | 僅 plugin 安裝、僅升級時動作：plugin 版本比 `~/.claude/.tlor-init-state`（由 `/tlor-init` 寫入）新時，透過 `scripts/tlor_sync.py` 同步 user 層安裝的 agents（有改動的先備份，並列出每個備份路徑）、base rules、agent_doc、workflows 與 scripts，再提醒你跑 `/tlor-init` 處理互動步驟。project 層安裝只會收到「請到該處跑 `/tlor-init`」的提醒，不會被寫入。`/tlor-init` 0.14.0 以上至少跑過一次前不動作（跑過舊版 `/tlor-init` 的使用者要再跑一次），版本相同或較舊時也不動作；絕不擋 session | 預設啟用；`TLOR_AUTO_SYNC=0` 關閉 |
 | `verify_gate` | Stop | 攔「沒有證據的完成宣稱」：本輪改了程式碼卻沒跑測試指令，擋回一次要求補 fail-then-pass 證據 | `TLOR_VERIFY_GATE=1` |
 | `stdd_test_guard` | PreToolUse | STDD 執行期保護：`tasks.md` 中 `[wip]` 任務所引用的測試檔，在該任務標成 `[x]` 前不得再被 Edit/Write | 無啟用 env；由 `install.sh --install-hook` 註冊進 `settings.json` |
 

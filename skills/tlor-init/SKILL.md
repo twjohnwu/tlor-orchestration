@@ -13,8 +13,10 @@ After a plugin upgrade, the plugin's SessionStart hook
 (`hooks/plugin_update_sync.py`, plugin route only) runs the same
 non-interactive sync as Steps 3/4/11 automatically for a user-level install
 that carries a `.tlor-init-state` marker (Step 12); a project-level install
-only gets a reminder. Re-run `/tlor-init` for project-level installs and for
-the interactive steps (2, 5, 6, 8, 10).
+only gets a reminder. Installs set up by a `/tlor-init` older than 0.14.0
+have no marker, so run `/tlor-init` once on 0.14.0+ to enable this. Re-run
+`/tlor-init` for project-level installs and for the interactive steps
+(2, 5, 6, 8, 10).
 
 ## Workflow
 

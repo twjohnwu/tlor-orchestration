@@ -161,7 +161,7 @@ def test_upgrade_syncs_bumps_marker_and_lists_backups(run_hook, tmp_path):
     msg = decision["systemMessage"]
     lines = msg.split("\n")
     assert lines[0] == ("tlor %s→%s synced to %s: 15 agents (1 backed up), 6 rules, "
-                        "agent_doc, workflows." % (OLD, new, claude))
+                        "agent_doc, workflows, scripts." % (OLD, new, claude))
     assert "Backup: %s" % backups[0] in lines
     assert msg.endswith(TAIL)
     assert decision["hookSpecificOutput"]["hookEventName"] == "SessionStart"

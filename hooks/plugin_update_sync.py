@@ -164,7 +164,7 @@ def _sync_target(target, is_project_dir, plugin_root):
     agents = sum(summary["agents"].values())
     rules = sum(summary["rules"].values())
     lines = ["tlor %s→%s synced to %s: %d agents (%d backed up), %d rules, "
-             "agent_doc, workflows."
+             "agent_doc, workflows, scripts."
              % (old_label, new_version, target, agents, summary["backups"], rules)]
     if summary["backup_paths"]:
         lines.extend("Backup: " + path for path in summary["backup_paths"])
