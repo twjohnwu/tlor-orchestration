@@ -444,7 +444,8 @@ authoritative source, and falls back to globbing this repo's own `agents/`
 directory only when no manifest is present (e.g. running straight out of a
 checked-out repo without an install). Both sources exclude any filename
 containing `.bak` (stale/backup copies). As of this writing that's fifteen
-roles (`rohirrim-outrider`, `ranger-pathfinder`, `Explore`, `noldor-loremaster`,
+files — fourteen roles plus the `Explore` backup mirror
+(`rohirrim-outrider`, `ranger-pathfinder`, `Explore`, `noldor-loremaster`,
 `dwarf-smith`, `gondor-builder`, `eagle-sentinel`, `elf-archer`,
 `orc-saboteur`, `hobbit-gardener`, `mirror-of-galadriel`, `palantir-stone`,
 `cirdan-shipwright`, `bombadil-freeagent`, `bilbo-scribe`) — a sixteenth role
@@ -572,7 +573,7 @@ If every discovered role received at least one dispatch, the section says
 so explicitly (`(none — every framework role received at least one
 dispatch in this period.)`) rather than being omitted — an empty section is
 itself a reportable fact, and a normal reporting period is expected to have
-at least one zero-dispatch role (fifteen roles rarely all fire in the same
+at least one zero-dispatch role (fourteen roles rarely all fire in the same
 window); if a real run ever shows none, that is a signal to double-check
 the discovery source before trusting it, not a thing to celebrate silently.
 

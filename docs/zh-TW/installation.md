@@ -4,7 +4,7 @@
 
 ## 兩種使用方式
 
-- **輕量**：只裝 plugin。安裝後，任何一個新開的 session 都能使用十五個角色（若是在已開啟的 session 中安裝，須先執行 `/reload-plugins`）。請直接以名稱明確呼叫角色，或加上 [roles.md](roles.md) 的 CLAUDE.md snippet 來穩定派工。我們的 headless 測試顯示，僅靠 description 並不能穩定觸發自動派工，所以 snippet 是輕量路線的建議做法。
+- **輕量**：只裝 plugin。安裝後，任何一個新開的 session 都能使用十四個角色（另含 Explore 備援鏡像）（若是在已開啟的 session 中安裝，須先執行 `/reload-plugins`）。請直接以名稱明確呼叫角色，或加上 [roles.md](roles.md) 的 CLAUDE.md snippet 來穩定派工。我們的 headless 測試顯示，僅靠 description 並不能穩定觸發自動派工，所以 snippet 是輕量路線的建議做法。
 - **完整**：再加跑 `/tlor-init`。這會落地 rules 檔案、`~/.claude/institution/` layout（見下）以及 CLAUDE.md/AGENTS.md 路由。Rules 檔案一旦存在就會自行載入，`.claude/rules/` 是原生 auto-load 位置，不需要路由。路由給的是另外三件事：最先讀到的派工紀律提醒、給不讀 `.claude/rules/` 的工具用的 AGENTS.md 介面，以及宣告本框架的角色是你的主要派工對象。
 
 ## 所有權模型

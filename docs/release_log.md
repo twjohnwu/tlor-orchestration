@@ -13,6 +13,7 @@ release first — new sections go at the top.
 - New SessionStart hook `plugin_update_sync` + `scripts/tlor_sync.py`, plugin route only and on by default (opt out with `TLOR_AUTO_SYNC=0` in `~/.claude/settings.json` `env`): on the first session after a plugin upgrade (plugin version newer than the `.tlor-init-state` marker `/tlor-init` writes; equal or older stays silent), syncs the user-level install's agents (with backups, every backup path listed in the session message), base rules, agent_doc, workflows and scripts, then reminds you to run `/tlor-init` for the interactive steps. A project-level install is never written, only reminded; an invalid marker is reported and nothing is written. `/tlor-init` Steps 3/4/11 now run the same script from the plugin root.
 - install.sh does not ship `plugin_update_sync.py` or `tlor_sync.py`.
 - Existing /tlor-init users: re-run /tlor-init once on 0.14.0 to enable auto-sync.
+- Role count: fourteen roles plus the `Explore` backup mirror (was counted as fifteen in v0.13.0); READMEs, installation docs, plugin descriptions, dispatch.md and skill text updated. Thirteen roles pin their tool set.
 
 ## v0.13.0 (2026-10-03)
 

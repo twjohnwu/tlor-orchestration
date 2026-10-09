@@ -75,8 +75,8 @@ relocated by hand. Apply this 3-branch check to each of
 (Project/repo level installs use plain directories — this institution layout
 is a `~/.claude/` concept only.)
 
-Then install the 15 agent role definitions from the plugin's `agents/`
-directory to `<target>/agents/`:
+Then install the 15 agent role definitions (14 roles plus the `Explore` backup
+mirror) from the plugin's `agents/` directory to `<target>/agents/`:
 
 - rohirrim-outrider.md
 - ranger-pathfinder.md
