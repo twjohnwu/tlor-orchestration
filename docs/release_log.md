@@ -10,8 +10,9 @@ release first — new sections go at the top.
 
 - dispatch_guard: built-in `Explore` is denied unconditionally again (reverts the v0.13.0 mirror allowance by user decision); `agents/Explore.md` stays as a backup for sessions where the guard is off. rules/dispatch.md 0.10.1, tlor-init, roles and hook docs updated.
 - erebor-ledger: prices `claude-opus-5-5` (4/20), `claude-sonnet-5-5` (2/10), `claude-haiku-5-5` (0.10/0.50, with a whole-request long-prompt tier above 100k tokens at 0.50/2.50) and `claude-fable-5-1` (cache read 0.25); `claude-sonnet-5` corrected from a stale 3/15 to the official 2/10. Role pins unchanged: aliases already resolve to 5.5, and a downgrade review (opus→sonnet, sonnet→haiku) found the review/verification roles are where the smaller models lose most, for little per-task saving.
-- New SessionStart hook `plugin_update_sync` + `scripts/tlor_sync.py`: on the first session after a plugin-route update, syncs agents (with backups), base rules, agent_doc, workflows and scripts into each target recorded by `/tlor-init` (`.tlor-init-state`), then reminds you to run `/tlor-init` for the interactive steps. `/tlor-init` Steps 3/4/11 now run the same script.
-- install.sh ships `plugin_update_sync.py` and `tlor_sync.py`.
+- New SessionStart hook `plugin_update_sync` + `scripts/tlor_sync.py`, plugin route only and on by default (opt out with `TLOR_AUTO_SYNC=0` in `~/.claude/settings.json` `env`): on the first session after a plugin upgrade (plugin version newer than the `.tlor-init-state` marker `/tlor-init` writes; equal or older stays silent), syncs the user-level install's agents (with backups, every backup path listed in the session message), base rules, agent_doc, workflows and scripts, then reminds you to run `/tlor-init` for the interactive steps. A project-level install is never written, only reminded; an invalid marker is reported and nothing is written. `/tlor-init` Steps 3/4/11 now run the same script from the plugin root.
+- install.sh does not ship `plugin_update_sync.py` or `tlor_sync.py`.
+- Existing /tlor-init users: re-run /tlor-init once on 0.14.0 to enable auto-sync.
 
 ## v0.13.0 (2026-10-03)
 

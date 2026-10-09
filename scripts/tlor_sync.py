@@ -51,8 +51,9 @@ MANIFEST = ".tlor-manifest"
 
 # Runtime scripts shipped to <target>/scripts/ — must match install.sh's
 # $SCRIPTS list so both routes write the same manifest. The rest of scripts/
-# is this repo's own CI tooling and is never installed.
-RUNTIME_SCRIPTS = ("stdd_custody_check.py", "stdd_verify.py", "tlor_sync.py")
+# (including this file, which /tlor-init and the SessionStart hook run from
+# the plugin root) is never installed.
+RUNTIME_SCRIPTS = ("stdd_custody_check.py", "stdd_verify.py")
 
 
 class SyncError(Exception):

@@ -140,6 +140,15 @@ def test_explore_denied_when_no_mirror_installed(run_hook, tmp_path):
     _assert_explore_denied(run_hook, tmp_path)
 
 
+def test_explore_with_surrounding_whitespace_denied(run_hook, tmp_path):
+    result = _explore_run(run_hook, tmp_path, subagent_type=" explore ")
+    assert result.returncode == 0
+    decision = result.decision
+    assert decision is not None
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "rohirrim-outrider" in decision["hookSpecificOutput"]["permissionDecisionReason"]
+
+
 def test_plan_denied_whether_or_not_mirror_exists(run_hook, tmp_path):
     for name, kwargs in (("a", {}), ("b", {"home_has_mirror": True}), ("c", {"cwd_has_mirror": True})):
         (tmp_path / name).mkdir()

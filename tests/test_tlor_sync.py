@@ -8,6 +8,7 @@ with a tmp dir as the install target. Never touches the real ~/.claude.
 import ast
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -73,8 +74,9 @@ def test_fresh_target_gets_agents_rules_agent_doc_workflows_and_scripts(tmp_path
     assert (target / "workflows" / "stdd-execute.js").is_file()
     assert (target / "workflows" / ".tlor-manifest").read_text().split() == ["stdd-execute.js"]
     assert (target / "scripts" / ".tlor-manifest").read_text().split() == [
-        "stdd_custody_check.py", "stdd_verify.py", "tlor_sync.py"]
+        "stdd_custody_check.py", "stdd_verify.py"]
     assert not (target / "scripts" / "check_links.py").exists()
+    assert not (target / "scripts" / "tlor_sync.py").exists()
     assert summary["backups"] == 0
 
 
@@ -200,3 +202,20 @@ def test_new_scripts_parse_as_python_3_7():
             # Running on 3.7 itself is the stricter check; feature_version
             # only exists from 3.8 on.
             ast.parse(source, filename=str(path))
+
+
+def test_runtime_scripts_match_install_sh_scripts():
+    # Both routes must write the same scripts manifest; tlor_sync.py itself
+    # is run from the plugin root and is never installed.
+    text = (REPO_ROOT / "install.sh").read_text(encoding="utf-8")
+    match = re.search(r'^SCRIPTS="([^"]*)"', text, re.MULTILINE)
+    assert match, "install.sh: no SCRIPTS= line"
+    source = SCRIPT.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    runtime = None
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+                getattr(t, "id", None) == "RUNTIME_SCRIPTS" for t in node.targets):
+            runtime = tuple(ast.literal_eval(node.value))
+    assert runtime == tuple(match.group(1).split())
+    assert "tlor_sync.py" not in runtime

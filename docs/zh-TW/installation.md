@@ -81,7 +81,7 @@ base 數字適用於每一種安裝方式；合計數字只在你同時裝了選
 更新支援僅限 marketplace 安裝路徑（方式 A）：
 `/plugin marketplace add twjohnwu/tlor-orchestration` 後 `/plugin install tlor@tlor`。每次發布都會 bump `.claude-plugin/plugin.json` 的 `version`。依 Claude Code 官方 plugin 文件，光是推送 commit 不會讓更新出現，只有版本號變動才會，之後 `/plugin marketplace update tlor` 才拉得到新版。`install.sh` 直接複製路徑（方式 B）完全沒有更新提示 UI：重跑 `install.sh` 會再次覆蓋 base rules，但不會通知你有新版本，請自行查 repo 的 releases 或版本徽章。
 
-**升級。** 走 plugin 安裝時，plugin 更新後的第一個 session 會自動同步 `/tlor-init` 一律覆蓋的檔案——agents（有改動的先備份成 `.bak-<timestamp>`）、base rules、`agent_doc`、workflows 與 scripts——接著提醒你跑 `/tlor-init` 處理互動步驟（選配 rules、STDD skills、hooks、CLAUDE.md／AGENTS.md 路由）。前提是 `/tlor-init` 至少跑過一次。`install.sh` 使用者照舊重跑 `install.sh` 升級。
+**升級。** 走 plugin 安裝時，plugin 升級後的第一個 session 會自動同步 user 層安裝（`~/.claude`）中 `/tlor-init` 一律覆蓋的檔案——agents（有改動的先備份成 `.bak-<timestamp>`，每個備份路徑都會列在 session 訊息裡）、base rules、`agent_doc`、workflows 與 scripts——接著提醒你跑 `/tlor-init` 處理互動步驟（選配 rules、STDD skills、hooks、CLAUDE.md／AGENTS.md 路由）。前提是 0.14.0 以後的 `/tlor-init` 至少跑過一次，既有使用者需重跑一次 `/tlor-init`。project 層安裝（`<project>/.claude`）一律不寫入，只會提醒你到該處跑 `/tlor-init`。要關閉自動同步，在 `~/.claude/settings.json` 的 `env` 區塊加上 `"TLOR_AUTO_SYNC": "0"`。`install.sh` 使用者照舊重跑 `install.sh` 升級。
 
 ### 方式 B——直接複製
 

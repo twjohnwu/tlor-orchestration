@@ -9,11 +9,12 @@ disable-model-invocation: true
 Initialize or upgrade the tlor-orchestration orchestration framework. Installs agent
 roles, dispatch rules, CLAUDE.md/AGENTS.md routing, and optional guard hooks.
 
-After a plugin update, the plugin's SessionStart hook
-(`hooks/plugin_update_sync.py`) runs the same non-interactive sync as Steps
-3/4/11 automatically for every install that carries a `.tlor-init-state`
-marker (Step 12). Re-run `/tlor-init` only for the interactive steps
-(2, 5, 6, 8, 10).
+After a plugin upgrade, the plugin's SessionStart hook
+(`hooks/plugin_update_sync.py`, plugin route only) runs the same
+non-interactive sync as Steps 3/4/11 automatically for a user-level install
+that carries a `.tlor-init-state` marker (Step 12); a project-level install
+only gets a reminder. Re-run `/tlor-init` for project-level installs and for
+the interactive steps (2, 5, 6, 8, 10).
 
 ## Workflow
 
@@ -357,7 +358,8 @@ For hooks chosen: copy `hooks/institution_guard.py`, `hooks/institution_guard.sh
 (dispatcher entry point), `hooks/verify_gate.py`, and `hooks/dispatch_guard.py`
 from the plugin bundle
 to `~/.claude/institution/hooks/` (this lands at
-`~/.claude/hooks/` through the Step 3 symlink). Then explain that activation is still via environment variables, and that
+`~/.claude/hooks/` through the Step 3 symlink). `hooks/plugin_update_sync.py`
+is plugin-route only (wired by the plugin's `hooks.json`) and is not copied. Then explain that activation is still via environment variables, and that
 the plugin's `hooks.json` does not set them. Tell the user to add the
 relevant env vars to the `env` block of `~/.claude/settings.json` — not a
 shell profile: `~/.zshrc`/`~/.bashrc` are only read when Claude Code is
@@ -388,12 +390,11 @@ directory to `<target>/workflows/` as an **unconditional overwrite**, the
 same treatment Step 4 gives base rules (no frontmatter to preserve, so
 nothing user-writable is at risk). The same treatment applies to the
 runtime scripts the workflow relays to (`scripts/stdd_custody_check.py`
-and `scripts/stdd_verify.py`, REQ-07/REQ-10) and to `scripts/tlor_sync.py`
-itself — copied from the plugin's `scripts/` directory to
-`<target>/scripts/` as an unconditional overwrite; the other files under
-`scripts/` (`check_links.py`, `check_oldname.py`,
-`lint_agents_frontmatter.py`) are this repo's own CI tooling, not runtime
-dependencies, and are NOT installed.
+and `scripts/stdd_verify.py`, REQ-07/REQ-10) — copied from the plugin's
+`scripts/` directory to `<target>/scripts/` as an unconditional overwrite;
+the other files under `scripts/` are NOT installed: `tlor_sync.py` always
+runs from the plugin root, and `check_links.py`, `check_oldname.py`,
+`lint_agents_frontmatter.py` are this repo's own CI tooling.
 
 Destination by install level:
 
@@ -415,6 +416,19 @@ python3 <plugin>/scripts/tlor_sync.py --target <target> --write-state --level <u
 
 This writes `<target>/.tlor-init-state` (`{"version", "level",
 "synced_at"}`). Repo-level installs to a custom path use `--level project`.
+
+Then tell the user how updates behave from now on (plugin route only):
+
+- **User level** (`~/.claude`): auto-sync is now on. On the first session
+  after a plugin upgrade, the SessionStart hook re-runs this sync, bumps the
+  marker, and lists every backup it made. New files apply from the next
+  session.
+- **Project level** (`$CLAUDE_PROJECT_DIR/.claude`): never auto-written —
+  the hook only reminds them to run `/tlor-init` there.
+- **Repo level at a custom path**: the hook does not check it; re-run
+  `/tlor-init` after each upgrade.
+- **Opt out**: add `"TLOR_AUTO_SYNC": "0"` to the `env` block of
+  `~/.claude/settings.json`.
 
 Print installation summary:
 

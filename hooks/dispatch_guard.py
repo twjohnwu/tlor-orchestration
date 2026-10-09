@@ -36,7 +36,7 @@ def main():
         if tool_name not in ("Agent", "Task"):
             return 0
 
-        subagent_type = (tool_input.get("subagent_type", "") or "").lower()
+        subagent_type = (tool_input.get("subagent_type", "") or "").strip().lower()
 
         # Not a guarded type (including missing/"" — harness default)
         if subagent_type == "bombadil-freeagent":

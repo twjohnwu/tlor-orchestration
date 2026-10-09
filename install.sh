@@ -191,16 +191,16 @@ check_evidence_rule_parity() {
 
 SKILLS=$(cd "$SKILLS_SRC" && ls -d */ | sed 's|/$||')
 RULES=$(cd "$RULES_SRC" && ls ./*.md | sed 's|^\./||')
-HOOK_FILES="institution_guard.py institution_guard.sh pre_tool_use.sh verify_gate.py dispatch_guard.py plugin_update_sync.py"
+HOOK_FILES="institution_guard.py institution_guard.sh pre_tool_use.sh verify_gate.py dispatch_guard.py"
 WORKFLOWS=$(cd "$WORKFLOWS_SRC" && ls ./*.js | sed 's|^\./||')
 # Only the runtime dependencies (the custody-check script and verify runner
 # `workflows/stdd-execute.js` relays to at runtime, REQ-07/REQ-10) are
-# installed, plus tlor_sync.py (the non-interactive /tlor-init sync, which
-# writes the same scripts manifest — keep its RUNTIME_SCRIPTS in step) —
+# installed (scripts/tlor_sync.py's RUNTIME_SCRIPTS must match this list) —
 # the rest of scripts/ (check_links.py, check_oldname.py,
-# lint_agents_frontmatter.py) is this repo's own CI tooling, not something
-# an installed plugin needs.
-SCRIPTS="stdd_custody_check.py stdd_verify.py tlor_sync.py"
+# lint_agents_frontmatter.py, and tlor_sync.py, which /tlor-init runs from
+# the plugin root) is this repo's own tooling, not something an installed
+# plugin needs.
+SCRIPTS="stdd_custody_check.py stdd_verify.py"
 CUSTOMIZE_SRC="$RULES_SRC/customize"
 CUSTOMIZE_FILES=""
 if [ "$WITH_OPTIONAL" -eq 1 ]; then
@@ -398,10 +398,9 @@ if [ "$UNINSTALL" -eq 1 ]; then
   #                        treatment as hooks — nothing here is meant to be
   #                        hand-edited)
   #   scripts           -> `rm`, no backup (same rationale as workflows — the
-  #                        three scripts installed, `stdd_custody_check.py`,
-  #                        `stdd_verify.py` and `tlor_sync.py`, are
-  #                        plugin-owned runtime dependencies (workflows/
-  #                        stdd-execute.js, /tlor-init), not user-editable content)
+  #                        one file installed, `stdd_custody_check.py`, is a
+  #                        plugin-owned runtime dependency of workflows/
+  #                        stdd-execute.js, not user-editable content)
   #   agent_doc         -> `rm`, no backup, plus an `rmdir` of the now-empty
   #                        `customize/` dir — identical treatment to rules
   #                        (agent_doc/customize/ is the user's own landing
@@ -875,8 +874,8 @@ echo "install done: $got roles in $DEST (manifest: $MANIFEST), $got_skills skill
 echo "NOTE: open a NEW Claude Code session to load the roles and skills (both are read at session start)."
 
 echo ""
-echo "HOOKS: institution_guard.py, institution_guard.sh, pre_tool_use.sh, verify_gate.py, dispatch_guard.py, and plugin_update_sync.py are now copied to $HOOKS_DEST."
-echo "  They still need wiring into a hooks.json (PreToolUse/Stop/SessionStart) — the plugin"
+echo "HOOKS: institution_guard.py, institution_guard.sh, pre_tool_use.sh, verify_gate.py, and dispatch_guard.py are now copied to $HOOKS_DEST."
+echo "  They still need wiring into a hooks.json (PreToolUse/Stop) — the plugin"
 echo "  route (claude plugin add twjohnwu/tlor-orchestration) wires that; install.sh"
 echo "  only places the files. Neither route sets the activation env vars: add"
 echo "  TLOR_INSTITUTION_GUARD / TLOR_VERIFY_GATE / TLOR_DISPATCH_GUARD = \"1\" to the"

@@ -147,7 +147,7 @@ copy route (Option B) has no update UI at all. Re-running `install.sh`
 overwrites base rules again, but nothing tells you a new version exists, so
 check the repo's releases/version badge yourself.
 
-**Upgrades.** On the plugin route, the first session after a plugin update syncs the files `/tlor-init` always overwrites — agents (a changed agent is backed up to `.bak-<timestamp>` first), base rules, `agent_doc`, workflows and scripts — and then asks you to run `/tlor-init` for the interactive steps (optional rules, STDD skills, hooks, CLAUDE.md/AGENTS.md routing). It only acts after `/tlor-init` has run once. `install.sh` users upgrade by re-running `install.sh`.
+**Upgrades.** On the plugin route, the first session after a plugin upgrade syncs the files `/tlor-init` always overwrites in your user-level install (`~/.claude`) — agents (a changed agent is backed up to `.bak-<timestamp>` first, and every backup path is listed in the session message), base rules, `agent_doc`, workflows and scripts — and then asks you to run `/tlor-init` for the interactive steps (optional rules, STDD skills, hooks, CLAUDE.md/AGENTS.md routing). It only acts after `/tlor-init` 0.14.0 or later has run once, so existing users re-run `/tlor-init` once. A project-level install (`<project>/.claude`) is never written; you only get a reminder to run `/tlor-init` there. To opt out, set `"TLOR_AUTO_SYNC": "0"` in the `env` block of `~/.claude/settings.json`. `install.sh` users upgrade by re-running `install.sh`.
 
 ### Option B — plain copy
 
