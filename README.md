@@ -9,7 +9,8 @@ roles and the rules for handing work to them. Fourteen roles ship with the
 plugin, plus an `Explore` backup mirror of ranger-pathfinder for sessions where
 the dispatch guard is off. Each role pins a model and an effort level, and
 thirteen also pin their tool set, so the cost and the permissions of a
-dispatch are settled before you send it. Dispatch rules, setup skills, and opt-in guard hooks come with them.
+dispatch are settled before you send it. Dispatch rules, setup skills, and
+opt-in guard hooks come with them.
 
 TLOR combines specification-driven development, BDD-style example and scenario
 discovery, and TDD-based execution with independent verification.
