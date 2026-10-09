@@ -3,40 +3,27 @@
 Dispatch guard — an OPT-IN PreToolUse hook (silent unless TLOR_DISPATCH_GUARD=1).
 
 Unconditionally denies Agent/Task dispatches whose subagent_type is a generic
-escape hatch ("general-purpose" or "claude") or the built-in Plan type
-("plan"). Built-in Explore (any case) is allowed ONLY when a tlor mirror
-(agents/Explore.md, a copy of ranger-pathfinder under that name) is installed
-at <cwd>/.claude/agents/Explore.md or ~/.claude/agents/Explore.md (TLOR_HOME
-overrides ~ for tests); otherwise plain Explore is the unpinned built-in
-(plugin-route installs namespace it as tlor:Explore) and is denied. The named "bombadil-freeagent" type is allowed only
-with a case-insensitive "no-role-fits" reason in its prompt; the role now
-pins `model: sonnet` / `effort: medium` in its own frontmatter, so an
-explicit `model` on the dispatch is an optional per-call override, not a
-requirement. This is the L2 backstop for dispatch.md §3: naming slips that
-bypass the pinned role table get redirected instead of silently going through.
+escape hatch ("general-purpose" or "claude") or a built-in shadowed type
+("plan" or "explore"). agents/Explore.md is only a backup for sessions where
+this guard is off. The named "bombadil-freeagent" type is allowed only with a
+case-insensitive "no-role-fits" reason in its prompt; the role now pins
+`model: sonnet` / `effort: medium` in its own frontmatter, so an explicit
+`model` on the dispatch is an optional per-call override, not a requirement.
+This is the L2 backstop for dispatch.md §3: naming slips that bypass the pinned
+role table get redirected instead of silently going through.
 
 Fails open on any error — the guard must never break a session.
 """
 import json
 import os
 import sys
-from pathlib import Path
 
 if os.environ.get("TLOR_DISPATCH_GUARD") != "1":
     sys.exit(0)
 
-GENERIC_SUBAGENT_TYPES = frozenset({"general-purpose", "claude"})
-BUILTIN_SHADOWED_TYPES = frozenset({"plan"})
-MIRRORED_TYPES = frozenset({"explore"})
-
-
-def _mirror_installed(data):
-    """True when a tlor mirror file shadows the built-in agent (project > user)."""
-    cwd = Path(data.get("cwd") or os.getcwd())
-    home = Path(os.environ.get("TLOR_HOME") or Path.home())
-    return any(
-        (base / ".claude" / "agents" / "Explore.md").exists() for base in (cwd, home)
-    )
+UNCONDITIONALLY_DENIED_TYPES = frozenset({
+    "general-purpose", "claude", "plan", "explore",
+})
 
 
 def main():
@@ -49,7 +36,7 @@ def main():
         if tool_name not in ("Agent", "Task"):
             return 0
 
-        subagent_type = (tool_input.get("subagent_type", "") or "").lower()
+        subagent_type = (tool_input.get("subagent_type", "") or "").strip().lower()
 
         # Not a guarded type (including missing/"" — harness default)
         if subagent_type == "bombadil-freeagent":
@@ -63,29 +50,22 @@ def main():
                 "explicit `model` on the dispatch is an optional override, "
                 "not a requirement.)"
             )
-        elif subagent_type in MIRRORED_TYPES:
-            if _mirror_installed(data):
-                return 0
+        elif subagent_type == "explore":
             deny_reason = (
-                "tlor dispatch_guard: built-in Explore is denied here because "
-                "no tlor mirror is installed (`~/.claude/agents/Explore.md` or "
-                "`<cwd>/.claude/agents/Explore.md`); plugin-route installs "
-                "namespace it as `tlor:Explore`. Search → rohirrim-outrider / "
-                "ranger-pathfinder (or `tlor:Explore`). Design stays with the "
-                "Maia or a role per dispatch.md §3. ONLY if the task needs "
-                "tools/MCP permissions no tlor role has, dispatch to "
-                "subagent_type \"bombadil-freeagent\" instead, with a "
-                "'no-role-fits reason: ...' line in the prompt."
+                "tlor dispatch_guard: built-in Explore is denied. Search -> "
+                "rohirrim-outrider (targeted) / ranger-pathfinder (broad). "
+                "agents/Explore.md is only a backup for sessions where this "
+                "guard is off."
             )
-        elif subagent_type not in GENERIC_SUBAGENT_TYPES | BUILTIN_SHADOWED_TYPES:
+        elif subagent_type not in UNCONDITIONALLY_DENIED_TYPES:
             return 0
-        elif subagent_type in BUILTIN_SHADOWED_TYPES:
+        elif subagent_type == "plan":
             deny_reason = (
                 "tlor dispatch_guard: built-in Plan is banned (user rule "
                 "2026-08-14); design stays with the Maia or a role per "
-                "dispatch.md §3. Built-in Explore is allowed only when the tlor "
-                "mirror is installed. ONLY if the task needs tools/MCP permissions "
-                "no tlor role has, dispatch to subagent_type "
+                "dispatch.md §3. Built-in Explore is also denied. ONLY if the "
+                "task needs tools/MCP permissions no tlor role has, dispatch "
+                "to subagent_type "
                 "\"bombadil-freeagent\" instead, with a 'no-role-fits "
                 "reason: ...' line in the prompt."
             )

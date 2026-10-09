@@ -9,6 +9,15 @@ disable-model-invocation: true
 Initialize or upgrade the tlor-orchestration orchestration framework. Installs agent
 roles, dispatch rules, CLAUDE.md/AGENTS.md routing, and optional guard hooks.
 
+After a plugin upgrade, the plugin's SessionStart hook
+(`hooks/plugin_update_sync.py`, plugin route only) runs the same
+non-interactive sync as Steps 3/4/11 automatically for a user-level install
+that carries a `.tlor-init-state` marker (Step 12); a project-level install
+only gets a reminder. Installs set up by a `/tlor-init` older than 0.14.0
+have no marker, so run `/tlor-init` once on 0.14.0+ to enable this. Re-run
+`/tlor-init` for project-level installs and for the interactive steps
+(2, 5, 6, 8, 10).
+
 ## Workflow
 
 ### Step 1: Detect existing installation
@@ -66,8 +75,8 @@ relocated by hand. Apply this 3-branch check to each of
 (Project/repo level installs use plain directories — this institution layout
 is a `~/.claude/` concept only.)
 
-Then install the 15 agent role definitions from the plugin's `agents/`
-directory to `<target>/agents/`:
+Then install the 15 agent role definitions (14 roles plus the `Explore` backup
+mirror) from the plugin's `agents/` directory to `<target>/agents/`:
 
 - rohirrim-outrider.md
 - ranger-pathfinder.md
@@ -92,19 +101,24 @@ MCP server) has nowhere to live except the installed file itself. An
 unconditional overwrite with no trace left behind (as base rules use, Step
 4) would destroy that edit with no way to recover it.
 
-`install.sh` is the single source of truth for the actual per-file algorithm
-(its agent-role loop: missing → install, `cmp -s` identical → unchanged,
-different → back up to `<file>.bak-YYYYMMDD-HHMMSS` next to itself, then
-overwrite) — don't re-derive or re-narrate it here; run `./install.sh
---dry-run` to preview exactly what it will do for the current installation
-before applying it for real. The `.bak-YYYYMMDD-HHMMSS` copy is the user's
-source for re-applying any customization by hand afterward — tell them
-plainly which file was backed up and where.
+`scripts/tlor_sync.py` is the single source of truth for the per-file
+algorithm (missing → install, byte-identical → unchanged, different → back
+up to `<file>.bak-YYYYMMDD-HHMMSS` next to itself, then overwrite) and also
+performs Step 4 and Step 11 in the same run. After the layout above is in
+place, preview with `python3 <plugin>/scripts/tlor_sync.py --target <target>
+--dry-run`, then run it without `--dry-run`; don't re-derive the algorithm
+here. Its one-line JSON output carries the per-asset counts and the
+`backup_paths` list. The `.bak-YYYYMMDD-HHMMSS` copy is the user's source
+for re-applying any customization by hand afterward — tell them plainly
+which file was backed up and where.
 
 Report each file's outcome (installed / updated-with-backup / unchanged)
 for Step 12's summary.
 
 ### Step 4: Install required rules
+
+Done by the same `tlor_sync.py` run as Step 3 — nothing extra to execute
+here; this section records what it does and why.
 
 Base rules are **plugin-owned**: copy the 6 required rule files from the
 plugin's `rules/` directory to `<target>/rules/` as an **unconditional
@@ -329,8 +343,8 @@ Present available hooks with clear descriptions:
    - Requires Python 3
 
 3. **dispatch_guard** (PreToolUse): Unconditionally denies Agent dispatches
-   with `subagent_type: general-purpose`, `claude`, or `plan`; `explore` is
-   allowed only when the `Explore.md` mirror role is installed.
+   with `subagent_type: general-purpose`, `claude`, `explore`, or `plan`.
+   `agents/Explore.md` is only a backup for sessions where the guard is off.
    The named `subagent_type: bombadil-freeagent` is allowed only with a
    `no-role-fits reason: ...` line in the prompt (model/effort now pinned in
    the role's frontmatter; a per-call `model` override stays optional).
@@ -346,7 +360,8 @@ For hooks chosen: copy `hooks/institution_guard.py`, `hooks/institution_guard.sh
 (dispatcher entry point), `hooks/verify_gate.py`, and `hooks/dispatch_guard.py`
 from the plugin bundle
 to `~/.claude/institution/hooks/` (this lands at
-`~/.claude/hooks/` through the Step 3 symlink). Then explain that activation is still via environment variables, and that
+`~/.claude/hooks/` through the Step 3 symlink). `hooks/plugin_update_sync.py`
+is plugin-route only (wired by the plugin's `hooks.json`) and is not copied. Then explain that activation is still via environment variables, and that
 the plugin's `hooks.json` does not set them. Tell the user to add the
 relevant env vars to the `env` block of `~/.claude/settings.json` — not a
 shell profile: `~/.zshrc`/`~/.bashrc` are only read when Claude Code is
@@ -368,17 +383,20 @@ reload settings).
 
 ### Step 11: Install workflow scripts
 
+Done by the same `tlor_sync.py` run as Step 3 — nothing extra to execute
+here; this section records what it does and why.
+
 Workflow scripts are plugin-owned, code-enforced STDD phases (currently
 `workflows/stdd-execute.js`) — copy them from the plugin's `workflows/`
 directory to `<target>/workflows/` as an **unconditional overwrite**, the
 same treatment Step 4 gives base rules (no frontmatter to preserve, so
 nothing user-writable is at risk). The same treatment applies to the
-custody-check script the workflow relays to at runtime
-(`scripts/stdd_custody_check.py`, REQ-07/REQ-10) — copy it from the plugin's
+runtime scripts the workflow relays to (`scripts/stdd_custody_check.py`
+and `scripts/stdd_verify.py`, REQ-07/REQ-10) — copied from the plugin's
 `scripts/` directory to `<target>/scripts/` as an unconditional overwrite;
-the other files under `scripts/` (`check_links.py`, `check_oldname.py`,
-`lint_agents_frontmatter.py`) are this repo's own CI tooling, not runtime
-dependencies, and are NOT installed.
+the other files under `scripts/` are NOT installed: `tlor_sync.py` always
+runs from the plugin root, and `check_links.py`, `check_oldname.py`,
+`lint_agents_frontmatter.py` are this repo's own CI tooling.
 
 Destination by install level:
 
@@ -386,12 +404,33 @@ Destination by install level:
 - **Project level**: `.claude/workflows/`, `.claude/scripts/`
 - **Repo level**: `<user-specified path>/workflows/`, `<user-specified path>/scripts/`
 
-`install.sh` is the single source of truth for the actual copy/manifest
-mechanics (mirrors its hooks-copy loop, with its own `.tlor-manifest` at
-each destination) — run `./install.sh --dry-run` to preview what it will do
-for the current installation before applying it for real.
+`tlor_sync.py` writes a `.tlor-manifest` at both destinations, in the
+same format as `install.sh`.
 
 ### Step 12: Report summary
+
+First record the installed version so the SessionStart hook can detect the
+next plugin update:
+
+```bash
+python3 <plugin>/scripts/tlor_sync.py --target <target> --write-state --level <user|project>
+```
+
+This writes `<target>/.tlor-init-state` (`{"version", "level",
+"synced_at"}`). Repo-level installs to a custom path use `--level project`.
+
+Then tell the user how updates behave from now on (plugin route only):
+
+- **User level** (`~/.claude`): auto-sync is now on. On the first session
+  after a plugin upgrade, the SessionStart hook re-runs this sync, bumps the
+  marker, and lists every backup it made. New files apply from the next
+  session.
+- **Project level** (`$CLAUDE_PROJECT_DIR/.claude`): never auto-written —
+  the hook only reminds them to run `/tlor-init` there.
+- **Repo level at a custom path**: the hook does not check it; re-run
+  `/tlor-init` after each upgrade.
+- **Opt out**: add `"TLOR_AUTO_SYNC": "0"` to the `env` block of
+  `~/.claude/settings.json`.
 
 Print installation summary:
 
@@ -421,9 +460,9 @@ tlor-orchestration initialization complete:
 - All files use semantic versioning (X.Y.Z) in frontmatter for upgrade detection
 - Agent role files never lose local customization silently: a differing
   file is always backed up to `<file>.bak-YYYYMMDD-HHMMSS` before being
-  overwritten (Step 3) — `install.sh` is the source of truth for this
-  behavior, and `/tlor-init` matches it exactly, no interactive merge
-  involved. Base rule files remain plugin-owned and are always overwritten
+  overwritten (Step 3) — `scripts/tlor_sync.py` implements this for
+  `/tlor-init` and the SessionStart auto-sync, matching `install.sh`'s
+  agent loop exactly, no interactive merge involved. Base rule files remain plugin-owned and are always overwritten
   unconditionally, with no backup (Step 4); this asymmetry is intentional,
   not an oversight.
 - `install.sh --skills-dest=PATH` declares the skills install directory once

@@ -5,10 +5,12 @@
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 TLOR gives [Claude Code](https://code.claude.com) a fixed roster of subagent
-roles and the rules for handing work to them. Fifteen roles ship with the
-plugin. Each one pins a model and an effort level, and fourteen also pin their
-tool set, so the cost and the permissions of a dispatch are settled before you
-send it. Dispatch rules, setup skills, and opt-in guard hooks come with them.
+roles and the rules for handing work to them. Fourteen roles ship with the
+plugin, plus an `Explore` backup mirror of ranger-pathfinder for sessions where
+the dispatch guard is off. Each role pins a model and an effort level, and
+thirteen also pin their tool set, so the cost and the permissions of a
+dispatch are settled before you send it. Dispatch rules, setup skills, and
+opt-in guard hooks come with them.
 
 TLOR combines specification-driven development, BDD-style example and scenario
 discovery, and TDD-based execution with independent verification.
@@ -132,7 +134,7 @@ in [Skills](docs/en/skills.md).
 
 ## Docs
 
-- [Roles & dispatch](docs/en/roles.md) — all fifteen roles in full, the theme behind the names, and the CLAUDE.md dispatch snippet
+- [Roles & dispatch](docs/en/roles.md) — all fourteen roles (plus the Explore backup mirror) in full, the theme behind the names, and the CLAUDE.md dispatch snippet
 - [Skills](docs/en/skills.md) — every skill in detail, plus the opt-in STDD workflow
 - [Rules & hooks](docs/en/rules-and-hooks.md) — the bundled rules files, the agent_doc lazy-load layer, the four opt-in hooks
 - [Installation](docs/en/installation.md) — the two install paths, who owns which file, the install flags, and the optional companions (Serena, Codex)

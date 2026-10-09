@@ -14,12 +14,12 @@ description: 'Token/cost-savings ledger for tlor-orchestration dispatching — r
 
 Answers two independent questions, never merged:
 
-1. When **Fable 5** is the orchestrator (main-session model), how much did
+1. When **Fable 5.x** is the orchestrator (main-session model), how much did
    dispatching to tlor-orchestration save versus doing the work inline?
-2. When **any Opus version** (excluding Fable 5) is the orchestrator, what's
+2. When **any Opus version** (excluding Fable 5.x) is the orchestrator, what's
    the same answer?
 
-Fable 5 and Opus have different unit prices and token-consumption patterns
+Fable 5.x and Opus have different unit prices and token-consumption patterns
 — averaging them across groups would distort the savings estimate, so each
 group gets its own report and its own totals.
 
@@ -92,7 +92,7 @@ call:
      as 1,684,019 against an actual 3,204,383 (**47.4% lost**), and the Fable
      group's headroom figure understated by 14.6% ($269.77 vs $316.00).
      Independent ground truth fits the corrected rule better on both model
-     families (Fable 5 −0.050% → +0.022%; Opus −0.376% → −0.049%). Also do
+     families (Fable 5.x −0.050% → +0.022%; Opus −0.376% → −0.049%). Also do
      not "simplify" this to taking the latest record wholesale — per-field
      max is robust to an out-of-order or truncated final line.
   2. **ATTRIBUTION (which project/session/role the tokens are credited to) =
@@ -265,7 +265,7 @@ the source data, and hiding it would make an over- or under-priced record
 indistinguishable from a correct one.
 
 It also discloses a known, undetected limitation: **fast mode** (a separate
-premium tier — $10 input / $50 output per MTok for Opus 5 and Opus 4.8,
+premium tier — $10 input / $50 output per MTok for Opus 5 and Opus 4.8, $8 input / $40 output for Opus 5.5,
 applied across the full context window) is not modeled by
 `model-prices.json` or the resolver. Claude Code transcripts may not reveal
 whether fast mode was active for a given record, so every Opus record in
@@ -444,7 +444,8 @@ authoritative source, and falls back to globbing this repo's own `agents/`
 directory only when no manifest is present (e.g. running straight out of a
 checked-out repo without an install). Both sources exclude any filename
 containing `.bak` (stale/backup copies). As of this writing that's fifteen
-roles (`rohirrim-outrider`, `ranger-pathfinder`, `Explore`, `noldor-loremaster`,
+files — fourteen roles plus the `Explore` backup mirror
+(`rohirrim-outrider`, `ranger-pathfinder`, `Explore`, `noldor-loremaster`,
 `dwarf-smith`, `gondor-builder`, `eagle-sentinel`, `elf-archer`,
 `orc-saboteur`, `hobbit-gardener`, `mirror-of-galadriel`, `palantir-stone`,
 `cirdan-shipwright`, `bombadil-freeagent`, `bilbo-scribe`) — a sixteenth role
@@ -572,7 +573,7 @@ If every discovered role received at least one dispatch, the section says
 so explicitly (`(none — every framework role received at least one
 dispatch in this period.)`) rather than being omitted — an empty section is
 itself a reportable fact, and a normal reporting period is expected to have
-at least one zero-dispatch role (fifteen roles rarely all fire in the same
+at least one zero-dispatch role (fourteen roles rarely all fire in the same
 window); if a real run ever shows none, that is a signal to double-check
 the discovery source before trusting it, not a thing to celebrate silently.
 

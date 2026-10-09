@@ -422,6 +422,63 @@ def test_cache_write_tiers_price_differently(tmp_path):
     assert to_f(cost_1h) > to_f(cost_5m)
 
 
+def test_claude_5_5_generation_ids_resolve_to_own_entries():
+    """Every new exact id wins longest-prefix matching, including fable-5-1
+    over the existing, shorter claude-fable-5 prefix."""
+    m = _load_erebor_ledger_module()
+    price_table = m.load_price_table()
+    for model_id in (
+        "claude-opus-5-5",
+        "claude-sonnet-5-5",
+        "claude-haiku-5-5",
+        "claude-fable-5-1",
+    ):
+        assert m.resolve_price(model_id, price_table, "2026-10-09") is price_table[model_id]
+    assert m.resolve_price("claude-fable-5-1", price_table, "2026-10-09") is not price_table["claude-fable-5"]
+
+
+def _haiku_5_5_prompt_price_report(tmp_path, input_tokens):
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s1",
+        [orchestrator_line("2026-10-09T10:00:00.000Z", 1, ["gondor-builder"])],
+        dispatches=[
+            (
+                "gondor-builder",
+                "gondor-builder",
+                [
+                    assistant(
+                        "2026-10-09T10:00:01.000Z",
+                        "msg-haiku",
+                        "req-haiku",
+                        "claude-haiku-5-5",
+                        usage(
+                            inp=input_tokens,
+                            out=1_000_000,
+                            cache_write=59_999,
+                            cache_read=20_000,
+                            tier_5m=29_999,
+                            tier_1h=30_000,
+                        ),
+                    )
+                ],
+            )
+        ],
+    )
+    return run_report(tmp_path)
+
+
+def test_haiku_5_5_long_prompt_threshold_prices_whole_record(tmp_path):
+    short = _haiku_5_5_prompt_price_report(tmp_path / "short", 20_000)
+    long = _haiku_5_5_prompt_price_report(tmp_path / "long", 20_002)
+
+    # Prompt sizes are exactly 99,999 and 100,001. Output and all cache/input
+    # fields are present so the rendered totals pin the whole-record rate set.
+    assert cell(short, "gondor-builder", "actual_cost") == "$0.51"
+    assert cell(long, "gondor-builder", "actual_cost") == "$2.56"
+
+
 # --------------------------------------------------------------------------
 # 7. Dispatch counts are unaffected by dedup
 # --------------------------------------------------------------------------
@@ -514,15 +571,10 @@ def test_absolute_dollar_amounts_pinned(tmp_path):
 # 9. H1 — pricing must follow the RECORD's own date, not the execution date
 # --------------------------------------------------------------------------
 
-def test_record_priced_by_own_date_not_execution_date(tmp_path):
-    """Two records in the SAME dispatch, on the SAME model (sonnet-5),
-    straddling the price table's `next_tier.effective_from` (2026-09-01):
-    one dated 2026-07-20 (intro tier, output $10/MTok) and one dated
-    2026-09-05 (standard tier, output $15/MTok). Each record MUST be priced
-    at its own tier. Before the H1 fix, the whole dispatch's aggregated
-    tokens were priced ONCE using the report's EXECUTION date — as long as
-    this test runs before 2026-09-01, that bug would price BOTH records at
-    the intro ($10) tier, giving $20.00 instead of the correct $25.00."""
+def test_sonnet_5_official_rate_applies_across_record_dates(tmp_path):
+    """The corrected sonnet-5 entry stays at the official $10/MTok output
+    rate across both records instead of applying the removed 3/15 override
+    to the post-2026-09-01 record."""
     make_session(
         tmp_path,
         "proj-a",
@@ -544,7 +596,7 @@ def test_record_priced_by_own_date_not_execution_date(tmp_path):
         ],
     )
     report = run_report(tmp_path)
-    assert cell(report, "gondor-builder", "actual_cost") == "$25.00"
+    assert cell(report, "gondor-builder", "actual_cost") == "$20.00"
 
 
 # --------------------------------------------------------------------------

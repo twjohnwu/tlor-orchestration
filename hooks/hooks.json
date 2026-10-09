@@ -1,5 +1,13 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/plugin_update_sync.py\"" }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

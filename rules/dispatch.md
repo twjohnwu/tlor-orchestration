@@ -1,8 +1,8 @@
 ---
-description: Role dispatch and delegation rules for the fifteen tlor-orchestration roles
+description: Role dispatch and delegation rules for the fourteen tlor-orchestration roles (plus the Explore backup mirror)
 managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
 audience: all
-version: 0.10.0
+version: 0.10.1
 ---
 
 ## Agent routing priority
@@ -313,7 +313,7 @@ the table MUST be dispatched via the Agent tool — or, for a step whose executo
 run through the §3d flow — the Maia must not execute those steps inline. §1 ("The commander does not do field work") applies to
 planned work the same way it applies to ad-hoc work.
 
-Plan mode's default "Only use built-in search" is overridden — use tlor-orchestration roles per the dispatch table above. The built-in `Explore` name now resolves to the plugin's mirror of `ranger-pathfinder` (same model, tools and contract), so a plan-mode Explore dispatch is acceptable; still prefer `rohirrim-outrider` for targeted lookups. Built-in `Plan` stays denied by dispatch_guard.
+Plan mode's default "Only use built-in search" is overridden — use tlor-orchestration roles per the dispatch table above. Built-in `Explore` and `Plan` are both denied by dispatch_guard: name `rohirrim-outrider` for targeted lookups and `ranger-pathfinder` for broad search. `agents/Explore.md` (a mirror of `ranger-pathfinder`) exists only as a backup for sessions where the guard is off, so an unguarded Explore dispatch still lands on a pinned role.
 
 Before writing the final plan file, invoke the `westron-plainspeech` skill
 (ships with this plugin) — it applies the plain-language checks in

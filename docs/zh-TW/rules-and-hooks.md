@@ -60,12 +60,13 @@
 
 ## Hooks（選配）
 
-四個 hook **預設皆靜默**——前三個靠環境變數啟用，第四個靠註冊安裝。任何內部錯誤一律 fail-open（放行，不擋工作）。`install.sh` 會複製 hook 腳本，但不接線也不啟用（不寫 `hooks.json`、不設環境變數）。plugin 安裝會接好 `hooks.json`，但兩種方式都不設環境變數——請寫進 `~/.claude/settings.json` 的 `env` 區塊；shell profile 在非 shell 啟動（例如 desktop app）時不會被讀取。
+五個 hook 中有四個**預設靜默**——三個靠環境變數啟用，`stdd_test_guard` 靠註冊安裝。第五個 `plugin_update_sync` 在 plugin 安裝下**預設啟用**，設 `TLOR_AUTO_SYNC=0` 可關閉。任何內部錯誤一律 fail-open（放行，不擋工作）。`install.sh` 會複製 hook 腳本，但不接線也不啟用（不寫 `hooks.json`、不設環境變數）。plugin 安裝會接好 `hooks.json`，但兩種方式都不設環境變數——請寫進 `~/.claude/settings.json` 的 `env` 區塊；shell profile 在非 shell 啟動（例如 desktop app）時不會被讀取。
 
 | Hook | 事件 | 說明 | env key |
 |---|---|---|---|
 | `institution_guard` | PreToolUse | 擋主 session 直接 Edit/Write 制度檔（`~/.claude/institution/`、`rules/`、`agents/`，以及任何位置的 `CLAUDE.md`／`AGENTS.md`）——執行「指揮官不下場」；subagent 的編輯一律放行 | `TLOR_INSTITUTION_GUARD=1` |
-| `dispatch_guard` | PreToolUse | 擋派工到 `general-purpose`／`claude`／`plan`；`explore` 只在已安裝 `Explore.md` 鏡像角色時放行；`bombadil-freeagent` 需 prompt 內帶 `no-role-fits` 字樣才放行（model/effort 已在 frontmatter pin 定，per-call `model` 覆寫為選配） | `TLOR_DISPATCH_GUARD=1` |
+| `dispatch_guard` | PreToolUse | 擋派工到 `general-purpose`／`claude`／`explore`／`plan`（`agents/Explore.md` 只是 guard 關閉時的備援）；`bombadil-freeagent` 需 prompt 內帶 `no-role-fits` 字樣才放行（model/effort 已在 frontmatter pin 定，per-call `model` 覆寫為選配） | `TLOR_DISPATCH_GUARD=1` |
+| `plugin_update_sync` | SessionStart（`startup`） | 僅 plugin 安裝、僅升級時動作：plugin 版本比 `~/.claude/.tlor-init-state`（由 `/tlor-init` 寫入）新時，透過 `scripts/tlor_sync.py` 同步 user 層安裝的 agents（有改動的先備份，並列出每個備份路徑）、base rules、agent_doc、workflows 與 scripts，再提醒你跑 `/tlor-init` 處理互動步驟。project 層安裝只會收到「請到該處跑 `/tlor-init`」的提醒，不會被寫入。`/tlor-init` 0.14.0 以上至少跑過一次前不動作（跑過舊版 `/tlor-init` 的使用者要再跑一次），版本相同或較舊時也不動作；絕不擋 session | 預設啟用；`TLOR_AUTO_SYNC=0` 關閉 |
 | `verify_gate` | Stop | 攔「沒有證據的完成宣稱」：本輪改了程式碼卻沒跑測試指令，擋回一次要求補 fail-then-pass 證據 | `TLOR_VERIFY_GATE=1` |
 | `stdd_test_guard` | PreToolUse | STDD 執行期保護：`tasks.md` 中 `[wip]` 任務所引用的測試檔，在該任務標成 `[x]` 前不得再被 Edit/Write | 無啟用 env；由 `install.sh --install-hook` 註冊進 `settings.json` |
 

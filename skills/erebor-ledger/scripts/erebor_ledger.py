@@ -4,7 +4,7 @@
 Reads Claude Code transcript JSONL files (main-session + subagent) and
 answers two independent questions (per erebor-ledger spec §1/§3):
 
-  1. When Fable 5 is the orchestrator, how much token/cost did dispatching
+  1. When Fable 5.x is the orchestrator, how much token/cost did dispatching
      to tlor-orchestration save versus doing the work inline?
   2. Same question when any Opus version is the orchestrator?
 
@@ -367,15 +367,22 @@ def usage_to_tokens(usage: dict, warnings: list | None = None, context: str = ""
 def cost_for_tokens(tokens: dict, price_entry: dict | None) -> float | None:
     """input/output/cache_read priced separately, and cache-write priced PER
     TIER (5-minute vs 1-hour, see CACHE_TIER_DISCLOSURE) then summed (spec
-    §4 — no single blended rate)."""
+    §4 — no single blended rate). When an entry defines long-prompt pricing,
+    a record whose input + cache-read + cache-creation tokens exceed its
+    threshold uses the long rates for every field in the request."""
     if price_entry is None:
         return None
+    rates = price_entry
+    long_prompt_threshold = price_entry.get("long_prompt_threshold")
+    prompt_tokens = tokens["input"] + tokens["cache_read"] + tokens["cache_write"]
+    if long_prompt_threshold is not None and prompt_tokens > long_prompt_threshold:
+        rates = price_entry["long_prompt"]
     return (
-        tokens["input"] / 1_000_000 * price_entry["input"]
-        + tokens["output"] / 1_000_000 * price_entry["output"]
-        + tokens["cache_write_5m"] / 1_000_000 * price_entry["cache_write_5m"]
-        + tokens["cache_write_1h"] / 1_000_000 * price_entry["cache_write_1h"]
-        + tokens["cache_read"] / 1_000_000 * price_entry["cache_read"]
+        tokens["input"] / 1_000_000 * rates["input"]
+        + tokens["output"] / 1_000_000 * rates["output"]
+        + tokens["cache_write_5m"] / 1_000_000 * rates["cache_write_5m"]
+        + tokens["cache_write_1h"] / 1_000_000 * rates["cache_write_1h"]
+        + tokens["cache_read"] / 1_000_000 * rates["cache_read"]
     )
 
 
@@ -2332,7 +2339,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(
         description=(
             "erebor-ledger: report token/cost savings from tlor-orchestration dispatch, "
-            "grouped by orchestrator model (Fable 5 vs Opus)."
+            "grouped by orchestrator model (Fable 5.x vs Opus)."
         )
     )
     parser.add_argument(

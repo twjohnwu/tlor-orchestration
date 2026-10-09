@@ -195,9 +195,11 @@ HOOK_FILES="institution_guard.py institution_guard.sh pre_tool_use.sh verify_gat
 WORKFLOWS=$(cd "$WORKFLOWS_SRC" && ls ./*.js | sed 's|^\./||')
 # Only the runtime dependencies (the custody-check script and verify runner
 # `workflows/stdd-execute.js` relays to at runtime, REQ-07/REQ-10) are
-# installed — the rest of scripts/ (check_links.py, check_oldname.py,
-# lint_agents_frontmatter.py) is this repo's own CI tooling, not something
-# an installed plugin needs.
+# installed (scripts/tlor_sync.py's RUNTIME_SCRIPTS must match this list) —
+# the rest of scripts/ (check_links.py, check_oldname.py,
+# lint_agents_frontmatter.py, and tlor_sync.py, which /tlor-init runs from
+# the plugin root) is this repo's own tooling, not something an installed
+# plugin needs.
 SCRIPTS="stdd_custody_check.py stdd_verify.py"
 CUSTOMIZE_SRC="$RULES_SRC/customize"
 CUSTOMIZE_FILES=""
