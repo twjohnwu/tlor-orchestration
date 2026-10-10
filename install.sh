@@ -137,7 +137,7 @@ STDD_MANIFEST="$SKILLS_DEST/.tlor-stdd-manifest"
 # can reach without depending on a skill outside their own subset.
 stdd_profile_skills() {
   case "$1" in
-    RD)   echo "stdd-plan stdd-execute stdd stdd-lint" ;;
+    RD)   echo "stdd-plan stdd-execute stdd-review-loop stdd stdd-lint" ;;
     PM)   echo "stdd-explore stdd-spec stdd stdd-lint" ;;
     UIUX) echo "stdd-explore stdd-uiux stdd stdd-lint" ;;
     ALL)  (cd "$STDD_SKILLS_SRC" && ls -d */ | sed 's|/$||') ;;

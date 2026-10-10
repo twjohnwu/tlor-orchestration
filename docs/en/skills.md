@@ -59,9 +59,10 @@ High-risk verdicts (irreversible ops, contract/schema changes, money/precision, 
 
 Installed via `install.sh --stdd-role=ALL` or `/tlor-init`'s STDD step.
 
-These nine skills are not autoloaded. They land in `~/.claude/skills/` only
-when you ask for them. Seven implement the Spec-driven Test-Driven
-Development pipeline. The other two archive and query decision records.
+These ten skills are not autoloaded. They land in `~/.claude/skills/` only
+when you ask for them. Eight implement the Spec-driven Test-Driven
+Development pipeline and its post-MR review loop. The other two archive and
+query decision records.
 
 This round ships the `ALL` profile alone. The role-scoped `RD`/`PM`/`UIUX`
 subsets are deferred, so `install.sh --stdd-role=RD|PM|UIUX` prints a
@@ -76,6 +77,7 @@ deferred message and installs nothing.
 | `/stdd-plan` | Map 行軍圖 | Generates condition-based `design-be.md`/`design-fe.md`/`api.yml` and a scenario-covered `tasks.md` from an approved spec | Turning an approved spec into a design + task list |
 | `/stdd-execute` | Forge 鑄造 | Runs the per-task RED → GREEN → REFACTOR loop against an approved `tasks.md`, two-dispatch model with an independent verifier | Implementing STDD tasks one at a time |
 | `/stdd-lint` | Eagle Vision 鷹之視野 | Pure rule-based (non-model-judgment) mechanical checker: placeholder leakage, ID continuity, GWT completeness, test-mapping/coverage, fingerprint state | Called internally by stdd-spec/stdd-plan/stdd-execute's boundary checks, and directly by the user |
+| `/stdd-review-loop` | Beacons of Gondor 烽火台 | After an MR/PR is opened: waits for CI, reads the AI code-review comment, fixes findings above Nit/Low, pushes, and repeats until LGTM or Nit/Low only (10-round cap); writes an `## AI Review Fixes` section into the description. Works with `gh` and `glab`; helper script in `references/review_loop.py` | Opening an MR/PR for a feat or bug fix, or "fix until LGTM" |
 | `/westmarch-scribe` | Westmarch 記事錄 | Decision capture: archives a filled compact-MADR decision to the project's decision log (or instruction file, or the general decisions log) | Invoked from stdd-explore/stdd-uiux/stdd-spec/stdd-plan's advisory closing step, directly by the user, or proactively on decision-keywords in conversation |
 | `/minas-tirith-archivist` | Minas Tirith 檔案守護者 | Decision query: the read-only counterpart to `/westmarch-scribe`; searches archived decision records (general and project-scoped) and answers with citations, never writes or edits | Asking about past decisions or why a convention exists, or directly by the user |
 
@@ -86,7 +88,7 @@ installed — run `/tlor-init` first". Neither guesses a place to write to or
 search.
 
 Pipeline order: `stdd-explore → stdd-uiux (conditional) → stdd-spec →
-stdd-plan → stdd-execute`, with `stdd` and `stdd-lint` callable at any point.
+stdd-plan → stdd-execute → stdd-review-loop`, with `stdd` and `stdd-lint` callable at any point.
 
 ### BDD layer (v0.12.0)
 
