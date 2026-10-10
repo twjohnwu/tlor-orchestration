@@ -6,6 +6,10 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.15.0 (2026-10-10)
+
+- New opt-in STDD skill `stdd-review-loop` (Beacons of Gondor): after a feat/bug MR or PR is opened, it checks that `gh`/`glab` is installed and logged in, asks once for branch-level push authorization, then loops — wait for CI (X minutes, default 10, re-checked every X), read the AI code-review comment (5 retries for a lagging provider), verify each finding with eagle-sentinel, fix and push findings above Nit/Low (lint only before push, never tests), reply to false positives — until LGTM or Nit/Low only, with a 10-round cap. It fills an empty description from a default skeleton, records `ci-wait-minutes` and `review-job-name` in the repo's AGENTS.md, and writes an `## AI Review Fixes` table into the description at the end. Mechanical steps live in `references/review_loop.py` (Python 3.7, stdlib only, GitHub and GitLab).
+
 ## v0.14.0 (2026-10-09)
 
 - dispatch_guard: built-in `Explore` is denied unconditionally again (reverts the v0.13.0 mirror allowance by user decision); `agents/Explore.md` stays as a backup for sessions where the guard is off. rules/dispatch.md 0.10.1, tlor-init, roles and hook docs updated.

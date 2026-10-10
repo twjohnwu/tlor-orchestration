@@ -196,10 +196,10 @@ destination — never overwrite something already in `customize/`.
 
 Ask the user which STDD 視角 (perspective) to install, or to skip:
 
-- **RD** — stdd-plan, stdd-execute, stdd, stdd-lint (**deferred this round**)
+- **RD** — stdd-plan, stdd-execute, stdd-review-loop, stdd, stdd-lint (**deferred this round**)
 - **PM** — stdd-explore, stdd-spec, stdd, stdd-lint (**deferred this round**)
 - **UIUX** — stdd-explore, stdd-uiux, stdd, stdd-lint (**deferred this round**)
-- **ALL** — all 7 skills under the plugin's `stdd-skills/` directory
+- **ALL** — all 8 skills under the plugin's `stdd-skills/` directory
   (discover the list dynamically — `ls stdd-skills/`, don't hardcode a count)
 - **skip** — install no STDD skills (default; keeps this step backward
   compatible with users who never asked for STDD)
