@@ -1,13 +1,7 @@
 import type { ThemeKey } from 'claude-code'
 
 import type { FellowshipAgent } from '../../../types'
-
-export type Segment = {
-  text: string
-  color?: ThemeKey
-  bold?: boolean
-  dim?: boolean
-}
+import type { Segment } from '../segment'
 
 export const FALLBACK_ICON = '🤖'
 
@@ -67,16 +61,18 @@ export const rowSegments = (agent: FellowshipAgent, now: number): Segment[] => {
   const tokens = (agent.tokens / 1000).toFixed(1)
   const effort = agent.effort === undefined || agent.effort === '' ? '-' : agent.effort
   const model = shortModel(agent.model)
-  const dim = agent.status === 'running' ? {} : { dim: true }
+  const running = agent.status === 'running'
+  const dim = running ? {} : { dim: true }
+  const detail = running ? 'text' : 'subtle'
 
   return [
     { text: `${iconFor(agent.type)} ${agent.type}`, color: modelColor(model), bold: true, ...dim },
-    { text: `  ${model}/${effort}`, color: 'subtle', ...dim },
+    { text: `  ${model}/${effort}`, color: running ? 'warning' : 'subtle', ...dim },
     { text: `  ${agent.description}`, color: 'text', ...dim },
     { text: `  ${agent.status}`, ...statusStyle(agent.status) },
-    { text: `  ${elapsed}`, color: 'subtle', ...dim },
-    { text: `  ${tokens}k tok`, color: 'subtle', ...dim },
-    { text: `  ${agent.tools} tools`, color: 'subtle', ...dim },
+    { text: `  ${elapsed}`, color: detail, ...dim },
+    { text: `  ${tokens}k tok`, color: detail, ...dim },
+    { text: `  ${agent.tools} tools`, color: detail, ...dim },
   ]
 }
 

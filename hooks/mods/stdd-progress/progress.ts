@@ -1,11 +1,7 @@
 import type { ThemeKey } from 'claude-code'
 
-export type Segment = {
-  text: string
-  color?: ThemeKey
-  bold?: boolean
-  dim?: boolean
-}
+import type { PlanTask } from '../../../types'
+import type { Segment } from '../segment'
 
 export type StddPhase = 'uiux' | 'spec (draft)' | 'plan' | 'execute' | 'done'
 
@@ -33,13 +29,6 @@ export type TaskProgress = {
   completed: number
   total: number
   wip?: string
-}
-
-export type PlanTask = {
-  id: string
-  subject: string
-  activeForm?: string
-  status: 'pending' | 'in_progress' | 'completed'
 }
 
 export type ChecklistProgress = {
@@ -75,6 +64,96 @@ const FENCE_LINE = /^\s*```/
 const CHECKLIST_LINE = /^\s*[-*+] \[( |x|X)\] (.+)$/
 const CHECKLIST_FENCE_LINE = /^\s*(`{3,}|~{3,})(.*)$/
 const ARTIFACTS = ['tasks.md', 'spec.md', 'design-ux.md'] as const
+
+export const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'] as const
+export const PLAN_TOOLS = ['TodoWrite', 'TaskCreate', 'TaskUpdate'] as const
+// NotebookEdit is excluded because a notebook edit cannot change a .md checklist.
+export const CHECKLIST_TOOLS = ['Bash', 'Write', 'Edit', 'MultiEdit', 'ExitPlanMode'] as const
+
+export const normalizedPath = (path: string): string => path.replace(/\\/g, '/').replace(/\/+$/, '')
+
+export const isPlanTaskStatus = (value: unknown): value is PlanTask['status'] =>
+  value === 'pending' || value === 'in_progress' || value === 'completed'
+
+export const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === 'object' && value !== null
+
+export const taskCreateId = (callResult: unknown): string | undefined => {
+  if (!isRecord(callResult)) return undefined
+  const output = callResult.result
+  if (isRecord(output)) {
+    const task = output.task
+    if (isRecord(task) && (typeof task.id === 'string' || typeof task.id === 'number')) return String(task.id)
+    if (typeof output.taskId === 'string' || typeof output.taskId === 'number') return String(output.taskId)
+    if (typeof output.id === 'string' || typeof output.id === 'number') return String(output.id)
+  }
+
+  if (typeof callResult.text !== 'string') return undefined
+  const hash = /#([A-Za-z0-9_-]+)/.exec(callResult.text)?.[1]
+  if (hash !== undefined) return hash
+  return /\bTask\s+([A-Za-z0-9_-]+)/i.exec(callResult.text)?.[1]
+}
+
+export const updatedPlanTasks = (
+  current: readonly PlanTask[],
+  event: Readonly<Record<string, unknown>>,
+  callResult: unknown,
+  syntheticId: () => string,
+): PlanTask[] | null => {
+  if (event.tool === 'TodoWrite') {
+    if (!Array.isArray(event.todos)) return null
+    return event.todos.flatMap((todo, index) => {
+      if (!isRecord(todo)) return []
+      if (typeof todo.content !== 'string') return []
+      if (!isPlanTaskStatus(todo.status)) return []
+      return [{
+        id: `todo:${index}`,
+        subject: todo.content,
+        ...(typeof todo.activeForm === 'string' ? { activeForm: todo.activeForm } : {}),
+        status: todo.status,
+      }]
+    })
+  }
+
+  if (event.tool === 'TaskCreate') {
+    if (typeof event.subject !== 'string') return null
+    return [...current, {
+      id: taskCreateId(callResult) ?? syntheticId(),
+      subject: event.subject,
+      ...(typeof event.activeForm === 'string' ? { activeForm: event.activeForm } : {}),
+      status: 'pending',
+    }]
+  }
+
+  if (event.tool !== 'TaskUpdate' || typeof event.taskId !== 'string') return null
+  const index = current.findIndex(task => task.id === event.taskId)
+  if (index < 0) return null
+  if (event.status === 'deleted') return current.filter((_task, taskIndex) => taskIndex !== index)
+
+  const task = current[index]
+  if (task === undefined) return null
+  const status = isPlanTaskStatus(event.status) ? event.status : task.status
+  const replacement: PlanTask = {
+    ...task,
+    ...(typeof event.subject === 'string' ? { subject: event.subject } : {}),
+    ...(typeof event.activeForm === 'string' ? { activeForm: event.activeForm } : {}),
+    status,
+  }
+  return current.map((item, taskIndex) => taskIndex === index ? replacement : item)
+}
+
+export const isStddEdit = (event: Readonly<Record<string, unknown>>): boolean => {
+  const tool = String(event.tool)
+  if (tool === 'Bash') return true
+  if (!EDIT_TOOLS.some(name => name === tool)) return false
+  const path = typeof event.file_path === 'string'
+    ? event.file_path
+    : typeof event.notebook_path === 'string'
+      ? event.notebook_path
+      : ''
+
+  return path.replace(/\\/g, '/').includes('/STDD/')
+}
 
 // Mirrors utf-8-sig in scripts/stdd_custody_check.py: a leading BOM must not hide the first line.
 const stripBom = (text: string): string => text.startsWith('\uFEFF') ? text.slice(1) : text
@@ -292,7 +371,7 @@ export const planProgressSegments = (tasks: readonly PlanTask[], columns: number
 }
 
 const basename = (path: string): string => {
-  const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '')
+  const normalized = normalizedPath(path)
   return normalized.slice(normalized.lastIndexOf('/') + 1)
 }
 

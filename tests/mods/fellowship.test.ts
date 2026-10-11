@@ -104,6 +104,19 @@ test('row segments colour statuses and dim every non-status segment after finish
   }
 })
 
+test('running rows brighten model/effort to warning and detail segments to text; finished rows stay subtle', async () => {
+  const base = { ...spawned, model: 'sonnet', effort: 'high' }
+  const colours = (agent: FellowshipAgent): Array<string | undefined> =>
+    [1, 4, 5, 6].map(index => rowSegments(agent, 5000)[index]?.color)
+
+  expect(colours({ ...base, status: 'running', endedAt: null })).toEqual(['warning', 'text', 'text', 'text'])
+  for (const status of ['completed', 'failed', 'killed'] as const) {
+    const agent = { ...base, status, endedAt: 2000 }
+    expect(colours(agent)).toEqual(['subtle', 'subtle', 'subtle', 'subtle'])
+    expect([1, 4, 5, 6].every(index => rowSegments(agent, 5000)[index]?.dim === true)).toBe(true)
+  }
+})
+
 test('model ids shorten to their family', async () => {
   expect(shortModel('claude-haiku-4-5-20251001')).toBe('haiku')
   expect(shortModel('sonnet')).toBe('sonnet')

@@ -1,6 +1,7 @@
 import type { Register } from 'claude-code'
 
 import type { FellowshipAgent } from '../../../types'
+import { casUpdate } from '../state'
 import {
   recordStepTokens,
   completeAgent,
@@ -84,23 +85,24 @@ export const register: Register = (on, options) => {
           pinned.set(e.subagentType, found)
         }
         const model = e.model ?? result.model ?? found.model
-        for (let attempt = 0; attempt < 5; attempt += 1) {
-          const { value = [], version } = await $.state.get(agents)
-          const list = registerAgent(value, {
-            id,
-            type: e.subagentType,
-            description: e.description,
-            status: 'running',
-            startedAt: now,
-            endedAt: null,
-            tokens: 0,
-            tools: 0,
-            model,
-            effort: found.effort,
-          })
-          const saved = await $.state.set(agents, list, { ifVersion: version })
-          if (saved.isSet) break
-        }
+        await casUpdate(
+          () => $.state.get(agents),
+          (value, version) => $.state.set(agents, value, { ifVersion: version }),
+          value => ({
+            value: registerAgent(value ?? [], {
+              id,
+              type: e.subagentType,
+              description: e.description,
+              status: 'running',
+              startedAt: now,
+              endedAt: null,
+              tokens: 0,
+              tools: 0,
+              model,
+              effort: found.effort,
+            }),
+          }),
+        )
 
         if (opensAutomatically && !isOpened) {
           isOpened = true
@@ -137,12 +139,11 @@ export const register: Register = (on, options) => {
     if (e.agentId !== undefined) {
       try {
         const id = e.agentId
-        for (let attempt = 0; attempt < 5; attempt += 1) {
-          const { value = [], version } = await $.state.get(agents)
-          const list = update(value, id, one => ({ ...one, tools: one.tools + 1 }))
-          const saved = await $.state.set(agents, list, { ifVersion: version })
-          if (saved.isSet) break
-        }
+        await casUpdate(
+          () => $.state.get(agents),
+          (value, version) => $.state.set(agents, value, { ifVersion: version }),
+          value => ({ value: update(value ?? [], id, one => ({ ...one, tools: one.tools + 1 })) }),
+        )
       } catch {
         // observing only: never break the call
       }
@@ -157,23 +158,25 @@ export const register: Register = (on, options) => {
     if (id !== undefined) {
       try {
         const shouldFillDetails = !stepped.has(id)
-        for (let attempt = 0; attempt < 5; attempt += 1) {
-          const { value = [], version } = await $.state.get(agents)
-          if (!isKnown(value, id)) break
-          const withTokens = recordStepTokens(value, id, result.usage)
-          const list = shouldFillDetails
-            ? update(withTokens, id, one => ({
-                ...one,
-                model: one.model ?? e.model,
-                effort: e.effort === undefined ? one.effort : String(e.effort),
-              }))
-            : withTokens
-          const saved = await $.state.set(agents, list, { ifVersion: version })
-          if (saved.isSet) {
-            if (shouldFillDetails) stepped.add(id)
-            break
-          }
-        }
+        const didStep = await casUpdate(
+          () => $.state.get(agents),
+          (value, version) => $.state.set(agents, value, { ifVersion: version }),
+          value => {
+            const current = value ?? []
+            if (!isKnown(current, id)) return null
+            const withTokens = recordStepTokens(current, id, result.usage)
+            const list = shouldFillDetails
+              ? update(withTokens, id, one => ({
+                  ...one,
+                  model: one.model ?? e.model,
+                  effort: e.effort === undefined ? one.effort : String(e.effort),
+                }))
+              : withTokens
+
+            return { value: list }
+          },
+        )
+        if (didStep && shouldFillDetails) stepped.add(id)
       } catch {
         // observing only: never break the response
       }
@@ -187,12 +190,11 @@ export const register: Register = (on, options) => {
       try {
         const id = e.agentId
         const now = await $.clock.now()
-        for (let attempt = 0; attempt < 5; attempt += 1) {
-          const { value = [], version } = await $.state.get(agents)
-          const list = completeAgent(value, id, statusOf(e.reason), now)
-          const saved = await $.state.set(agents, list, { ifVersion: version })
-          if (saved.isSet) break
-        }
+        await casUpdate(
+          () => $.state.get(agents),
+          (value, version) => $.state.set(agents, value, { ifVersion: version }),
+          value => ({ value: completeAgent(value ?? [], id, statusOf(e.reason), now) }),
+        )
       } catch {
         // observing only: never break the turn
       }
