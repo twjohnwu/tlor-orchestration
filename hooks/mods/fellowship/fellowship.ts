@@ -156,10 +156,9 @@ export const selectPaneRows = (list: FellowshipAgent[], maxRows: number, room: n
   let runningCount = Math.min(running.length, runningQuota)
   let completedCount = Math.min(completed.length, cap - runningQuota)
   const available = Number.isFinite(room) ? Math.max(0, Math.floor(room)) : 0
+  // Only hidden running rows get a summary line; older finished rows just drop off.
   const lineCount = (): number =>
-    runningCount + completedCount +
-    (running.length > runningCount ? 1 : 0) +
-    (completed.length > completedCount ? 1 : 0)
+    runningCount + completedCount + (running.length > runningCount ? 1 : 0)
 
   while (lineCount() > available && completedCount > 0) completedCount -= 1
   while (lineCount() > available && runningCount > 0) runningCount -= 1

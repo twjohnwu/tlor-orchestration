@@ -194,11 +194,11 @@ test('a small viewport trims completed rows before running rows', async () => {
 
   const completedTrimmed = selectPaneRows([...running, ...completed], 8, 8)
   expect(completedTrimmed.running).toHaveLength(5)
-  expect(completedTrimmed.completed.map(one => one.id)).toEqual(['done-6'])
+  expect(completedTrimmed.completed.map(one => one.id)).toEqual(['done-5', 'done-6'])
   expect(completedTrimmed.hiddenRunning).toBe(2)
-  expect(completedTrimmed.hiddenCompleted).toBe(5)
+  expect(completedTrimmed.hiddenCompleted).toBe(4)
 
-  const runningTrimmed = selectPaneRows([...running, ...completed], 8, 6)
+  const runningTrimmed = selectPaneRows([...running, ...completed], 8, 5)
   expect(runningTrimmed.running.map(one => one.id)).toEqual(['run-4', 'run-5', 'run-6', 'run-7'])
   expect(runningTrimmed.completed).toHaveLength(0)
   expect(runningTrimmed.hiddenRunning).toBe(3)
@@ -364,4 +364,21 @@ test('tokens show the latest step, not a running sum', async () => {
   const second = recordStepTokens(first, 'a1', { input_tokens: 50, output_tokens: 10, cache_read_input_tokens: 61_000 })
   expect(second[0]?.tokens).toBe(61_060)
   expect(recordStepTokens(second, 'a1', null)[0]?.tokens).toBe(61_060)
+})
+
+test('all agents finished: exactly the three latest rows, using every line of a tight pane', async () => {
+  const done = [5, 70, 10, 60, 20, 50, 30].map((endedAt, index) => ({
+    ...spawned,
+    id: `done-${index + 1}`,
+    status: 'completed' as const,
+    startedAt: index + 1,
+    endedAt,
+  }))
+  const roomy = selectPaneRows(done, 8, 20)
+  expect(roomy.running).toEqual([])
+  expect(roomy.completed.map(one => one.id)).toEqual(['done-2', 'done-4', 'done-6'])
+
+  // no summary line is drawn for hidden finished rows, so three lines of room hold three rows
+  const tight = selectPaneRows(done, 8, 3)
+  expect(tight.completed).toHaveLength(3)
 })
