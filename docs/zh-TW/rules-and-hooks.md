@@ -89,7 +89,7 @@ Claude Code 只在 session 啟動時讀取一次 `settings.json` 裡的 PreToolU
 |---|---|---|
 | Fellowship | 每個 Agent tool 列前加角色圖示；「Fellowship」pane 列出本 session 的 subagent：類型、model/effort、描述、狀態、經過時間、token（最近一次請求的總量，也就是 agent 目前的 context）、tool 次數。用 `/fellowship` 開啟。 | `fellowship`：`auto`（預設，第一個 subagent 出現時開啟）、`manual`、`off`。`fellowship_max_rows`：預設 8，分成 5 列執行中、3 列最近完成；多出的列收成 `+K running` / `+K done` |
 | STDD progress | prompt 上方一條帶狀列，顯示最近修改、尚未完成的 `STDD/<name>/` change：階段；execute 階段另有 K/T 進度條與第一個 `[wip]` id。K 計 `[x]` 行，T 計全部 task 行，`[MANUAL]` 行不計。 | `stdd_progress`：`on`（預設）、`off` |
-| Plan progress | 沒有未完成的 STDD change 時，同一條帶狀列改顯示主對話的任務清單（TodoWrite，或 TaskCreate/TaskUpdate）：`Plan · K/T tasks`、進度條與進行中的任務。清單為空或全部完成時隱藏；subagent 的任務清單不計。 | `plan_progress`：`on`（預設）、`off` |
+| Plan progress | 沒有未完成的 STDD change 時，同一條帶狀列改顯示主對話的任務清單（TodoWrite，或 TaskCreate/TaskUpdate）：`Plan · K/T tasks`、進度條與進行中的任務。清單為空或全部完成時隱藏；subagent 的任務清單不計。沒有這類任務清單時，改讀本對話最近用 Write/Edit 寫入或修改（或 ExitPlanMode 存下的 plan 檔）、且至少有兩個 `- [ ]` / `- [x]` 項目的 `.md` 檔，顯示為 `Plan · <檔名> · K/T items` 與下一個未勾項目；之後的 Bash/Write/Edit 會更新它。 | `plan_progress`：`on`（預設）、`off` |
 
 STDD 帶狀列只讀檔案，照寫顯示 `spec.md` 的 `status`，不重算核准 fingerprint；權威檢查請跑 `/stdd`。
 
