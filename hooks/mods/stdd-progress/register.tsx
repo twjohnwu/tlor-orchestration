@@ -1,11 +1,19 @@
 import type { On, PluginOptions } from 'claude-code'
 
-import type { PlanTask, StddProgressView } from './progress'
-import { isPlanVisible, planProgressSegments, progressSegments, scanProgress } from './progress'
+import type { ChecklistFileView, PlanTask, StddProgressView } from './progress'
+import {
+  checklistProgressSegments,
+  isPlanVisible,
+  parseMarkdownChecklist,
+  planProgressSegments,
+  progressSegments,
+  scanProgress,
+} from './progress'
 
 const THROTTLE_MS = 1000
 const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'] as const
 const PLAN_TASKS = { plugin: 'tlor', key: 'planTasks' } as const
+const PLAN_CHECKLIST = { plugin: 'tlor', key: 'planChecklist' } as const
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === 'object' && value !== null
@@ -89,6 +97,8 @@ const isStddEdit = (event: Readonly<Record<string, unknown>>): boolean => {
   return path.replace(/\\/g, '/').includes('/STDD/')
 }
 
+const normalizedPath = (path: string): string => path.replace(/\\/g, '/').replace(/\/+$/, '')
+
 export const register = (on: On, options: PluginOptions): void => {
   const stddEnabled = options.stdd_progress !== 'off'
   const planEnabled = options.plan_progress === 'on'
@@ -98,8 +108,12 @@ export const register = (on: On, options: PluginOptions): void => {
   let lastScanAt = Number.NEGATIVE_INFINITY
   let isTrailingScheduled = false
   let syntheticTaskId = 0
+  let trackedChecklist: { path: string } | null | undefined
+  let trackedChecklistView: ChecklistFileView | null | undefined
+  let lastChecklistScanAt = Number.NEGATIVE_INFINITY
+  let isChecklistTrailingScheduled = false
 
-  on('tool.call', { tool: /^(?:Bash|Edit|Write|MultiEdit|NotebookEdit|TodoWrite|TaskCreate|TaskUpdate)$/ }, async ($, e, next) => {
+  on('tool.call', { tool: /^(?:Bash|Edit|Write|MultiEdit|NotebookEdit|TodoWrite|TaskCreate|TaskUpdate|ExitPlanMode)$/ }, async ($, e, next) => {
     const result = await next(e)
     const event = e as unknown as Readonly<Record<string, unknown>>
 
@@ -119,6 +133,89 @@ export const register = (on: On, options: PluginOptions): void => {
         }
       } catch {
         // Plan progress is observational; state failures never affect a tool call.
+      }
+
+      const tool = String(event.tool)
+      const exitOutput = isRecord(result) ? result.result : undefined
+      const exitPlanPath = tool === 'ExitPlanMode' && isRecord(exitOutput) && typeof exitOutput.filePath === 'string'
+        ? exitOutput.filePath
+        : undefined
+      const filePath = typeof event.file_path === 'string' && EDIT_TOOLS.some(name => name === tool)
+        ? event.file_path
+        : exitPlanPath
+
+      if (filePath !== undefined && /\.md$/i.test(filePath)) {
+        try {
+          const checklist = parseMarkdownChecklist(await $.fs.read(filePath))
+          for (let attempt = 0; attempt < 5; attempt += 1) {
+            const { value, version } = await $.state.get(PLAN_CHECKLIST)
+            const current = value ?? null
+            const replacement = checklist.total >= 2
+              ? { path: filePath }
+              : current !== null && normalizedPath(current.path) === normalizedPath(filePath)
+                ? null
+                : undefined
+            if (replacement === undefined) break
+            const saved = await $.state.set(PLAN_CHECKLIST, replacement, { ifVersion: version })
+            if (saved.isSet) {
+              trackedChecklist = replacement
+              trackedChecklistView = replacement === null ? null : { path: filePath, checklist }
+              lastChecklistScanAt = await $.clock.now()
+              $.ui.invalidate('ui.render')
+              break
+            }
+          }
+        } catch {
+          // An unreadable markdown edit does not replace the last known checklist.
+        }
+      }
+
+      if (tool === 'Bash' || tool === 'Write' || tool === 'Edit' || tool === 'MultiEdit') {
+        const rescanTrackedChecklist = async (): Promise<void> => {
+          try {
+            if (trackedChecklist === undefined) {
+              const { value } = await $.state.get(PLAN_CHECKLIST)
+              trackedChecklist = value ?? null
+            }
+            if (trackedChecklist === null) {
+              trackedChecklistView = null
+              return
+            }
+            const path = trackedChecklist.path
+            const checklist = parseMarkdownChecklist(await $.fs.read(path))
+            trackedChecklistView = checklist.total >= 2 ? { path, checklist } : null
+            lastChecklistScanAt = await $.clock.now()
+          } catch {
+            trackedChecklistView = null
+          }
+          try {
+            $.ui.invalidate('ui.render')
+          } catch {
+            // A failed redraw request must not affect the session.
+          }
+        }
+
+        try {
+          if (trackedChecklist === undefined) {
+            const { value } = await $.state.get(PLAN_CHECKLIST)
+            trackedChecklist = value ?? null
+          }
+          if (trackedChecklist !== null) {
+            const now = await $.clock.now()
+            const wait = THROTTLE_MS - (now - lastChecklistScanAt)
+            if (wait <= 0) {
+              await rescanTrackedChecklist()
+            } else if (!isChecklistTrailingScheduled) {
+              isChecklistTrailingScheduled = true
+              $.clock.after(wait, () => {
+                isChecklistTrailingScheduled = false
+                void rescanTrackedChecklist()
+              })
+            }
+          }
+        } catch {
+          isChecklistTrailingScheduled = false
+        }
       }
     }
 
@@ -183,14 +280,39 @@ export const register = (on: On, options: PluginOptions): void => {
           },
         })
       }
+      if (planEnabled && trackedChecklistView === undefined) {
+        try {
+          if (trackedChecklist === undefined) {
+            const { value } = await $.state.get(PLAN_CHECKLIST)
+            trackedChecklist = value ?? null
+          }
+          if (trackedChecklist === null) {
+            trackedChecklistView = null
+          } else {
+            const path = trackedChecklist.path
+            const checklist = parseMarkdownChecklist(await $.fs.read(path))
+            trackedChecklistView = checklist.total >= 2 ? { path, checklist } : null
+          }
+        } catch {
+          trackedChecklistView = null
+        }
+      }
       let lines = view === undefined || view === null
         ? undefined
         : progressSegments(view, e.viewport?.columns)
 
       if (lines === undefined && planEnabled) {
         const { value: tasks = [] } = await $.state.get(PLAN_TASKS)
-        if (isPlanVisible(tasks)) {
-          lines = planProgressSegments(tasks, e.viewport?.columns)
+        if (tasks.length >= 1) {
+          if (isPlanVisible(tasks)) lines = planProgressSegments(tasks, e.viewport?.columns)
+        } else if (trackedChecklistView !== undefined && trackedChecklistView !== null) {
+          if (trackedChecklistView.checklist.completed < trackedChecklistView.checklist.total) {
+            lines = checklistProgressSegments(
+              trackedChecklistView.path,
+              trackedChecklistView.checklist,
+              e.viewport?.columns,
+            )
+          }
         }
       }
 

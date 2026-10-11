@@ -4,7 +4,9 @@ import { test, expect, mock } from 'claude-code/testing'
 import { register as registerMods } from '../../hooks/mods/register'
 import {
   barSegments,
+  checklistProgressSegments,
   formatProgress,
+  parseMarkdownChecklist,
   parseTasks,
   phaseOf,
   isPlanVisible,
@@ -204,6 +206,47 @@ test('a BOM before the first task line does not hide it', async () => {
   expect(phaseOf({ spec: '﻿---\nstatus: approved\n---', tasks: '﻿- [ ] `S-01`' })).toBe('execute')
 })
 
+test('markdown checklist parsing handles markers, indentation, fences, BOM, and non-checklist lines', async () => {
+  const checklist = parseMarkdownChecklist([
+    '\uFEFF- [x] **finished**',
+    '  * [X] `also finished`',
+    '\t+ [ ] _next_ `step`',
+    '- [ ] ' + 'x'.repeat(70),
+    '- [wip] not a checklist item',
+    'plain text',
+    '```md',
+    '- [ ] hidden backtick item',
+    '```',
+    '~~~',
+    '+ [x] hidden tilde item',
+    '~~~',
+  ].join('\n'))
+
+  expect(checklist).toEqual({
+    completed: 2,
+    total: 4,
+    next: 'next step',
+  })
+  expect(parseMarkdownChecklist('- [x] done\n- [ ] ' + 'x'.repeat(70)).next).toBe(`${'x'.repeat(59)}…`)
+  expect(parseMarkdownChecklist('- [ ] run_some_code\n- [ ] later').next).toBe('run_some_code')
+})
+
+test('checklist plan segments show the basename, item count, next item, and warning cell', async () => {
+  const lines = checklistProgressSegments('/work/docs/plan.md', {
+    completed: 1,
+    total: 3,
+    next: 'ship it',
+  }, 42)
+
+  expect(lines[0]?.map(segment => segment.text).join('')).toBe('Plan · plan.md · 1/3 items')
+  expect(lines[1]?.slice(0, 3)).toEqual([
+    { text: '▓'.repeat(4), color: 'success' },
+    { text: '▓', color: 'warning' },
+    { text: '░'.repeat(7), color: 'inactive' },
+  ])
+  expect(lines[1]?.at(-1)).toEqual({ text: ' · ▶ ship it', color: 'warning' })
+})
+
 const SPEC = '---\nstatus: approved\n---\n'
 
 // A fake disk: /work/STDD/checkout holds spec.md and tasks.md; `tasks` is read live so a test can change it.
@@ -246,6 +289,34 @@ const bandText = async (ui: { find: (q: { type: string; text: RegExp }) => Promi
 const mountEmptyDisk = (on: On): void => {
   on('session.cwd', async () => ({ value: '/work' }) as never)
   on('fs.list', async () => ({ value: [] }) as never)
+}
+
+type ChecklistDisk = {
+  files: Record<string, string>
+  exitPlanPath?: string
+}
+
+const mountChecklistDisk = (on: On, disk: ChecklistDisk) => {
+  const clock = mock.clock(on)
+  on('session.cwd', async () => ({ value: '/work' }) as never)
+  on('fs.list', async () => ({ value: [] }) as never)
+  on('fs.read', async (_$, e) => ({ value: disk.files[(e as { path: string }).path] ?? '' }) as never)
+  on('tool.call', async (_$, e) => {
+    if (e.tool === 'Write') {
+      if (e.file_path.includes('denied')) return { deny: 'no' } as never
+      if (e.file_path.includes('failed')) return { result: 'boom', isError: true } as never
+      disk.files[e.file_path] = e.content
+    } else if (e.tool === 'Edit') {
+      disk.files[e.file_path] = (disk.files[e.file_path] ?? '').replace(e.old_string, e.new_string)
+    }
+    if (e.tool === 'ExitPlanMode') return { result: { filePath: disk.exitPlanPath } } as never
+    return { result: {} } as never
+  })
+  on('ui.render', ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return h(Text, null, '') as never
+  })
+  return clock
 }
 
 const mountTaskTools = (on: On): void => {
@@ -314,6 +385,154 @@ test('unfinished STDD progress takes precedence over plan progress', { options: 
   await $.tool.call({
     tool: 'TodoWrite',
     todos: [{ content: 'main', activeForm: 'Working main', status: 'in_progress' }],
+  })
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /STDD checkout · execute/)).toBe(true)
+  expect(await bandText(ui as never, /Plan ·/)).toBe(false)
+})
+
+test('plan source priority is task list, then tracked checklist', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  const tracked = '/work/session.md'
+  mountChecklistDisk(on, {
+    files: {
+      [tracked]: '- [ ] tracked next\n- [ ] tracked later',
+    },
+  })
+
+  await $.tool.call({ tool: 'Write', file_path: tracked, content: '- [ ] tracked next\n- [ ] tracked later' })
+  await $.tool.call({
+    tool: 'TodoWrite',
+    todos: [{ content: 'task source', activeForm: 'Task source wins', status: 'in_progress' }],
+  })
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan · 0\/1 tasks/)).toBe(true)
+  expect(await bandText(ui as never, /session\.md/)).toBe(false)
+
+  await $.tool.call({ tool: 'TodoWrite', todos: [] })
+  expect(await bandText(ui as never, /Plan · session\.md · 0\/2 items/)).toBe(true)
+})
+
+test('a successful Write tracks a three-item markdown checklist and Edit updates its count', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  const path = '/work/roadmap.md'
+  mountChecklistDisk(on, { files: {} })
+  await $.tool.call({
+    tool: 'Write',
+    file_path: path,
+    content: '- [x] first\n- [ ] **second**\n- [ ] third',
+  })
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan · roadmap\.md · 1\/3 items/)).toBe(true)
+  expect(await bandText(ui as never, /▶ second/)).toBe(true)
+
+  await $.tool.call({ tool: 'Edit', file_path: path, old_string: '- [ ] **second**', new_string: '- [X] **second**' })
+  expect(await bandText(ui as never, /Plan · roadmap\.md · 2\/3 items/)).toBe(true)
+  expect(await bandText(ui as never, /▶ third/)).toBe(true)
+})
+
+test('Bash re-reads a tracked checklist and a throttled read has a trailing refresh', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  const path = '/work/roadmap.md'
+  const disk = { files: { [path]: '- [ ] first\n- [ ] second\n- [ ] third' } }
+  const clock = mountChecklistDisk(on, disk)
+  await $.tool.call({ tool: 'Write', file_path: path, content: disk.files[path] })
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /0\/3 items/)).toBe(true)
+
+  disk.files[path] = '- [x] first\n- [ ] second\n- [ ] third'
+  await $.tool.call({ tool: 'Bash', command: 'true', description: 'mutate markdown elsewhere' })
+  expect(await bandText(ui as never, /1\/3 items/)).toBe(false)
+  await clock.advance(1000)
+  expect(await bandText(ui as never, /1\/3 items/)).toBe(true)
+})
+
+test('subagent, denied, and too-short markdown writes are not tracked', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  mountChecklistDisk(on, { files: {} })
+  await $.tool.call({
+    tool: 'Write',
+    agentId: 'subagent-1',
+    file_path: '/work/subagent.md',
+    content: '- [ ] one\n- [ ] two\n- [ ] three',
+  } as never)
+  await $.tool.call({
+    tool: 'Write',
+    file_path: '/work/denied.md',
+    content: '- [ ] one\n- [ ] two\n- [ ] three',
+  }).catch(() => undefined)
+  await $.tool.call({ tool: 'Write', file_path: '/work/short.md', content: '- [ ] only one' })
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan ·/)).toBe(false)
+})
+
+test('a denied Write of an existing checklist file is not tracked', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  mountChecklistDisk(on, { files: { '/work/denied.md': '- [ ] one\n- [ ] two\n- [ ] three' } })
+  await $.tool.call({ tool: 'Write', file_path: '/work/denied.md', content: 'x' }).catch(() => undefined)
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan ·/)).toBe(false)
+})
+
+test('a failed Write of an existing checklist file is not tracked', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  mountChecklistDisk(on, { files: { '/work/failed.md': '- [ ] one\n- [ ] two\n- [ ] three' } })
+  await $.tool.call({ tool: 'Write', file_path: '/work/failed.md', content: 'x' }).catch(() => undefined)
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan ·/)).toBe(false)
+})
+
+test('a tracked file edited down to fewer than two items clears the band', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  const path = '/work/roadmap.md'
+  mountChecklistDisk(on, { files: {} })
+  await $.tool.call({ tool: 'Write', file_path: path, content: '- [ ] one\n- [ ] two' })
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan · roadmap\.md · 0\/2 items/)).toBe(true)
+
+  await $.tool.call({ tool: 'Edit', file_path: path, old_string: '- [ ] two', new_string: 'gone' })
+  expect(await bandText(ui as never, /Plan ·/)).toBe(false)
+})
+
+test('ExitPlanMode with a plan file path tracks that file like a Write', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  const path = '/plans/session-plan.md'
+  mountChecklistDisk(on, {
+    files: { [path]: '- [x] one\n- [ ] two\n- [ ] three' },
+    exitPlanPath: path,
+  })
+  await $.tool.call({ tool: 'ExitPlanMode' })
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan · session-plan\.md · 1\/3 items/)).toBe(true)
+})
+
+test('ExitPlanMode without a plan file path changes nothing', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  mountChecklistDisk(on, { files: {} })
+  await $.tool.call({ tool: 'ExitPlanMode' })
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan ·/)).toBe(false)
+})
+
+test('an all-done chosen checklist hides the plan band without falling through', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  const tracked = '/work/done.md'
+  mountChecklistDisk(on, {
+    files: {
+      [tracked]: '- [x] one\n- [X] two',
+    },
+  })
+  await $.tool.call({ tool: 'Write', file_path: tracked, content: '- [x] one\n- [X] two' })
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan ·/)).toBe(false)
+})
+
+test('unfinished STDD progress takes precedence over tracked checklists', { options: { fellowship: 'off', stdd_progress: 'on', plan_progress: 'on' } }, async ($, on) => {
+  const disk = { tasks: '- [ ] `S-01`\n' }
+  mountDisk(on, disk)
+  on('env.get', async () => ({ value: '/home/test' }) as never)
+  on('tool.call', async () => ({ result: {} }) as never)
+  await $.tool.call({
+    tool: 'Write',
+    file_path: '/work/notes.md',
+    content: '- [ ] first\n- [ ] second\n- [ ] third',
   })
 
   const ui = await $.ui.mount(BAND)

@@ -42,6 +42,17 @@ export type PlanTask = {
   status: 'pending' | 'in_progress' | 'completed'
 }
 
+export type ChecklistProgress = {
+  completed: number
+  total: number
+  next?: string
+}
+
+export type ChecklistFileView = {
+  path: string
+  checklist: ChecklistProgress
+}
+
 type TaskLine = {
   status: ' ' | 'wip' | 'x'
   id: string
@@ -61,6 +72,8 @@ type ProgressFs = {
 
 const TASK_LINE = /^- \[( |wip|x)\] `([^`]+)`(?: `(\[MANUAL\]|\[INFRA\])`)?/
 const FENCE_LINE = /^\s*```/
+const CHECKLIST_LINE = /^\s*[-*+] \[( |x|X)\] (.+)$/
+const CHECKLIST_FENCE_LINE = /^\s*(`{3,}|~{3,})(.*)$/
 const ARTIFACTS = ['tasks.md', 'spec.md', 'design-ux.md'] as const
 
 // Mirrors utf-8-sig in scripts/stdd_custody_check.py: a leading BOM must not hide the first line.
@@ -206,6 +219,54 @@ export const formatProgress = (view: StddProgressView, columns: number | undefin
 
 const truncateLabel = (label: string): string => label.length <= 60 ? label : `${label.slice(0, 59)}…`
 
+const checklistLabel = (label: string): string => {
+  const withoutCode = label.replace(/`([^`]*)`/g, '$1')
+  const withoutOpeningEmphasis = withoutCode.replace(/(^|\s)(?:\*\*|__|\*|_)(?=\S)/g, '$1')
+  const withoutEmphasis = withoutOpeningEmphasis.replace(/(\S)(?:\*\*|__|\*|_)(?=\s|$)/g, '$1')
+  return truncateLabel(withoutEmphasis.trim())
+}
+
+export const parseMarkdownChecklist = (text: string): ChecklistProgress => {
+  const items: Array<{ checked: boolean; text: string }> = []
+  let fence: { marker: '`' | '~'; width: number } | undefined
+
+  for (const line of stripBom(text).split(/\r?\n/)) {
+    const fenceMatch = CHECKLIST_FENCE_LINE.exec(line)
+    if (fenceMatch !== null) {
+      const delimiter = fenceMatch[1]
+      if (delimiter !== undefined) {
+        const marker = delimiter[0]
+        if (fence === undefined && (marker === '`' || marker === '~')) {
+          fence = { marker, width: delimiter.length }
+        } else if (
+          fence !== undefined &&
+          marker === fence.marker &&
+          delimiter.length >= fence.width &&
+          (fenceMatch[2] ?? '').trim() === ''
+        ) {
+          fence = undefined
+        }
+      }
+      continue
+    }
+    if (fence !== undefined) continue
+
+    const match = CHECKLIST_LINE.exec(line)
+    if (match === null || match[1] === undefined || match[2] === undefined) continue
+    items.push({
+      checked: match[1] === 'x' || match[1] === 'X',
+      text: checklistLabel(match[2]),
+    })
+  }
+
+  const next = items.find(item => !item.checked)?.text
+  return {
+    completed: items.filter(item => item.checked).length,
+    total: items.length,
+    ...(next === undefined ? {} : { next }),
+  }
+}
+
 // The plan band shows only while some task is still open.
 export const isPlanVisible = (tasks: readonly PlanTask[]): boolean =>
   tasks.length > 0 && tasks.some(task => task.status !== 'completed')
@@ -229,6 +290,33 @@ export const planProgressSegments = (tasks: readonly PlanTask[], columns: number
 
   return lines
 }
+
+const basename = (path: string): string => {
+  const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '')
+  return normalized.slice(normalized.lastIndexOf('/') + 1)
+}
+
+export const checklistProgressSegments = (
+  path: string,
+  checklist: ChecklistProgress,
+  columns: number | undefined,
+): Segment[][] => [[
+  { text: 'Plan', color: 'claude', bold: true },
+  { text: ' · ', color: 'subtle' },
+  { text: basename(path), color: 'text' },
+  { text: ' · ', color: 'subtle' },
+  { text: `${checklist.completed}/${checklist.total}`, color: 'text', bold: true },
+  { text: ' items', color: 'subtle' },
+], [
+  ...barSegments({
+    completed: checklist.completed,
+    total: checklist.total,
+    hasInProgress: checklist.next !== undefined,
+  }, columns),
+  ...(checklist.next === undefined
+    ? []
+    : [{ text: ` · ▶ ${checklist.next}`, color: 'warning' as const }]),
+]]
 
 const parentOf = (path: string): string | null => {
   const trimmed = path.length > 1 ? path.replace(/\/+$/, '') : path

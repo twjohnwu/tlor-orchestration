@@ -18,8 +18,16 @@ export type PlanTask = {
   status: 'pending' | 'in_progress' | 'completed'
 }
 
+export type PlanChecklist = {
+  path: string
+}
+
 declare module 'claude-code' {
   interface PluginState {
-    tlor: { agents: FellowshipAgent[]; planTasks: PlanTask[] }
+    tlor: {
+      agents: FellowshipAgent[]
+      planTasks: PlanTask[]
+      planChecklist: PlanChecklist | null
+    }
   }
 }
