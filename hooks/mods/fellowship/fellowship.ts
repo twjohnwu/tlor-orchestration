@@ -106,11 +106,12 @@ export const update = (
 export const isKnown = (list: FellowshipAgent[], id: string | undefined): boolean =>
   id !== undefined && list.some(one => one.id === id)
 
-export const addStepTokens = (
+// Each request re-reads the whole context, so the latest step's total is the agent's size; summing would recount it.
+export const recordStepTokens = (
   list: FellowshipAgent[],
   id: string | undefined,
-  usage: { input_tokens?: number; output_tokens?: number } | null | undefined,
-): FellowshipAgent[] => update(list, id, one => ({ ...one, tokens: one.tokens + tokensOf(usage ?? undefined) }))
+  usage: Parameters<typeof tokensOf>[0] | null,
+): FellowshipAgent[] => (usage == null ? list : update(list, id, one => ({ ...one, tokens: tokensOf(usage) })))
 
 export const completeAgent = (
   list: FellowshipAgent[],

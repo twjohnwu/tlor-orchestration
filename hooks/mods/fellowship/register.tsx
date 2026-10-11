@@ -2,7 +2,7 @@ import type { Register } from 'claude-code'
 
 import type { FellowshipAgent } from '../../../types'
 import {
-  addStepTokens,
+  recordStepTokens,
   completeAgent,
   hasRunning,
   iconFor,
@@ -158,7 +158,7 @@ export const register: Register = (on, options) => {
         for (let attempt = 0; attempt < 5; attempt += 1) {
           const { value = [], version } = await $.state.get(agents)
           if (!isKnown(value, id)) break
-          const withTokens = addStepTokens(value, id, result.usage)
+          const withTokens = recordStepTokens(value, id, result.usage)
           const list = shouldFillDetails
             ? update(withTokens, id, one => ({
                 ...one,

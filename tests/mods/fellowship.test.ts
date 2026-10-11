@@ -5,7 +5,7 @@ import { register as registerMods } from '../../hooks/mods/register'
 import type { FellowshipAgent } from '../../types'
 import {
   FALLBACK_ICON,
-  addStepTokens,
+  recordStepTokens,
   completeAgent,
   formatRow,
   iconFor,
@@ -158,7 +158,7 @@ test('pane selection keeps every running row and the newest completed rows with 
 })
 
 test('a completed turn does not count step tokens twice', async () => {
-  const afterStep = addStepTokens([spawned], 'a1', { input_tokens: 120, output_tokens: 30 })
+  const afterStep = recordStepTokens([spawned], 'a1', { input_tokens: 120, output_tokens: 30 })
   const afterComplete = completeAgent(afterStep, 'a1', 'completed', 500)
 
   expect(afterStep[0]?.tokens).toBe(150)
@@ -261,7 +261,7 @@ test('pane render text shows the +K done line when completed rows are dropped', 
   expect(await ui.find({ type: 'Text', text: '+2 done' })).toBeDefined()
 })
 
-test('several turn.step usages add up and turn.complete adds nothing', { options: { fellowship: 'manual', stdd_progress: 'off' } }, async ($, on) => {
+test('several turn.step usages show the latest step and turn.complete adds nothing', { options: { fellowship: 'manual', stdd_progress: 'off' } }, async ($, on) => {
   bottom(on, [])
   const spawned = await $.agent.spawn(spawnInput('locate'))
   const id = (spawned as { agentId: string }).agentId
@@ -272,12 +272,12 @@ test('several turn.step usages add up and turn.complete adds nothing', { options
     }
   }
   const ui = await mountPane($, 24)
-  expect(await ui.find({ type: 'Text', text: /0\.4k tok/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /0\.1k tok/ })).toBeDefined()
   await ui.unmount()
 
   await complete($, id)
   const done = await mountPane($, 24)
-  expect(await done.find({ type: 'Text', text: /0\.4k tok/ })).toBeDefined()
+  expect(await done.find({ type: 'Text', text: /0\.1k tok/ })).toBeDefined()
   expect(await done.find({ type: 'Text', text: /completed/ })).toBeDefined()
 })
 
@@ -291,4 +291,11 @@ test('turn end reason maps to row status', async () => {
   expect(statusOf('aborted')).toBe('killed')
   expect(statusOf('error')).toBe('failed')
   expect(statusOf('refusal')).toBe('failed')
+})
+
+test('tokens show the latest step, not a running sum', async () => {
+  const first = recordStepTokens([spawned], 'a1', { input_tokens: 100, output_tokens: 20, cache_read_input_tokens: 60_000 })
+  const second = recordStepTokens(first, 'a1', { input_tokens: 50, output_tokens: 10, cache_read_input_tokens: 61_000 })
+  expect(second[0]?.tokens).toBe(61_060)
+  expect(recordStepTokens(second, 'a1', null)[0]?.tokens).toBe(61_060)
 })
