@@ -11,8 +11,15 @@ export type FellowshipAgent = {
   effort?: string
 }
 
+export type PlanTask = {
+  id: string
+  subject: string
+  activeForm?: string
+  status: 'pending' | 'in_progress' | 'completed'
+}
+
 declare module 'claude-code' {
   interface PluginState {
-    tlor: { agents: FellowshipAgent[] }
+    tlor: { agents: FellowshipAgent[]; planTasks: PlanTask[] }
   }
 }

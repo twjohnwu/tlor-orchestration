@@ -16,10 +16,23 @@
       "default": "auto",
       "options": ["auto", "manual", "off"]
     },
+    "fellowship_max_rows": {
+      "type": "number",
+      "title": "Fellowship pane rows",
+      "description": "Maximum number of agent rows shown in the Fellowship pane.",
+      "default": 8
+    },
     "stdd_progress": {
       "type": "string",
       "title": "STDD progress band",
       "description": "Shows the newest unfinished STDD change and execute-task progress above the prompt.",
+      "default": "on",
+      "options": ["on", "off"]
+    },
+    "plan_progress": {
+      "type": "string",
+      "title": "Plan progress band",
+      "description": "Shows the main conversation's active task-list progress above the prompt when no unfinished STDD change exists.",
       "default": "on",
       "options": ["on", "off"]
     }

@@ -10,6 +10,7 @@ import {
   formatRow,
   iconFor,
   parseFrontmatter,
+  parseMaxRows,
   register,
   rowSegments,
   selectPaneRows,
@@ -144,17 +145,72 @@ test('only a spawn creates a row; events of unknown ids and the main thread are 
   expect(update(one, undefined, bump)).toBe(one)
 })
 
-test('pane selection keeps every running row and the newest completed rows with a summary', async () => {
-  const row = (id: string, status: 'running' | 'completed') => ({ ...spawned, id, status })
-  const list = [row('done-1', 'completed'), row('run-1', 'running'), row('done-2', 'completed'), row('run-2', 'running'), row('done-3', 'completed')]
+test('pane selection uses the default 5/3 quotas and keeps the latest-ended completed rows', async () => {
+  const running = Array.from({ length: 7 }, (_, index) => ({
+    ...spawned,
+    id: `run-${index + 1}`,
+    startedAt: index + 1,
+  }))
+  const ended = [10, 60, 30, 50, 20, 40]
+  const completed = ended.map((endedAt, index) => ({
+    ...spawned,
+    id: `done-${index + 1}`,
+    status: 'completed' as const,
+    startedAt: index + 20,
+    endedAt,
+  }))
 
-  const selected = selectPaneRows(list, 4)
-  expect(selected.rows.map(one => one.id)).toEqual(['run-1', 'run-2', 'done-3'])
-  expect(selected.hiddenCompleted).toBe(2)
+  const selected = selectPaneRows([...completed, ...running], 8, 20)
+  expect(selected.running.map(one => one.id)).toEqual(['run-3', 'run-4', 'run-5', 'run-6', 'run-7'])
+  expect(selected.hiddenRunning).toBe(2)
+  expect(selected.completed.map(one => one.id)).toEqual(['done-2', 'done-4', 'done-6'])
+  expect(selected.hiddenCompleted).toBe(3)
+})
 
-  const roomy = selectPaneRows(list, 5)
-  expect(roomy.rows.map(one => one.id)).toEqual(['run-1', 'run-2', 'done-1', 'done-2', 'done-3'])
-  expect(roomy.hiddenCompleted).toBe(0)
+test('pane selection rounds a four-row cap to three running and one completed', async () => {
+  const running = Array.from({ length: 4 }, (_, index) => ({ ...spawned, id: `run-${index + 1}` }))
+  const completed = Array.from({ length: 2 }, (_, index) => ({
+    ...spawned,
+    id: `done-${index + 1}`,
+    status: 'completed' as const,
+    endedAt: index + 1,
+  }))
+
+  const selected = selectPaneRows([...running, ...completed], 4, 20)
+  expect(selected.running.map(one => one.id)).toEqual(['run-2', 'run-3', 'run-4'])
+  expect(selected.completed.map(one => one.id)).toEqual(['done-2'])
+  expect(selected.hiddenRunning).toBe(1)
+  expect(selected.hiddenCompleted).toBe(1)
+})
+
+test('a small viewport trims completed rows before running rows', async () => {
+  const running = Array.from({ length: 7 }, (_, index) => ({ ...spawned, id: `run-${index + 1}` }))
+  const completed = Array.from({ length: 6 }, (_, index) => ({
+    ...spawned,
+    id: `done-${index + 1}`,
+    status: 'completed' as const,
+    endedAt: index + 1,
+  }))
+
+  const completedTrimmed = selectPaneRows([...running, ...completed], 8, 8)
+  expect(completedTrimmed.running).toHaveLength(5)
+  expect(completedTrimmed.completed.map(one => one.id)).toEqual(['done-6'])
+  expect(completedTrimmed.hiddenRunning).toBe(2)
+  expect(completedTrimmed.hiddenCompleted).toBe(5)
+
+  const runningTrimmed = selectPaneRows([...running, ...completed], 8, 6)
+  expect(runningTrimmed.running.map(one => one.id)).toEqual(['run-4', 'run-5', 'run-6', 'run-7'])
+  expect(runningTrimmed.completed).toHaveLength(0)
+  expect(runningTrimmed.hiddenRunning).toBe(3)
+  expect(runningTrimmed.hiddenCompleted).toBe(6)
+})
+
+test('invalid fellowship row caps fall back to eight and valid caps stop at fifty', async () => {
+  for (const value of [undefined, '', 'nope', 0, -1, Number.NaN]) {
+    expect(parseMaxRows(value)).toBe(8)
+  }
+  expect(parseMaxRows('4')).toBe(4)
+  expect(parseMaxRows(51)).toBe(50)
 })
 
 test('a completed turn does not count step tokens twice', async () => {
@@ -259,6 +315,15 @@ test('pane render text shows the +K done line when completed rows are dropped', 
   // rows 5 leaves room for one row, so two of the three completed rows are hidden
   const ui = await mountPane($, 6)
   expect(await ui.find({ type: 'Text', text: '+2 done' })).toBeDefined()
+})
+
+test('pane render honors fellowship_max_rows and shows the running summary', { options: { fellowship: 'manual', fellowship_max_rows: 2, stdd_progress: 'off' } }, async ($, on) => {
+  bottom(on, [])
+  for (const name of ['r1', 'r2', 'r3']) await $.agent.spawn(spawnInput(name))
+
+  const ui = await mountPane($, 24)
+  expect(await ui.find({ type: 'Text', text: /r3/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '+2 running' })).toBeDefined()
 })
 
 test('several turn.step usages show the latest step and turn.complete adds nothing', { options: { fellowship: 'manual', stdd_progress: 'off' } }, async ($, on) => {

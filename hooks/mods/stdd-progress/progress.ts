@@ -35,6 +35,13 @@ export type TaskProgress = {
   wip?: string
 }
 
+export type PlanTask = {
+  id: string
+  subject: string
+  activeForm?: string
+  status: 'pending' | 'in_progress' | 'completed'
+}
+
 type TaskLine = {
   status: ' ' | 'wip' | 'x'
   id: string
@@ -154,6 +161,25 @@ const PHASE_COLORS: Record<StddProgressView['phase'], ThemeKey> = {
   execute: 'success',
 }
 
+type BarProgress = {
+  completed: number
+  total: number
+  hasInProgress: boolean
+}
+
+export const barSegments = (progress: BarProgress, columns: number | undefined): Segment[] => {
+  const width = columns === undefined ? 24 : Math.max(4, Math.min(24, columns - 30))
+  const ratio = progress.total === 0 ? 0 : progress.completed / progress.total
+  const filled = Math.max(0, Math.min(width, Math.round(width * ratio)))
+  const hasWarningCell = progress.hasInProgress && filled < width
+
+  return [
+    { text: '▓'.repeat(filled), color: 'success' },
+    { text: hasWarningCell ? '▓' : '', color: 'warning' },
+    { text: '░'.repeat(width - filled - (hasWarningCell ? 1 : 0)), color: 'inactive' },
+  ]
+}
+
 export const progressSegments = (view: StddProgressView, columns: number | undefined): Segment[][] => {
   const lines: Segment[][] = [[
     { text: 'STDD', color: 'claude', bold: true },
@@ -164,14 +190,8 @@ export const progressSegments = (view: StddProgressView, columns: number | undef
   ]]
   if (view.phase !== 'execute') return lines
 
-  const width = columns === undefined ? 24 : Math.max(4, Math.min(24, columns - 30))
-  const ratio = view.total === 0 ? 0 : view.completed / view.total
-  const filled = Math.max(0, Math.min(width, Math.round(width * ratio)))
-  const hasWipCell = view.wip !== undefined && filled < width
   lines.push([
-    { text: '▓'.repeat(filled), color: 'success' },
-    { text: hasWipCell ? '▓' : '', color: 'warning' },
-    { text: '░'.repeat(width - filled - (hasWipCell ? 1 : 0)), color: 'inactive' },
+    ...barSegments({ completed: view.completed, total: view.total, hasInProgress: view.wip !== undefined }, columns),
     { text: ' ' },
     { text: `${view.completed}/${view.total}`, color: 'text', bold: true },
     { text: ' tasks', color: 'subtle' },
@@ -183,6 +203,32 @@ export const progressSegments = (view: StddProgressView, columns: number | undef
 
 export const formatProgress = (view: StddProgressView, columns: number | undefined): string[] =>
   progressSegments(view, columns).map(line => line.map(segment => segment.text).join(''))
+
+const truncateLabel = (label: string): string => label.length <= 60 ? label : `${label.slice(0, 59)}…`
+
+// The plan band shows only while some task is still open.
+export const isPlanVisible = (tasks: readonly PlanTask[]): boolean =>
+  tasks.length > 0 && tasks.some(task => task.status !== 'completed')
+
+export const planProgressSegments = (tasks: readonly PlanTask[], columns: number | undefined): Segment[][] => {
+  const completed = tasks.filter(task => task.status === 'completed').length
+  const active = tasks.find(task => task.status === 'in_progress')
+  const lines: Segment[][] = [[
+    { text: 'Plan', color: 'claude', bold: true },
+    { text: ' · ', color: 'subtle' },
+    { text: `${completed}/${tasks.length}`, color: 'text', bold: true },
+    { text: ' tasks', color: 'subtle' },
+  ]]
+
+  lines.push([
+    ...barSegments({ completed, total: tasks.length, hasInProgress: active !== undefined }, columns),
+    ...(active === undefined
+      ? []
+      : [{ text: ` · ▶ ${truncateLabel(active.activeForm ?? active.subject)}`, color: 'warning' as const }]),
+  ])
+
+  return lines
+}
 
 const parentOf = (path: string): string | null => {
   const trimmed = path.length > 1 ? path.replace(/\/+$/, '') : path

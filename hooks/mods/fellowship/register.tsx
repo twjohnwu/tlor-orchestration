@@ -8,6 +8,7 @@ import {
   iconFor,
   isKnown,
   isRoleName,
+  parseMaxRows,
   parseFrontmatter,
   register as registerAgent,
   rowSegments,
@@ -22,6 +23,7 @@ const agents = { plugin: 'tlor', key: 'agents' } as const
 
 export const register: Register = (on, options) => {
   const opensAutomatically = options.fellowship === 'auto'
+  const maxRows = parseMaxRows(options.fellowship_max_rows)
   let isOpened = false
   let ticker: { cancel: () => void } | undefined
   // role type -> its pinned frontmatter, read once per type
@@ -217,13 +219,22 @@ export const register: Register = (on, options) => {
     const { Box, Text } = $.ui.resolve(e)
     const { value: list = [] } = await $.state.get(agents)
     const now = await $.clock.now()
-    const room = Math.max(1, (e.viewport?.rows ?? 24) - 4)
-    const selection = selectPaneRows(list, room)
+    const room = Math.max(0, (e.viewport?.rows ?? 24) - 4)
+    const selection = selectPaneRows(list, maxRows, room)
 
     return (
       <Box flexDirection="column">
-        {selection.rows.length === 0 && selection.hiddenCompleted === 0 && <Text dimColor>No subagents yet.</Text>}
-        {selection.rows.map(agent => (
+        {selection.running.length === 0 && selection.completed.length === 0 &&
+          selection.hiddenRunning === 0 && selection.hiddenCompleted === 0 && <Text dimColor>No subagents yet.</Text>}
+        {selection.running.map(agent => (
+          <Box flexDirection="row">
+            {rowSegments(agent, now).map(segment => (
+              <Text color={segment.color} bold={segment.bold} dimColor={segment.dim}>{segment.text}</Text>
+            ))}
+          </Box>
+        ))}
+        {selection.hiddenRunning > 0 && <Text color="warning" dimColor>+{selection.hiddenRunning} running</Text>}
+        {selection.completed.map(agent => (
           <Box flexDirection="row">
             {rowSegments(agent, now).map(segment => (
               <Text color={segment.color} bold={segment.bold} dimColor={segment.dim}>{segment.text}</Text>

@@ -3,9 +3,12 @@ import { test, expect, mock } from 'claude-code/testing'
 
 import { register as registerMods } from '../../hooks/mods/register'
 import {
+  barSegments,
   formatProgress,
   parseTasks,
   phaseOf,
+  isPlanVisible,
+  planProgressSegments,
   pickNewestChange,
   progressSegments,
 } from '../../hooks/mods/stdd-progress/progress'
@@ -157,15 +160,43 @@ test('progress formatting sizes the bar and handles zero tasks', async () => {
   ])
 })
 
-test('stdd_progress off registers no STDD hooks', { options: { fellowship: 'off', stdd_progress: 'off' } }, async () => {
-  const events: string[] = []
-  const on = ((event: string) => {
-    events.push(event)
-    return { catch: () => undefined }
-  }) as never
+test('progress switches register one shared band only when either feature is on', async () => {
+  const registered = (stdd_progress: 'on' | 'off', plan_progress: 'on' | 'off'): string[] => {
+    const events: string[] = []
+    const on = ((event: string) => {
+      events.push(event)
+      return { catch: () => undefined }
+    }) as never
 
-  registerMods(on, { fellowship: 'off', stdd_progress: 'off' })
-  expect(events).toEqual([])
+    registerMods(on, { fellowship: 'off', stdd_progress, plan_progress })
+    return events
+  }
+
+  expect(registered('off', 'off')).toEqual([])
+  expect(registered('on', 'off')).toEqual(['tool.call', 'ui.render'])
+  expect(registered('off', 'on')).toEqual(['tool.call', 'ui.render'])
+  expect(registered('on', 'on')).toEqual(['tool.call', 'ui.render'])
+})
+
+test('plan bar segments share sizing, show K/T and one warning cell, and truncate the active label', async () => {
+  expect(barSegments({ completed: 2, total: 4, hasInProgress: true }, 42)).toEqual([
+    { text: '▓'.repeat(6), color: 'success' },
+    { text: '▓', color: 'warning' },
+    { text: '░'.repeat(5), color: 'inactive' },
+  ])
+
+  const lines = planProgressSegments([
+    { id: '1', subject: 'done', status: 'completed' },
+    { id: '2', subject: 'fallback', activeForm: 'x'.repeat(70), status: 'in_progress' },
+    { id: '3', subject: 'later', status: 'pending' },
+  ], 42)
+  expect(lines[0]?.map(segment => segment.text).join('')).toBe('Plan · 1/3 tasks')
+  expect(lines[1]?.slice(0, 3)).toEqual([
+    { text: '▓'.repeat(4), color: 'success' },
+    { text: '▓', color: 'warning' },
+    { text: '░'.repeat(7), color: 'inactive' },
+  ])
+  expect(lines[1]?.at(-1)).toEqual({ text: ` · ▶ ${'x'.repeat(59)}…`, color: 'warning' })
 })
 
 test('a BOM before the first task line does not hide it', async () => {
@@ -211,6 +242,90 @@ const BAND = {
 const bandText = async (ui: { find: (q: { type: string; text: RegExp }) => Promise<unknown> }, text: RegExp): Promise<boolean> => {
   return (await ui.find({ type: 'Text', text })) !== undefined
 }
+
+const mountEmptyDisk = (on: On): void => {
+  on('session.cwd', async () => ({ value: '/work' }) as never)
+  on('fs.list', async () => ({ value: [] }) as never)
+}
+
+const mountTaskTools = (on: On): void => {
+  let created = 0
+  on('tool.call', async (_$, e) => {
+    if (e.tool === 'TaskCreate') {
+      created += 1
+      return { result: { task: { id: String(created), subject: String(e.subject) } } } as never
+    }
+    return { result: {} } as never
+  })
+}
+
+test('TodoWrite replaces the plan list and renders its active task', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  mountTaskTools(on)
+  await $.tool.call({
+    tool: 'TodoWrite',
+    todos: [
+      { content: 'old done', activeForm: 'Old done', status: 'completed' },
+      { content: 'old active', activeForm: 'Working old task', status: 'in_progress' },
+    ],
+  })
+  await $.tool.call({
+    tool: 'TodoWrite',
+    todos: [{ content: 'new active', activeForm: 'Working new task', status: 'in_progress' }],
+  })
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan · 0\/1 tasks/)).toBe(true)
+  expect(await bandText(ui as never, /▶ Working new task/)).toBe(true)
+})
+
+test('TaskCreate and TaskUpdate edit the task plan, ignoring unknown ids and removing deleted tasks', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  mountTaskTools(on)
+  await $.tool.call({ tool: 'TaskCreate', subject: 'first', description: '' })
+  await $.tool.call({ tool: 'TaskCreate', subject: 'second', description: '', activeForm: 'Working second' })
+  await $.tool.call({ tool: 'TaskUpdate', taskId: 'missing', status: 'completed' })
+  await $.tool.call({ tool: 'TaskUpdate', taskId: '2', status: 'in_progress', subject: 'second renamed' })
+  await $.tool.call({ tool: 'TaskUpdate', taskId: '1', status: 'deleted' })
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan · 0\/1 tasks/)).toBe(true)
+  expect(await bandText(ui as never, /▶ Working second/)).toBe(true)
+})
+
+test('subagent task tool calls do not change the main plan', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  mountTaskTools(on)
+  await $.tool.call({
+    tool: 'TodoWrite',
+    todos: [{ content: 'main', activeForm: 'Working main', status: 'pending' }],
+  })
+  await $.tool.call({
+    tool: 'TodoWrite',
+    agentId: 'subagent-1',
+    todos: [{ content: 'child', activeForm: 'Working child', status: 'in_progress' }],
+  } as never)
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan · 0\/1 tasks/)).toBe(true)
+  expect(await bandText(ui as never, /Working child/)).toBe(false)
+})
+
+test('unfinished STDD progress takes precedence over plan progress', { options: { fellowship: 'off', stdd_progress: 'on', plan_progress: 'on' } }, async ($, on) => {
+  mountDisk(on, { tasks: '- [ ] `S-01`\n' })
+  mountTaskTools(on)
+  await $.tool.call({
+    tool: 'TodoWrite',
+    todos: [{ content: 'main', activeForm: 'Working main', status: 'in_progress' }],
+  })
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /STDD checkout · execute/)).toBe(true)
+  expect(await bandText(ui as never, /Plan ·/)).toBe(false)
+})
+
+test('an all-completed or empty plan is hidden', async () => {
+  expect(isPlanVisible([])).toBe(false)
+  expect(isPlanVisible([{ id: '1', label: 'done', status: 'completed' }] as never)).toBe(false)
+  expect(isPlanVisible([{ id: '1', label: 'a', status: 'completed' }, { id: '2', label: 'b', status: 'pending' }] as never)).toBe(true)
+})
 
 test('the first AbovePrompt render scans the disk without writing state', { options: { fellowship: 'off', stdd_progress: 'on' } }, async ($, on) => {
   mountDisk(on, { tasks: '- [x] `S-01`\n- [wip] `S-02`\n' })

@@ -121,25 +121,57 @@ export const completeAgent = (
 ): FellowshipAgent[] => update(list, id, one => ({ ...one, status, endedAt }))
 
 export type FellowshipSelection = {
-  rows: FellowshipAgent[]
+  running: FellowshipAgent[]
+  completed: FellowshipAgent[]
+  hiddenRunning: number
   hiddenCompleted: number
 }
 
-// Running rows are never hidden. Completed rows use the remaining room, reserving one row for
-// the summary whenever some completed rows must be omitted.
-export const selectPaneRows = (list: FellowshipAgent[], maxRows: number): FellowshipSelection => {
+export const parseMaxRows = (value: unknown): number => {
+  if (typeof value !== 'number' && typeof value !== 'string') return 8
+  if (typeof value === 'string' && value.trim() === '') return 8
+  const parsed = typeof value === 'number' ? value : Number(value)
+
+  return Number.isFinite(parsed) && parsed >= 1 ? Math.min(50, Math.floor(parsed)) : 8
+}
+
+const latestCompleted = (completed: FellowshipAgent[], count: number): FellowshipAgent[] =>
+  completed
+    .map((agent, index) => ({ agent, index }))
+    .sort((left, right) =>
+      ((right.agent.endedAt ?? Number.NEGATIVE_INFINITY) - (left.agent.endedAt ?? Number.NEGATIVE_INFINITY)) ||
+      right.index - left.index,
+    )
+    .slice(0, count)
+    .sort((left, right) => left.index - right.index)
+    .map(one => one.agent)
+
+// Quotas cap agent rows. Summary lines also consume viewport room, so a tight pane drops
+// completed rows first and then running rows while retaining their hidden counts.
+export const selectPaneRows = (list: FellowshipAgent[], maxRows: number, room: number): FellowshipSelection => {
   const running = list.filter(one => one.status === 'running')
   const completed = list.filter(one => one.status !== 'running')
-  const room = Math.max(0, Math.floor(maxRows) - running.length)
+  const cap = parseMaxRows(maxRows)
+  const runningQuota = Math.round(cap * 5 / 8)
+  let runningCount = Math.min(running.length, runningQuota)
+  let completedCount = Math.min(completed.length, cap - runningQuota)
+  const available = Number.isFinite(room) ? Math.max(0, Math.floor(room)) : 0
+  const lineCount = (): number =>
+    runningCount + completedCount +
+    (running.length > runningCount ? 1 : 0) +
+    (completed.length > completedCount ? 1 : 0)
 
-  if (completed.length <= room) return { rows: [...running, ...completed], hiddenCompleted: 0 }
+  while (lineCount() > available && completedCount > 0) completedCount -= 1
+  while (lineCount() > available && runningCount > 0) runningCount -= 1
 
-  const visibleCount = Math.max(0, room - 1)
-  const visible = visibleCount === 0 ? [] : completed.slice(-visibleCount)
+  const visibleRunning = runningCount === 0 ? [] : running.slice(-runningCount)
+  const visibleCompleted = latestCompleted(completed, completedCount)
 
   return {
-    rows: [...running, ...visible],
-    hiddenCompleted: completed.length - visible.length,
+    running: visibleRunning,
+    completed: visibleCompleted,
+    hiddenRunning: running.length - visibleRunning.length,
+    hiddenCompleted: completed.length - visibleCompleted.length,
   }
 }
 
