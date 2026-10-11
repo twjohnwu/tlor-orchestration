@@ -241,7 +241,6 @@ export const register: Register = (on, options) => {
             ))}
           </Box>
         ))}
-        {selection.hiddenCompleted > 0 && <Text color="inactive">+{selection.hiddenCompleted} done</Text>}
       </Box>
     )
   })

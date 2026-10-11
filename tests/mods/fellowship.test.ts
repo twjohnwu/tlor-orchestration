@@ -303,7 +303,7 @@ test('fellowship auto opens the pane on agent.spawn', { options: { fellowship: '
   expect(opened).toEqual(['tlor-fellowship'])
 })
 
-test('pane render text shows the +K done line when completed rows are dropped', { options: { fellowship: 'manual', stdd_progress: 'off' } }, async ($, on) => {
+test('pane render drops older completed rows without a +K done line', { options: { fellowship: 'manual', stdd_progress: 'off' } }, async ($, on) => {
   bottom(on, [])
   const ids: string[] = []
   for (const name of ['d1', 'd2', 'd3']) {
@@ -314,7 +314,8 @@ test('pane render text shows the +K done line when completed rows are dropped', 
 
   // rows 5 leaves room for one row, so two of the three completed rows are hidden
   const ui = await mountPane($, 6)
-  expect(await ui.find({ type: 'Text', text: '+2 done' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /\+\d+ done/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /d3/ })).toBeDefined()
 })
 
 test('pane render honors fellowship_max_rows and shows the running summary', { options: { fellowship: 'manual', fellowship_max_rows: 2, stdd_progress: 'off' } }, async ($, on) => {
