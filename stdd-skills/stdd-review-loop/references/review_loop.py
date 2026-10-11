@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Mechanical helpers for an AI code-review loop on GitHub or GitLab.
 
-Run ``review_loop.py --help`` for the eleven operations.  Every operation emits
+Run ``review_loop.py --help`` for the thirteen operations.  Every operation emits
 one JSON object, making this module suitable for skill prose and shell-free
 automation.  The pure helpers near the top are intentionally importable for
 unit tests and for callers that only need parsing or text transformations.
@@ -13,6 +13,7 @@ import math
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -32,6 +33,7 @@ SECRET_PATTERN = re.compile(
 STDERR_TAIL = 500
 GITLAB_PIPELINE_RECHECKS = 6
 GITLAB_PIPELINE_RECHECK_SECONDS = 30
+QUEUE_UNREADABLE_GRACE_SECONDS = 30
 
 
 class ReviewLoopError(Exception):
@@ -260,17 +262,33 @@ def _set_section_line(section, key, value, existed):
     return section + ("" if section.endswith("\n") else "\n") + line + "\n"
 
 
-def upsert_review_loop_section(text, minutes=None, job=None, bot=None):
+def upsert_review_loop_section(
+    text,
+    minutes=None,
+    job=None,
+    bot=None,
+    max_rounds=None,
+    test_command=None,
+    lint_command=None,
+    tests=None,
+):
     """Update Review loop values while preserving every unrelated byte.
 
     Returns ``(text, minutes_written, job_written, bot_written, minutes, job,
-    bot)`` where the last three are the values in effect afterwards.
+    bot)`` where the last three are the values in effect afterwards.  The
+    additional settings are updated without changing this legacy return shape.
     """
     bounds = _review_section_bounds(text)
     section = text[bounds[0] : bounds[1]] if bounds else ""
     old_minutes_text = _section_value(section, "ci-wait-minutes")
     old_job = _section_value(section, "review-job-name")
     old_bot = _section_value(section, "review-bot")
+    extra_values = (
+        ("max-rounds", max_rounds),
+        ("test-command", test_command),
+        ("lint-command", lint_command),
+        ("tests", tests),
+    )
     try:
         old_minutes = int(old_minutes_text) if old_minutes_text is not None else None
     except ValueError:
@@ -285,11 +303,16 @@ def upsert_review_loop_section(text, minutes=None, job=None, bot=None):
             minutes_written = abs(new_minutes - old_minutes) / float(abs(old_minutes)) > 0.20
     job_written = job is not None and job != old_job
     bot_written = bot is not None and bot != old_bot
+    extra_writes = [
+        (key, value, _section_value(section, key))
+        for key, value in extra_values
+        if value is not None and str(value) != _section_value(section, key)
+    ]
     current_minutes = new_minutes if minutes_written else old_minutes
     current_job = job if job_written else old_job
     current_bot = bot if bot_written else old_bot
 
-    if not minutes_written and not job_written and not bot_written:
+    if not minutes_written and not job_written and not bot_written and not extra_writes:
         return text, False, False, False, old_minutes, old_job, old_bot
 
     if not bounds:
@@ -301,6 +324,8 @@ def upsert_review_loop_section(text, minutes=None, job=None, bot=None):
             additions.append("- review-job-name: {0}".format(job))
         if bot_written:
             additions.append("- review-bot: {0}".format(bot))
+        for key, value, _old_value in extra_writes:
+            additions.append("- {0}: {1}".format(key, value))
         updated = text + separator + "\n".join(additions) + "\n"
     else:
         updated_section = section
@@ -315,6 +340,10 @@ def upsert_review_loop_section(text, minutes=None, job=None, bot=None):
         if bot_written:
             updated_section = _set_section_line(
                 updated_section, "review-bot", bot, old_bot is not None
+            )
+        for key, value, old_value in extra_writes:
+            updated_section = _set_section_line(
+                updated_section, key, value, old_value is not None
             )
         updated = text[: bounds[0]] + updated_section + text[bounds[1] :]
     return (
@@ -374,7 +403,13 @@ def pick_latest_comment(
 
 
 def _check_category(check):
-    value = str(check.get("bucket") or check.get("status") or check.get("state") or "").lower()
+    value = str(
+        check.get("bucket")
+        or check.get("status")
+        or check.get("state")
+        or check.get("conclusion")
+        or ""
+    ).lower()
     if value in (
         "pending", "running", "created", "queued", "in_progress",
         "waiting_for_resource", "preparing", "scheduled", "canceling",
@@ -384,6 +419,8 @@ def _check_category(check):
         return "failed"
     if value in ("cancel", "cancelled", "canceled"):
         return "canceled"
+    if value in ("manual", "skipped"):
+        return "success"
     return "success"
 
 
@@ -414,6 +451,17 @@ def _top_level_alternatives(pattern):
     return [part for part in parts if part] or [pattern]
 
 
+def _counted_category(check, review):
+    """Category for the summary; a non-review GitLab job allowed to fail
+    (``allow_failure: true``) never counts as failed or canceled."""
+    category = _check_category(check)
+    if check is not review and check.get("allow_failure") is True and category in (
+        "failed", "canceled",
+    ):
+        return "success"
+    return category
+
+
 def summarize_checks(checks, job=None, job_pattern=DEFAULT_JOB_PATTERN):
     """Summarize normalized GitHub checks or GitLab jobs."""
     if not checks:
@@ -422,6 +470,7 @@ def summarize_checks(checks, job=None, job_pattern=DEFAULT_JOB_PATTERN):
             "review_job": None,
             "review_job_status": None,
             "failed_jobs": [],
+            "canceled_jobs": [],
         }
     review = None
     if job is not None:
@@ -443,9 +492,14 @@ def summarize_checks(checks, job=None, job_pattern=DEFAULT_JOB_PATTERN):
     failed_jobs = [
         check.get("name") or ""
         for check in checks
-        if check is not review and _check_category(check) == "failed"
+        if check is not review and _counted_category(check, review) == "failed"
     ]
-    categories = [_check_category(check) for check in checks]
+    canceled_jobs = [
+        check.get("name") or ""
+        for check in checks
+        if check is not review and _counted_category(check, review) == "canceled"
+    ]
+    categories = [_counted_category(check, review) for check in checks]
     if "pending" in categories:
         status = "running"
     elif review is not None and _check_category(review) == "failed":
@@ -466,6 +520,7 @@ def summarize_checks(checks, job=None, job_pattern=DEFAULT_JOB_PATTERN):
         "review_job": (review.get("name") or "") if review is not None else None,
         "review_job_status": review_status if review is not None else None,
         "failed_jobs": failed_jobs,
+        "canceled_jobs": canceled_jobs,
     }
 
 
@@ -480,9 +535,14 @@ def scaled_sleep(seconds):
     time.sleep(seconds * scale)
 
 
+def redact_text(text):
+    """Mask GitHub and GitLab access tokens in arbitrary output."""
+    return SECRET_PATTERN.sub("[REDACTED]", text or "")
+
+
 def redact_stderr(text):
     """Mask CLI tokens, then keep only the tail of a CLI's stderr."""
-    return SECRET_PATTERN.sub("[REDACTED]", text or "")[-STDERR_TAIL:]
+    return redact_text(text)[-STDERR_TAIL:]
 
 
 def _run(args, allow_nonzero_json=False, discard=False):
@@ -796,6 +856,45 @@ def _record_values(text):
     )
 
 
+def _new_record_values(text, local_text=""):
+    bounds = _review_section_bounds(text)
+    section = text[bounds[0] : bounds[1]] if bounds else ""
+    max_rounds_text = _section_value(section, "max-rounds")
+    if max_rounds_text is None:
+        max_rounds = 10
+    else:
+        try:
+            max_rounds = int(max_rounds_text)
+        except ValueError:
+            raise ReviewLoopError("max-rounds must be a positive integer")
+        if max_rounds < 1:
+            raise ReviewLoopError("max-rounds must be a positive integer")
+
+    local_bounds = _review_section_bounds(local_text)
+    local_section = local_text[local_bounds[0] : local_bounds[1]] if local_bounds else ""
+    tests = _section_value(local_section, "tests") or "never"
+    if tests not in ("never", "serial"):
+        raise ReviewLoopError("tests must be never or serial")
+    return {
+        "max_rounds": max_rounds,
+        "test_command": _section_value(section, "test-command"),
+        "lint_command": _section_value(section, "lint-command"),
+        "tests": tests,
+    }
+
+
+def _settings_result(path, text, local_text):
+    minutes, job, bot = _record_values(text)
+    result = {
+        "path": str(path),
+        "ci_wait_minutes": minutes,
+        "review_job_name": job,
+        "review_bot": bot,
+    }
+    result.update(_new_record_values(text, local_text))
+    return result
+
+
 def _read_text_exact(path):
     with path.open("r", encoding="utf-8", newline="") as handle:
         return handle.read()
@@ -807,19 +906,81 @@ def _write_text_exact(path, text):
 
 
 def command_record(args):
-    path = Path(args.agents) if args.agents else Path(_repo_root()) / "AGENTS.md"
-    text = _read_text_exact(path) if path.exists() else ""
+    agents_path = Path(args.agents) if args.agents else Path(_repo_root()) / "AGENTS.md"
+    local_path = agents_path.parent / "AGENTS.local.md"
+    text = _read_text_exact(agents_path) if agents_path.exists() else ""
+    local_text = _read_text_exact(local_path) if local_path.exists() else ""
+    if args.max_rounds is not None and args.max_rounds < 1:
+        raise ReviewLoopError("max-rounds must be a positive integer")
     if args.show:
-        minutes, job, bot = _record_values(text)
-        return {
-            "path": str(path),
+        result = _settings_result(agents_path, text, local_text)
+        result.update({
             "minutes_written": False,
             "job_written": False,
             "bot_written": False,
-            "ci_wait_minutes": minutes,
-            "review_job_name": job,
-            "review_bot": bot,
-        }
+            "max_rounds_written": False,
+            "test_command_written": False,
+            "lint_command_written": False,
+            "tests_written": False,
+        })
+        return result
+
+    if args.local:
+        if any(
+            value is not None
+            for value in (
+                args.minutes,
+                args.job,
+                args.bot,
+                args.max_rounds,
+                args.test_command,
+                args.lint_command,
+            )
+        ):
+            raise ReviewLoopError("--local only accepts --tests")
+        if args.tests is None:
+            raise ReviewLoopError("--local requires --tests")
+        old_tests = _section_value(
+            local_text[_review_section_bounds(local_text)[0] : _review_section_bounds(local_text)[1]]
+            if _review_section_bounds(local_text)
+            else "",
+            "tests",
+        )
+        ignored = False
+        try:
+            ignored = subprocess.run(
+                ["git", "check-ignore", "-q", "AGENTS.local.md"],
+                cwd=str(agents_path.parent),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            ).returncode == 0
+        except OSError:
+            ignored = False
+        updated = upsert_review_loop_section(local_text, tests=args.tests)[0]
+        if updated != local_text or not local_path.exists():
+            _write_text_exact(local_path, updated)
+        result = _settings_result(local_path, text, updated)
+        result.update({
+            "minutes_written": False,
+            "job_written": False,
+            "bot_written": False,
+            "max_rounds_written": False,
+            "test_command_written": False,
+            "lint_command_written": False,
+            "tests_written": args.tests is not None and args.tests != old_tests,
+        })
+        if not ignored:
+            result["warning"] = "AGENTS.local.md is not gitignored; add it to .gitignore"
+        return result
+
+    if args.tests is not None:
+        raise ReviewLoopError("--tests requires --local")
+    old_bounds = _review_section_bounds(text)
+    old_section = text[old_bounds[0] : old_bounds[1]] if old_bounds else ""
+    old_raw = {
+        key: _section_value(old_section, key)
+        for key in ("max-rounds", "test-command", "lint-command")
+    }
     (
         updated,
         minutes_written,
@@ -828,18 +989,360 @@ def command_record(args):
         minutes,
         job,
         bot,
-    ) = upsert_review_loop_section(text, args.minutes, args.job, args.bot)
-    if updated != text or not path.exists():
-        _write_text_exact(path, updated)
-    return {
-        "path": str(path),
+    ) = upsert_review_loop_section(
+        text,
+        args.minutes,
+        args.job,
+        args.bot,
+        args.max_rounds,
+        args.test_command,
+        args.lint_command,
+    )
+    if updated != text or not agents_path.exists():
+        _write_text_exact(agents_path, updated)
+    result = _settings_result(agents_path, updated, local_text)
+    result.update({
         "minutes_written": minutes_written,
         "job_written": job_written,
         "bot_written": bot_written,
-        "ci_wait_minutes": minutes,
-        "review_job_name": job,
-        "review_bot": bot,
+        "max_rounds_written": args.max_rounds is not None
+        and str(args.max_rounds) != old_raw.get("max-rounds"),
+        "test_command_written": args.test_command is not None
+        and args.test_command != old_raw.get("test-command"),
+        "lint_command_written": args.lint_command is not None
+        and args.lint_command != old_raw.get("lint-command"),
+        "tests_written": False,
+    })
+    return result
+
+
+def _pid_alive(pid):
+    if not isinstance(pid, int) or pid < 1:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def _pgid_alive(pgid):
+    if not isinstance(pgid, int) or isinstance(pgid, bool) or pgid < 1:
+        return False
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def _queue_file_child_pgid(path):
+    """``child_pgid`` recorded in a lock once its test command started; None
+    when absent or unreadable."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8").strip())
+    except (OSError, TypeError, ValueError):
+        return None
+    pgid = data.get("child_pgid") if isinstance(data, dict) else None
+    if isinstance(pgid, bool) or not isinstance(pgid, int):
+        return None
+    return pgid
+
+
+def _queue_file_pid(path):
+    """Pid recorded in a ticket, lock, or temp file (``{"pid": N}``, or a bare
+    number from older locks); None when unreadable or empty."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8").strip())
+        if isinstance(data, dict):
+            data = data.get("pid")
+        if isinstance(data, bool) or not isinstance(data, int):
+            return None
+        return data
+    except (OSError, TypeError, ValueError):
+        return None
+
+
+def _purge_stale_queue_files(queue_dir, own_ticket=None):
+    """Drop queue files left by dead processes.  A file whose pid is alive is
+    never purged, however old; a file with no readable pid is purged only
+    after QUEUE_UNREADABLE_GRACE_SECONDS.  Only the waiter whose ticket
+    (``own_ticket``) is the queue head may purge ``lock``: two purgers could
+    otherwise both read a dead lock while a third links a live one, and the
+    unlink would delete it."""
+    now = time.time()
+    paths = list(queue_dir.glob("ticket-*.json"))
+    paths.extend(queue_dir.glob(".tmp-*"))
+    for path in paths:
+        _purge_if_stale(path, now)
+    tickets = sorted(queue_dir.glob("ticket-*.json"), key=lambda path: path.name)
+    if own_ticket is not None and tickets and tickets[0] == own_ticket:
+        _purge_if_stale(queue_dir / "lock", now)
+
+
+def _purge_if_stale(path, now):
+    if not path.exists():
+        return
+    pid = _queue_file_pid(path)
+    if pid is None:
+        try:
+            stale = now - path.stat().st_mtime > QUEUE_UNREADABLE_GRACE_SECONDS
+        except OSError:
+            return
+    else:
+        # A SIGKILLed supervisor leaves its test command running in its own
+        # process group; the lock stays held until that group is gone too.
+        stale = not _pid_alive(pid) and not _pgid_alive(_queue_file_child_pgid(path))
+    if stale:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _write_exclusive(path, text):
+    """Create ``path`` holding ``text``, or return False if it exists.  The
+    content goes to a temp file first and is hard-linked into place, so no
+    other process ever sees ``path`` empty."""
+    temp = path.parent / ".tmp-{0}-{1}".format(os.getpid(), time.time_ns())
+    descriptor = os.open(str(temp), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    try:
+        try:
+            os.write(descriptor, text.encode("utf-8"))
+        finally:
+            os.close(descriptor)
+        try:
+            os.link(str(temp), str(path))
+        except FileExistsError:
+            return False
+        return True
+    finally:
+        try:
+            temp.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _replace_atomic(path, text):
+    """Rewrite ``path`` with ``text`` through a temp file in the same
+    directory and ``os.replace``, so no reader ever sees it partial."""
+    temp = path.parent / ".tmp-{0}-{1}".format(os.getpid(), time.time_ns())
+    descriptor = os.open(str(temp), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    try:
+        try:
+            os.write(descriptor, text.encode("utf-8"))
+        finally:
+            os.close(descriptor)
+        os.replace(str(temp), str(path))
+    finally:
+        try:
+            temp.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _remove_owned_lock(path, pid):
+    if _queue_file_pid(path) != pid:
+        return
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        pass
+
+
+def _repo_root_or_cwd():
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            universal_newlines=True,
+        )
+    except OSError:
+        return Path.cwd()
+    root = proc.stdout.strip()
+    return Path(root) if proc.returncode == 0 and root else Path.cwd()
+
+
+def command_run_tests(args):
+    repo_cwd = Path.cwd()
+    settings_root = _repo_root_or_cwd()
+    agents_path = settings_root / "AGENTS.md"
+    local_path = settings_root / "AGENTS.local.md"
+    agents_text = _read_text_exact(agents_path) if agents_path.exists() else ""
+    local_text = _read_text_exact(local_path) if local_path.exists() else ""
+    settings = _new_record_values(agents_text, local_text)
+    if settings["tests"] == "never":
+        raise ReviewLoopError("tests policy is never")
+    command = args.cmd or settings["test_command"]
+    if not command:
+        raise ReviewLoopError("no test command configured; use --cmd or record --test-command")
+    if not command.strip():
+        raise ReviewLoopError("test command is empty")
+    if args.timeout < 0:
+        raise ReviewLoopError("timeout must not be negative")
+
+    queue_dir = Path(
+        os.environ.get("TLOR_TEST_QUEUE_DIR", str(Path.home() / ".claude" / "tlor" / "test-queue"))
+    ).expanduser()
+    queue_dir.mkdir(parents=True, exist_ok=True)
+    pid = os.getpid()
+    created = time.time()
+    ticket = queue_dir / "ticket-{0:020d}-{1}.json".format(time.time_ns(), pid)
+    ticket_data = {
+        "pid": pid,
+        "cwd": str(repo_cwd),
+        "command": command,
+        "created": created,
     }
+    if not _write_exclusive(ticket, json.dumps(ticket_data, separators=(",", ":"))):
+        raise ReviewLoopError("unable to create a unique test queue ticket")
+
+    wait_started = time.monotonic()
+    lock = queue_dir / "lock"
+    acquired = False
+    try:
+        while True:
+            _purge_stale_queue_files(queue_dir, ticket)
+            tickets = sorted(queue_dir.glob("ticket-*.json"), key=lambda path: path.name)
+            if tickets and tickets[0] == ticket:
+                acquired = _write_exclusive(lock, json.dumps({"pid": pid}))
+                if acquired:
+                    break
+            if time.monotonic() - wait_started >= args.timeout:
+                return {"status": "timeout"}
+            scaled_sleep(0.5)
+
+        waited = time.monotonic() - wait_started
+        run_started = time.monotonic()
+        # A shell command line (``cd x && pytest``, ``CI=1 make test``), run
+        # by /bin/sh with an explicit argv rather than shell=True. The child
+        # gets its own session so SIGTERM/SIGHUP/Ctrl-C can kill the whole
+        # process group and the lock is only released once it is gone.
+        def terminate(signum, frame):
+            raise SystemExit(128 + signum)
+
+        previous = {}
+        child = None
+        try:
+            for sig in (signal.SIGTERM, signal.SIGHUP):
+                previous[sig] = signal.signal(sig, terminate)
+            try:
+                child = subprocess.Popen(
+                    ["/bin/sh", "-c", command],
+                    cwd=str(repo_cwd),
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                    start_new_session=True,
+                )
+            except OSError:
+                raise ReviewLoopError("unable to run /bin/sh")
+            try:
+                # The child leads its own session, so its pid is its pgid.
+                _replace_atomic(lock, json.dumps({"pid": pid, "child_pgid": child.pid}))
+                stdout, stderr = child.communicate()
+            except BaseException:
+                _kill_process_group(child)
+                raise
+        finally:
+            for sig, handler in previous.items():
+                signal.signal(sig, handler)
+        proc = subprocess.CompletedProcess(child.args, child.returncode, stdout, stderr)
+        duration = time.monotonic() - run_started
+        return {
+            "status": "ok" if proc.returncode == 0 else "failed",
+            "exit_code": proc.returncode,
+            "waited_seconds": waited,
+            "duration_seconds": duration,
+            "stdout_tail": redact_text(proc.stdout)[-4000:],
+            "stderr_tail": redact_text(proc.stderr)[-4000:],
+        }
+    finally:
+        if acquired:
+            _remove_owned_lock(lock, pid)
+        try:
+            ticket.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _kill_process_group(child):
+    """SIGTERM the child's process group, SIGKILL after 5 s, and reap it."""
+    for sig, wait in ((signal.SIGTERM, 5), (signal.SIGKILL, None)):
+        try:
+            os.killpg(child.pid, sig)
+        except (ProcessLookupError, PermissionError):
+            pass
+        try:
+            child.wait(timeout=wait)
+            return
+        except subprocess.TimeoutExpired:
+            continue
+
+
+def _log_tail(text, lines):
+    if lines < 1:
+        raise ReviewLoopError("lines must be a positive integer")
+    return "\n".join(redact_text(text).splitlines()[-lines:])
+
+
+def command_job_log(args):
+    platform = _selected_platform(args)
+    if platform == "github":
+        proc = _run(
+            ["gh", "pr", "checks"] + _ref_args(args.pr) + ["--json", "name,link,state,bucket"],
+            allow_nonzero_json=True,
+        )
+        try:
+            checks = json.loads(proc.stdout)
+        except (TypeError, ValueError):
+            raise ReviewLoopError("gh returned invalid JSON")
+        if not isinstance(checks, list):
+            raise ReviewLoopError("gh returned unexpected checks JSON")
+        match = next(
+            (
+                check
+                for check in checks
+                if check.get("name") == args.job and _check_category(check) == "failed"
+            ),
+            None,
+        )
+        if match is None:
+            raise ReviewLoopError("failed job not found: {0}".format(args.job))
+        link = re.match(
+            r"^https://[^/]+/[^/]+/[^/]+/actions/runs/(\d+)/jobs?/(\d+)(?:[/?#]|$)",
+            str(match.get("link") or ""),
+        )
+        if link is None:
+            raise ReviewLoopError("not a GitHub Actions job: {0}".format(args.job))
+        view = ["gh", "run", "view", link.group(1), "--job", link.group(2)]
+        proc = _run(view + ["--log-failed"])
+        if not (proc.stdout or "").strip():
+            proc = _run(view + ["--log"])
+    else:
+        jobs = _checks(platform, args.pr)
+        match = next(
+            (
+                job
+                for job in jobs
+                if job.get("name") == args.job and _check_category(job) == "failed"
+            ),
+            None,
+        )
+        if match is None or match.get("id") is None:
+            raise ReviewLoopError("failed job not found: {0}".format(args.job))
+        proc = _run(["glab", "ci", "trace", str(match["id"])])
+    tail = _log_tail(proc.stdout, args.lines)
+    return {"job": args.job, "log_tail": tail, "empty": not bool(tail.strip())}
 
 
 def command_comment(args):
@@ -985,9 +1488,25 @@ def build_parser():
     record.add_argument("--minutes", type=float)
     record.add_argument("--job")
     record.add_argument("--bot", help="login of the review bot that posts review comments")
+    record.add_argument("--max-rounds", type=int)
+    record.add_argument("--test-command")
+    record.add_argument("--lint-command")
+    record.add_argument("--local", action="store_true")
+    record.add_argument("--tests", choices=("never", "serial"))
     record.add_argument("--agents")
     record.add_argument("--show", action="store_true")
     record.set_defaults(func=command_record)
+
+    run_tests = subparsers.add_parser("run-tests", help="run tests through the machine-wide queue")
+    run_tests.add_argument("--cmd")
+    run_tests.add_argument("--timeout", type=float, default=3600)
+    run_tests.set_defaults(func=command_run_tests)
+
+    job_log = subparsers.add_parser("job-log", help="fetch the failed log for a named CI job")
+    _add_platform_args(job_log)
+    job_log.add_argument("--job", required=True)
+    job_log.add_argument("--lines", type=int, default=200)
+    job_log.set_defaults(func=command_job_log)
 
     comment = subparsers.add_parser("comment", help="post a PR/MR comment")
     _add_platform_args(comment)
@@ -1018,6 +1537,8 @@ def main(argv=None):
             raise ReviewLoopError("a subcommand is required")
         result = args.func(args)
         print(json.dumps(result, separators=(",", ":")))
+        if args.command == "run-tests" and result.get("status") in ("failed", "timeout"):
+            return 1
         return 0
     except (ReviewLoopError, OSError, ValueError, re.error) as exc:
         result = {"error": str(exc)}

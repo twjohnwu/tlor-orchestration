@@ -15,10 +15,25 @@ by `glab` from the current repository.
    (`origin` when unset), then `git remote get-url <that remote>`, same rule.
 4. Else `git remote get-url origin`, same rule.
 
-`parse` and `record` touch no platform. `record` reads and writes
-`<repo root>/AGENTS.md` (`git rev-parse --show-toplevel`), or `--agents
-<path>`; its `## Review loop` section holds `ci-wait-minutes`,
-`review-job-name`, and `review-bot`.
+`parse`, `record`, and `run-tests` touch no platform. `record` reads and
+writes `<repo root>/AGENTS.md` (`git rev-parse --show-toplevel`), or
+`--agents <path>`; its `## Review loop` section holds `ci-wait-minutes`,
+`review-job-name`, `review-bot`, `max-rounds`, `test-command`, and
+`lint-command`. `AGENTS.local.md` next to it (per machine, gitignored)
+holds `tests: never|serial`, written only by `record --local --tests`;
+`record --show` merges both files.
+
+`run-tests` runs `--cmd`, else `test-command`, through a machine-wide FIFO
+queue (one test process at a time across all repos), in the foreground; it
+refuses when `tests` is `never`. The command runs
+via `/bin/sh -c` in the current directory; settings are read from the git
+repo root (`git rev-parse --show-toplevel`), else the current directory. The queue
+lock records the supervisor `pid` and, once the command starts, its
+`child_pgid`; a lock stays held while either is alive, so a SIGKILLed
+supervisor whose test group still runs does not let the next run start. The opt-in hook `hooks/test_queue_guard.py`
+(`TLOR_TEST_QUEUE_GUARD=1`, installed with `install.sh --install-hook`)
+denies test-like Bash commands per the same policy: all of them under
+`never`, any outside the queue or in the background under `serial`.
 
 ## Command mapping
 
@@ -29,6 +44,7 @@ by `glab` from the current repository.
 | `wait` | `gh pr checks <ref> --json name,state,bucket` (non-zero exit tolerated while checks are pending; empty stdout with any exit code, or non-zero exit with non-JSON stdout → no checks, `status: none`) | `glab mr view <ref> -F json` → pipeline id; then `glab api projects/:id/pipelines/<pipeline id>/jobs?per_page=100` |
 | `ensure-description` | `gh pr view` (as `detect`); `gh pr edit <ref> --body-file <template>` | `glab mr view` (as `detect`); `glab api --method PUT projects/:id/merge_requests/<iid> --input <temp JSON file> -H "Content-Type: application/json"` (body `{"description": <text>}`) |
 | `fetch-review` | `gh api user --jq .login` (once, to exclude the user's own comments); `gh pr view <ref> --json comments,reviews` (comments and reviews merged into one list) | `glab api user` → `username` (once, to exclude the user's own comments); `glab mr view` (for `iid`); `glab api projects/:id/merge_requests/<iid>/notes?sort=desc&order_by=created_at&per_page=100` |
+| `job-log` | `gh pr checks <pr> --json name,link,state,bucket` → failed check whose `name` equals `--job`; run id and job id parsed from its `link` (`…/actions/runs/<run_id>/job/<job_id>`, otherwise error "not a GitHub Actions job"); `gh run view <run_id> --job <job_id> --log-failed` (falls back to `--log` when empty) | `glab mr view` + pipeline jobs (as `wait`) → failed job whose `name` equals `--job`; `glab ci trace <job id>` |
 | `comment` | `gh pr comment <ref> --body-file <file>` | `glab mr view` (for `iid`); `glab api --method POST projects/:id/merge_requests/<iid>/notes --input <temp JSON file> -H "Content-Type: application/json"` (body `{"body": <text>}`) |
 | `set-section` | `gh pr view` (as `detect`); `gh pr edit <ref> --body-file <temp file>` | `glab mr view` (as `detect`); `glab api --method PUT projects/:id/merge_requests/<iid> --input <temp JSON file> -H "Content-Type: application/json"` (body `{"description": <text>}`) |
 | `push-time` | `gh pr view` (as `detect`); `gh api repos/{owner}/{repo}/commits/<sha>/check-suites` → earliest `check_suites[].created_at` (`source: check_suite`); none → `gh api repos/{owner}/{repo}/commits/<sha>` → `commit.committer.date` (`source: commit_date`) | `glab mr view` (as `detect`) → `head_pipeline.created_at` (`source: pipeline`), only when `head_pipeline.sha` equals the MR head sha; otherwise `glab mr view` is rechecked every 30 s, up to 6 times; still no match → `glab api projects/:id/repository/commits/<sha>` → `committed_date` (`source: commit_date`) |
@@ -55,6 +71,8 @@ Creating the MR/PR is not a helper subcommand: the Maia runs
 | Comment author | `author.login` | `author.username` |
 | Comment time | `createdAt` (comments), `submittedAt` (reviews) | `created_at` |
 | Skip system notes | — | `system: true` |
+| Non-blocking job | — | `allow_failure: true` (excluded from failed/canceled jobs) |
+| Failed job (job-log) | check `name`, `link`, `state`, `bucket` | job `id`, `name`, `status` |
 
 State values are bucketed as: pending (`pending`, `running`, `created`,
 `queued`, `in_progress`, `waiting_for_resource`, `preparing`, `scheduled`,
@@ -66,6 +84,9 @@ When `--job` is not given, the review job is chosen by the alternatives of
 `--job-pattern` in order (default `ai-code-review`, then `ai-review`, then
 `code-review`, then `review`): the first alternative that matches any job
 wins, whatever the job order. An exact `--job` always wins.
+
+`job-log` keeps the last `--lines` lines (default 200) of the log, with
+the same token redaction as below.
 
 A failed CLI call returns `{"error": ..., "stderr": ...}`: `stderr` is the
 last 500 characters of the CLI's stderr, with GitHub (`ghp_`, `gho_`, `ghu_`,

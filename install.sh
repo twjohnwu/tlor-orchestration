@@ -570,11 +570,14 @@ if [ "$UNINSTALL" -eq 1 ]; then
   # survives unremoved — that's what the WARNING below reports.
   if [ "$DRY" -eq 1 ]; then
     echo "would remove $HOOKS_DEST/stdd_test_guard.py (if present) and unregister its settings.json entry"
+    echo "would remove $HOOKS_DEST/test_queue_guard.py (if present) and unregister its settings.json entry"
   else
     if [ -f "$SETTINGS_JSON" ]; then
       if command -v python3 >/dev/null 2>&1; then
         python3 "$HOOKS_SRC/register_stdd_hook.py" "$SETTINGS_JSON" "$HOOKS_DEST/stdd_test_guard.py" --remove \
           || echo "WARNING: could not fully unregister the stdd_test_guard.py PreToolUse entry — remove it by hand from $SETTINGS_JSON" >&2
+        python3 "$HOOKS_SRC/register_stdd_hook.py" "$SETTINGS_JSON" "$HOOKS_DEST/test_queue_guard.py" --remove \
+          || echo "WARNING: could not fully unregister the test_queue_guard.py PreToolUse entry — remove it by hand from $SETTINGS_JSON" >&2
       else
         echo "WARNING: python3 not found — could not auto-unregister the hook from $SETTINGS_JSON. Remove it by hand." >&2
       fi
@@ -582,6 +585,10 @@ if [ "$UNINSTALL" -eq 1 ]; then
     if [ -f "$HOOKS_DEST/stdd_test_guard.py" ]; then
       rm "$HOOKS_DEST/stdd_test_guard.py"
       echo "removed $HOOKS_DEST/stdd_test_guard.py"
+    fi
+    if [ -f "$HOOKS_DEST/test_queue_guard.py" ]; then
+      rm "$HOOKS_DEST/test_queue_guard.py"
+      echo "removed $HOOKS_DEST/test_queue_guard.py"
     fi
   fi
 
@@ -788,6 +795,7 @@ fi
 if [ "$INSTALL_HOOK" -eq 1 ]; then
   if [ "$DRY" -eq 1 ]; then
     echo "would install $HOOKS_DEST/stdd_test_guard.py and register its PreToolUse entry in $SETTINGS_JSON"
+    echo "would install $HOOKS_DEST/test_queue_guard.py and register its PreToolUse (Bash) entry in $SETTINGS_JSON"
   else
     cp "$HOOKS_SRC/stdd_test_guard.py" "$HOOKS_DEST/stdd_test_guard.py"
     echo "installed $HOOKS_DEST/stdd_test_guard.py"
@@ -796,6 +804,13 @@ if [ "$INSTALL_HOOK" -eq 1 ]; then
     else
       echo "WARNING: python3 not found — could not auto-register the hook in $SETTINGS_JSON." >&2
       echo "  Add manually: PreToolUse -> command: python3 \"$HOOKS_DEST/stdd_test_guard.py\"" >&2
+    fi
+    cp "$HOOKS_SRC/test_queue_guard.py" "$HOOKS_DEST/test_queue_guard.py"
+    echo "installed $HOOKS_DEST/test_queue_guard.py"
+    if command -v python3 >/dev/null 2>&1; then
+      python3 "$HOOKS_SRC/register_stdd_hook.py" "$SETTINGS_JSON" "$HOOKS_DEST/test_queue_guard.py" --matcher Bash --env TLOR_TEST_QUEUE_GUARD=1
+    else
+      echo "  Add manually: PreToolUse (matcher Bash) -> command: TLOR_TEST_QUEUE_GUARD=1 python3 \"$HOOKS_DEST/test_queue_guard.py\"" >&2
     fi
     echo "NOTE: PreToolUse hooks are snapshotted at session start. If this install"
     echo "  ran inside an existing (or --continue/--resume'd) session, the hook will"

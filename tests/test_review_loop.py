@@ -3,8 +3,10 @@
 import ast
 import json
 import os
+import shlex
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -183,6 +185,99 @@ def test_record_preserves_unrelated_crlf_bytes(tmp_path):
         b"# Rules\r\n\r\nkeep\r\n\r\n## Review loop\r\n"
         b"- ci-wait-minutes: 13\n- custom: untouched\r\n"
     )
+
+
+def test_record_round_trips_repo_commands_and_max_rounds(tmp_path):
+    agents = tmp_path / "AGENTS.md"
+    written = payload(
+        run_cli(
+            [
+                "record", "--agents", str(agents), "--max-rounds", "6",
+                "--test-command", "python -m pytest -q",
+                "--lint-command", "python -m ruff check .",
+            ]
+        )
+    )
+    assert written["max_rounds"] == 6
+    assert written["test_command"] == "python -m pytest -q"
+    assert written["lint_command"] == "python -m ruff check ."
+    assert agents.read_text(encoding="utf-8") == (
+        "## Review loop\n"
+        "- max-rounds: 6\n"
+        "- test-command: python -m pytest -q\n"
+        "- lint-command: python -m ruff check .\n"
+    )
+    shown = payload(run_cli(["record", "--agents", str(agents), "--show"]))
+    assert shown["max_rounds"] == 6
+    assert shown["test_command"] == "python -m pytest -q"
+    assert shown["lint_command"] == "python -m ruff check ."
+
+
+def test_record_local_writes_only_tests_setting(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=str(repo), check=True)
+    (repo / ".gitignore").write_text("AGENTS.local.md\n", encoding="utf-8")
+    agents = repo / "AGENTS.md"
+    agents.write_text("## Review loop\n- max-rounds: 4\n", encoding="utf-8")
+    result = payload(
+        run_cli(["record", "--agents", str(agents), "--local", "--tests", "serial"])
+    )
+    local = repo / "AGENTS.local.md"
+    assert result["path"] == str(local)
+    assert result["tests"] == "serial"
+    assert "warning" not in result
+    assert local.read_text(encoding="utf-8") == "## Review loop\n- tests: serial\n"
+
+
+def test_record_show_merges_local_and_defaults(tmp_path):
+    agents = tmp_path / "AGENTS.md"
+    agents.write_text(
+        "## Review loop\n- review-job-name: review\n- test-command: python tests.py\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "AGENTS.local.md").write_text(
+        "## Review loop\n- tests: serial\n", encoding="utf-8"
+    )
+    result = payload(run_cli(["record", "--agents", str(agents), "--show"]))
+    assert result["review_job_name"] == "review"
+    assert result["max_rounds"] == 10
+    assert result["test_command"] == "python tests.py"
+    assert result["lint_command"] is None
+    assert result["tests"] == "serial"
+
+    (tmp_path / "AGENTS.local.md").unlink()
+    result = payload(run_cli(["record", "--agents", str(agents), "--show"]))
+    assert result["tests"] == "never"
+
+
+def test_record_local_warns_when_not_gitignored(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=str(repo), check=True)
+    agents = repo / "AGENTS.md"
+    result = payload(
+        run_cli(["record", "--agents", str(agents), "--local", "--tests", "never"])
+    )
+    assert result["warning"] == "AGENTS.local.md is not gitignored; add it to .gitignore"
+    assert (repo / "AGENTS.local.md").exists()
+
+
+@pytest.mark.parametrize(
+    "contents,args",
+    [
+        ("", ["--max-rounds", "0"]),
+        ("## Review loop\n- max-rounds: nope\n", ["--show"]),
+        ("## Review loop\n- tests: sometimes\n", ["--show"]),
+    ],
+)
+def test_record_rejects_invalid_settings(tmp_path, contents, args):
+    agents = tmp_path / "AGENTS.md"
+    target = tmp_path / ("AGENTS.local.md" if "tests:" in contents else "AGENTS.md")
+    target.write_text(contents, encoding="utf-8")
+    proc = run_cli(["record", "--agents", str(agents)] + args)
+    result = payload(proc, expected_code=1)
+    assert result["error"]
 
 
 # fake CLI integration
@@ -638,7 +733,8 @@ def test_help_lists_all_subcommands():
     assert proc.returncode == 0
     for name in (
         "preflight", "detect", "wait", "ensure-description", "fetch-review",
-        "parse", "record", "comment", "set-section", "push-time", "elapsed",
+        "parse", "record", "run-tests", "job-log", "comment", "set-section",
+        "push-time", "elapsed",
     ):
         assert name in proc.stdout
 
@@ -1010,3 +1106,566 @@ def test_wait_github_exit_zero_empty_stdout_is_none(tmp_path, stdout):
     )
     assert result["status"] == "none"
     assert result["review_job"] is None
+
+
+# local test queue
+
+
+QUEUE_COMMAND = (
+    "import json, pathlib, sys, time\n"
+    "start=time.time()\n"
+    "time.sleep(float(sys.argv[3]))\n"
+    "pathlib.Path(sys.argv[1]).write_text(json.dumps({'label':sys.argv[2],"
+    "'start':start,'end':time.time()}))\n"
+)
+
+
+FIFO_COMMAND = (
+    "import pathlib, sys, time\n"
+    "with pathlib.Path(sys.argv[1]).open('a') as handle:\n"
+    " handle.write(sys.argv[2]+'\\n')\n"
+    " handle.flush()\n"
+    "time.sleep(float(sys.argv[3]))\n"
+)
+
+
+def start_run_tests(repo, queue, command, timeout="5"):
+    local_settings = repo / "AGENTS.local.md"
+    if not local_settings.exists():
+        local_settings.write_text("## Review loop\n- tests: serial\n", encoding="utf-8")
+    env = os.environ.copy()
+    env.update({"TLOR_TEST_QUEUE_DIR": str(queue), "REVIEW_LOOP_SLEEP_SCALE": "0.01"})
+    return subprocess.Popen(
+        [PY, str(SCRIPT), "run-tests", "--cmd", command, "--timeout", timeout],
+        cwd=str(repo),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+        env=env,
+    )
+
+
+def wait_for_ticket_count(queue, count):
+    deadline = time.time() + 5
+    while time.time() < deadline:
+        if len(list(queue.glob("ticket-*.json"))) >= count:
+            return
+        time.sleep(0.01)
+    raise AssertionError("queue did not reach {0} tickets".format(count))
+
+
+def command_string(*parts):
+    return " ".join(shlex.quote(str(part)) for part in parts)
+
+
+def popen_payload(proc, expected_code=0):
+    stdout, stderr = proc.communicate(timeout=10)
+    assert proc.returncode == expected_code, stdout + stderr
+    assert len(stdout.splitlines()) == 1
+    return json.loads(stdout)
+
+
+def test_run_tests_serializes_two_concurrent_processes(tmp_path):
+    repo = tmp_path / "repo"
+    queue = tmp_path / "queue"
+    repo.mkdir()
+    runner = write_cli(tmp_path, "timed.py", QUEUE_COMMAND)
+    outputs = [tmp_path / "one.json", tmp_path / "two.json"]
+    first = start_run_tests(repo, queue, command_string(PY, runner, outputs[0], "one", "1"))
+    wait_for_ticket_count(queue, 1)
+    second = start_run_tests(repo, queue, command_string(PY, runner, outputs[1], "two", "1"))
+    assert popen_payload(first)["status"] == "ok"
+    assert popen_payload(second)["status"] == "ok"
+    intervals = [json.loads(path.read_text(encoding="utf-8")) for path in outputs]
+    assert intervals[0]["end"] <= intervals[1]["start"]
+
+
+def test_run_tests_queue_is_fifo_for_three_tickets(tmp_path):
+    repo = tmp_path / "repo"
+    queue = tmp_path / "queue"
+    order = tmp_path / "order.txt"
+    repo.mkdir()
+    runner = write_cli(tmp_path, "fifo.py", FIFO_COMMAND)
+    processes = []
+    for index, label in enumerate(("first", "second", "third"), 1):
+        processes.append(
+            start_run_tests(repo, queue, command_string(PY, runner, order, label, "0.3"))
+        )
+        wait_for_ticket_count(queue, index)
+    for proc in processes:
+        assert popen_payload(proc)["status"] == "ok"
+    assert order.read_text(encoding="utf-8").splitlines() == ["first", "second", "third"]
+
+
+def test_run_tests_clears_stale_lock_with_dead_pid_and_uses_recorded_command(tmp_path):
+    repo = tmp_path / "repo"
+    queue = tmp_path / "queue"
+    marker = tmp_path / "ran.json"
+    repo.mkdir()
+    queue.mkdir()
+    (queue / "lock").write_text("99999999", encoding="utf-8")
+    runner = write_cli(tmp_path, "recorded.py", QUEUE_COMMAND)
+    (repo / "AGENTS.md").write_text(
+        "## Review loop\n- test-command: {0}\n".format(
+            command_string(PY, runner, marker, "recorded", "0")
+        ),
+        encoding="utf-8",
+    )
+    (repo / "AGENTS.local.md").write_text(
+        "## Review loop\n- tests: serial\n", encoding="utf-8"
+    )
+    proc = run_cli_in(
+        repo,
+        ["run-tests"],
+        {"TLOR_TEST_QUEUE_DIR": str(queue), "REVIEW_LOOP_SLEEP_SCALE": "0"},
+    )
+    result = payload(proc)
+    assert result["status"] == "ok"
+    assert marker.exists()
+    assert not (queue / "lock").exists()
+
+
+def test_run_tests_times_out_behind_live_lock_without_running(tmp_path):
+    repo = tmp_path / "repo"
+    queue = tmp_path / "queue"
+    marker = tmp_path / "should-not-exist"
+    repo.mkdir()
+    queue.mkdir()
+    (repo / "AGENTS.local.md").write_text(
+        "## Review loop\n- tests: serial\n", encoding="utf-8"
+    )
+    (queue / "lock").write_text(str(os.getpid()), encoding="utf-8")
+    command = command_string(PY, "-c", "import pathlib;pathlib.Path({0!r}).touch()".format(str(marker)))
+    proc = run_cli_in(
+        repo,
+        ["run-tests", "--cmd", command, "--timeout", "0.05"],
+        {"TLOR_TEST_QUEUE_DIR": str(queue), "REVIEW_LOOP_SLEEP_SCALE": "0.01"},
+    )
+    assert payload(proc, expected_code=1) == {"status": "timeout"}
+    assert not marker.exists()
+    assert not list(queue.glob("ticket-*.json"))
+
+
+def test_run_tests_refuses_when_local_policy_is_never(tmp_path):
+    repo = tmp_path / "repo"
+    queue = tmp_path / "queue"
+    marker = tmp_path / "should-not-exist"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=str(repo), check=True)
+    (repo / "AGENTS.local.md").write_text(
+        "## Review loop\n- tests: never\n", encoding="utf-8"
+    )
+    command = command_string(PY, "-c", "import pathlib;pathlib.Path({0!r}).touch()".format(str(marker)))
+    proc = run_cli_in(
+        repo,
+        ["run-tests", "--cmd", command],
+        {"TLOR_TEST_QUEUE_DIR": str(queue), "REVIEW_LOOP_SLEEP_SCALE": "0"},
+    )
+    result = payload(proc, expected_code=1)
+    assert "never" in result["error"]
+    assert not marker.exists()
+    assert not queue.exists()
+
+
+# failed CI logs
+
+
+GH_JOB_LINK = "https://github.com/o/r/actions/runs/123/job/456"
+
+
+def gh_job_log_cli(tmp_path, checks, log_failed, full_log="", view_exit=0):
+    write_cli(
+        tmp_path,
+        "gh",
+        "import json, sys\n"
+        "a=sys.argv[1:]\n"
+        "if a[:2] == ['pr','checks']:\n"
+        " assert 'name,link,state' in a[-1] or 'link' in a[-1], a\n"
+        " print(json.dumps(" + repr(checks) + "))\n"
+        "elif a[:3] == ['run','view','123'] and '--job' in a and a[a.index('--job')+1] == '456':\n"
+        " if '--log-failed' in a:\n"
+        "  sys.stdout.write(" + repr(log_failed) + ")\n"
+        " elif '--log' in a:\n"
+        "  sys.stdout.write(" + repr(full_log) + ")\n"
+        " sys.exit(" + repr(view_exit) + ")\n"
+        "else:\n sys.exit(2)\n",
+    )
+
+
+def test_job_log_github_tail_and_redaction(tmp_path):
+    secret = "ghp_" + "A" * 36
+    gh_job_log_cli(
+        tmp_path,
+        [{"name": "Unit tests", "state": "FAILURE", "link": GH_JOB_LINK}],
+        "old\nsecret " + secret + "\nlast\n",
+    )
+    result = payload(
+        run_cli(
+            ["job-log", "--platform", "github", "--job", "Unit tests", "--lines", "2"],
+            {"PATH": cli_path(tmp_path)},
+        )
+    )
+    assert result == {"job": "Unit tests", "log_tail": "secret [REDACTED]\nlast", "empty": False}
+
+
+def test_job_log_github_falls_back_to_full_log_when_failed_log_empty(tmp_path):
+    gh_job_log_cli(
+        tmp_path,
+        [{"name": "build", "state": "FAILURE", "link": GH_JOB_LINK}],
+        "",
+        full_log="one\ntwo\n",
+    )
+    result = payload(
+        run_cli(["job-log", "--platform", "github", "--job", "build"], {"PATH": cli_path(tmp_path)})
+    )
+    assert result == {"job": "build", "log_tail": "one\ntwo", "empty": False}
+
+
+def test_job_log_github_non_actions_check_is_error(tmp_path):
+    gh_job_log_cli(
+        tmp_path,
+        [{"name": "ext", "state": "FAILURE", "link": "https://ci.example.com/build/9"}],
+        "unused",
+    )
+    result = payload(
+        run_cli(["job-log", "--platform", "github", "--job", "ext"], {"PATH": cli_path(tmp_path)}),
+        expected_code=1,
+    )
+    assert "not a GitHub Actions job" in result["error"]
+
+
+def test_job_log_github_unknown_job_is_error(tmp_path):
+    gh_job_log_cli(
+        tmp_path,
+        [{"name": "build", "state": "FAILURE", "link": GH_JOB_LINK}],
+        "unused",
+    )
+    result = payload(
+        run_cli(["job-log", "--platform", "github", "--job", "nope"], {"PATH": cli_path(tmp_path)}),
+        expected_code=1,
+    )
+    assert "failed job not found" in result["error"]
+
+
+def test_wait_reports_canceled_non_review_jobs(tmp_path):
+    write_cli(
+        tmp_path,
+        "gh",
+        "import json, sys\n"
+        "if sys.argv[1:3] == ['pr', 'checks']:\n"
+        " print(json.dumps([{'name':'AI Code Review','state':'SUCCESS','bucket':'pass'},"
+        "{'name':'lint','state':'CANCELLED','bucket':'cancel'}]))\n"
+        " sys.exit(1)\n"
+        "sys.exit(2)\n",
+    )
+    result = payload(
+        run_cli(["wait", "--platform", "github", "--minutes", "1"], {"PATH": cli_path(tmp_path)})
+    )
+    assert result["status"] == "canceled"
+    assert result["failed_jobs"] == []
+    assert result["canceled_jobs"] == ["lint"]
+
+
+def test_summarize_checks_canceled_jobs_exclude_review_job():
+    checks = [
+        {"name": "ai-code-review", "status": "canceled"},
+        {"name": "lint", "status": "failed"},
+    ]
+    summary = review_loop.summarize_checks(checks)
+    assert summary["canceled_jobs"] == []
+    assert summary["failed_jobs"] == ["lint"]
+    assert review_loop.summarize_checks([])["canceled_jobs"] == []
+
+
+def test_record_max_rounds_written_true_when_adding_default_value(tmp_path):
+    agents = tmp_path / "AGENTS.md"
+    agents.write_text("## Review loop\n- ci-wait-minutes: 5\n", encoding="utf-8")
+    result = payload(run_cli(["record", "--agents", str(agents), "--max-rounds", "10"]))
+    assert result["max_rounds_written"] is True
+    assert "- max-rounds: 10" in agents.read_text(encoding="utf-8")
+    again = payload(run_cli(["record", "--agents", str(agents), "--max-rounds", "10"]))
+    assert again["max_rounds_written"] is False
+
+
+def test_job_log_gitlab_uses_mr_head_pipeline_job(tmp_path):
+    secret = "glpat-" + "b" * 20
+    write_cli(
+        tmp_path,
+        "glab",
+        "import json, sys\n"
+        "a=sys.argv[1:]\n"
+        "if a[:2] == ['mr','view']:\n print(json.dumps({'iid':9,'head_pipeline':{'id':44}}))\n"
+        "elif a and a[0] == 'api':\n"
+        " print(json.dumps([{'id':55,'name':'lint','status':'failed'}]))\n"
+        "elif a[:3] == ['ci','trace','55']:\n"
+        " print('discard\\nline " + secret + "\\nfinal')\n"
+        "else:\n sys.exit(2)\n",
+    )
+    result = payload(
+        run_cli(
+            ["job-log", "--platform", "gitlab", "--job", "lint", "--lines", "2"],
+            {"PATH": cli_path(tmp_path)},
+        )
+    )
+    assert result == {"job": "lint", "log_tail": "line [REDACTED]\nfinal", "empty": False}
+
+
+@pytest.mark.parametrize("state", ["manual", "skipped"])
+def test_gitlab_manual_and_skipped_are_explicitly_not_failed(state):
+    check = {"name": "optional", "status": state}
+    assert review_loop._check_category(check) == "success"
+    summary = review_loop.summarize_checks([check])
+    assert summary["status"] == "success"
+    assert summary["failed_jobs"] == []
+
+
+# review-fix round 2: shell command lines, live-holder exclusion, atomic queue
+# files, repo-root settings, record --local, allow_failure
+
+
+def serial_repo(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "AGENTS.local.md").write_text("## Review loop\n- tests: serial\n", encoding="utf-8")
+    return repo
+
+
+def queue_env(queue, scale="0.01"):
+    return {"TLOR_TEST_QUEUE_DIR": str(queue), "REVIEW_LOOP_SLEEP_SCALE": scale}
+
+
+@pytest.mark.parametrize("command,status", [
+    ("cd . && false", "failed"),
+    ("true && false", "failed"),
+    ("CI=1 true", "ok"),
+    ("cd . && true", "ok"),
+])
+def test_run_tests_runs_command_line_through_sh(tmp_path, command, status):
+    repo = serial_repo(tmp_path)
+    proc = run_cli_in(repo, ["run-tests", "--cmd", command], queue_env(tmp_path / "queue", "0"))
+    result = payload(proc, expected_code=0 if status == "ok" else 1)
+    assert result["status"] == status
+    assert (result["exit_code"] == 0) == (status == "ok")
+
+
+def backdate(path, seconds):
+    stamp = time.time() - seconds
+    os.utime(str(path), (stamp, stamp))
+
+
+def test_run_tests_never_purges_live_lock_however_old(tmp_path):
+    repo = serial_repo(tmp_path)
+    queue = tmp_path / "queue"
+    queue.mkdir()
+    marker = tmp_path / "should-not-exist"
+    lock = queue / "lock"
+    lock.write_text(json.dumps({"pid": os.getpid()}), encoding="utf-8")
+    backdate(lock, 3 * 24 * 3600)
+    proc = run_cli_in(
+        repo,
+        ["run-tests", "--cmd", "touch " + shlex.quote(str(marker)), "--timeout", "0.2"],
+        queue_env(queue),
+    )
+    assert payload(proc, expected_code=1) == {"status": "timeout"}
+    assert not marker.exists()
+    assert lock.exists()
+
+
+def test_purge_removes_dead_lock_only_for_queue_head(tmp_path):
+    queue = tmp_path / "queue"
+    queue.mkdir()
+    head = queue / "ticket-{0:020d}-{1}.json".format(1, os.getpid())
+    tail = queue / "ticket-{0:020d}-{1}.json".format(2, os.getpid())
+    for ticket in (head, tail):
+        ticket.write_text(json.dumps({"pid": os.getpid()}), encoding="utf-8")
+    lock = queue / "lock"
+    lock.write_text(json.dumps({"pid": 99999999}), encoding="utf-8")
+    review_loop._purge_stale_queue_files(queue, tail)
+    assert lock.exists()
+    review_loop._purge_stale_queue_files(queue, None)
+    assert lock.exists()
+    review_loop._purge_stale_queue_files(queue, head)
+    assert not lock.exists()
+
+
+def test_run_tests_never_purges_live_ticket_however_old(tmp_path):
+    repo = serial_repo(tmp_path)
+    queue = tmp_path / "queue"
+    queue.mkdir()
+    marker = tmp_path / "should-not-exist"
+    ticket = queue / "ticket-{0:020d}-{1}.json".format(1, os.getpid())
+    ticket.write_text(json.dumps({"pid": os.getpid()}), encoding="utf-8")
+    backdate(ticket, 3 * 24 * 3600)
+    proc = run_cli_in(
+        repo,
+        ["run-tests", "--cmd", "touch " + shlex.quote(str(marker)), "--timeout", "0.2"],
+        queue_env(queue),
+    )
+    assert payload(proc, expected_code=1) == {"status": "timeout"}
+    assert not marker.exists()
+    assert ticket.exists()
+
+
+def test_run_tests_unreadable_lock_kept_during_grace_then_purged(tmp_path):
+    repo = serial_repo(tmp_path)
+    queue = tmp_path / "queue"
+    queue.mkdir()
+    marker = tmp_path / "ran"
+    lock = queue / "lock"
+    lock.write_text("", encoding="utf-8")
+    command = "touch " + shlex.quote(str(marker))
+    fresh = run_cli_in(repo, ["run-tests", "--cmd", command, "--timeout", "0.2"], queue_env(queue))
+    assert payload(fresh, expected_code=1) == {"status": "timeout"}
+    assert not marker.exists()
+    backdate(lock, 31)
+    old = run_cli_in(repo, ["run-tests", "--cmd", command, "--timeout", "0.2"], queue_env(queue))
+    assert payload(old)["status"] == "ok"
+    assert marker.exists()
+
+
+def test_run_tests_lock_holds_pid_json_and_leaves_no_temp_files(tmp_path):
+    repo = serial_repo(tmp_path)
+    queue = tmp_path / "queue"
+    proc = run_cli_in(repo, ["run-tests", "--cmd", 'cat "$TLOR_TEST_QUEUE_DIR/lock"'], queue_env(queue, "0"))
+    result = payload(proc)
+    assert isinstance(json.loads(result["stdout_tail"])["pid"], int)
+    assert sorted(path.name for path in queue.iterdir()) == []
+
+
+def test_write_exclusive_never_overwrites_and_cleans_temp(tmp_path):
+    target = tmp_path / "lock"
+    assert review_loop._write_exclusive(target, '{"pid":1}') is True
+    assert review_loop._write_exclusive(target, '{"pid":2}') is False
+    assert target.read_text(encoding="utf-8") == '{"pid":1}'
+    assert [path.name for path in tmp_path.iterdir()] == ["lock"]
+
+
+def test_run_tests_reads_settings_from_repo_root_and_runs_in_cwd(tmp_path):
+    repo = serial_repo(tmp_path)
+    subprocess.run(["git", "init", "-q"], cwd=str(repo), check=True)
+    sub = repo / "sub" / "deep"
+    sub.mkdir(parents=True)
+    (repo / "AGENTS.md").write_text("## Review loop\n- test-command: pwd\n", encoding="utf-8")
+    result = payload(run_cli_in(sub, ["run-tests"], queue_env(tmp_path / "queue", "0")))
+    assert result["status"] == "ok"
+    assert os.path.realpath(result["stdout_tail"].strip()) == os.path.realpath(str(sub))
+
+
+def test_record_local_without_tests_is_error_and_writes_nothing(tmp_path):
+    agents = tmp_path / "AGENTS.md"
+    proc = run_cli(["record", "--agents", str(agents), "--local"])
+    assert "--tests" in payload(proc, expected_code=1)["error"]
+    assert not (tmp_path / "AGENTS.local.md").exists()
+    assert not agents.exists()
+
+
+def test_summarize_checks_ignores_allow_failure_jobs():
+    checks = [
+        {"name": "ai-review", "status": "success"},
+        {"name": "lint", "status": "failed", "allow_failure": True},
+        {"name": "docs", "status": "canceled", "allow_failure": True},
+        {"name": "unit", "status": "failed", "allow_failure": False},
+    ]
+    summary = review_loop.summarize_checks(checks)
+    assert summary["failed_jobs"] == ["unit"]
+    assert summary["canceled_jobs"] == []
+    only_allowed = review_loop.summarize_checks(checks[:3])
+    assert only_allowed["status"] == "success"
+    assert only_allowed["failed_jobs"] == [] and only_allowed["canceled_jobs"] == []
+
+
+def test_gitlab_wait_allow_failure_job_is_not_failed(tmp_path):
+    write_cli(
+        tmp_path,
+        "glab",
+        "import json, sys\n"
+        "a=sys.argv[1:]\n"
+        "if a[:2] == ['mr','view']:\n print(json.dumps({'iid':9,'head_pipeline':{'id':44}}))\n"
+        "elif a and a[0] == 'api':\n print(json.dumps(["
+        "{'name':'ai-review','status':'success','allow_failure':False},"
+        "{'name':'audit','status':'failed','allow_failure':True}]))\n"
+        "else:\n sys.exit(2)\n",
+    )
+    result = payload(
+        run_cli(["wait", "--platform", "gitlab", "--minutes", "0"], {"PATH": cli_path(tmp_path)})
+    )
+    assert result["status"] == "success"
+    assert result["failed_jobs"] == [] and result["canceled_jobs"] == []
+
+
+def _pid_alive(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def test_run_tests_sigterm_kills_child_group_before_lock_release(tmp_path):
+    import signal
+
+    repo = tmp_path / "repo"
+    queue = tmp_path / "queue"
+    repo.mkdir()
+    pidfile = tmp_path / "child.pid"
+    marker = tmp_path / "end.marker"
+    command = "echo $$ > {0}; sleep 5; touch {1}".format(
+        shlex.quote(str(pidfile)), shlex.quote(str(marker))
+    )
+    proc = start_run_tests(repo, queue, command)
+    deadline = time.time() + 5
+    while time.time() < deadline and not (pidfile.exists() and pidfile.read_text().strip()):
+        time.sleep(0.02)
+    assert pidfile.exists()
+    child_pid = int(pidfile.read_text().strip())
+    time.sleep(0.5)
+    proc.send_signal(signal.SIGTERM)
+    lock = queue / "lock"
+    deadline = time.time() + 8
+    while time.time() < deadline and lock.exists():
+        time.sleep(0.02)
+    assert not lock.exists(), "lock was not released after SIGTERM"
+    assert not _pid_alive(child_pid), "child still running when lock disappeared"
+    assert not marker.exists()
+    proc.communicate(timeout=10)
+    time.sleep(0.3)
+    assert not marker.exists()
+
+
+# review-fix round 3: a SIGKILLed supervisor leaves its test group running
+
+
+def test_purge_keeps_lock_while_child_process_group_lives(tmp_path):
+    queue = tmp_path / "queue"
+    queue.mkdir()
+    head = queue / "ticket-{0:020d}-{1}.json".format(1, os.getpid())
+    head.write_text(json.dumps({"pid": os.getpid()}), encoding="utf-8")
+    child = subprocess.Popen(["sleep", "30"], start_new_session=True)
+    try:
+        lock = queue / "lock"
+        lock.write_text(json.dumps({"pid": 99999999, "child_pgid": child.pid}), encoding="utf-8")
+        review_loop._purge_stale_queue_files(queue, head)
+        assert lock.exists(), "lock purged while the test process group was alive"
+    finally:
+        child.kill()
+        child.wait(timeout=10)
+    review_loop._purge_stale_queue_files(queue, head)
+    assert not lock.exists()
+
+
+def test_run_tests_lock_records_child_pgid(tmp_path):
+    repo = serial_repo(tmp_path)
+    queue = tmp_path / "queue"
+    proc = run_cli_in(
+        repo,
+        ["run-tests", "--cmd", 'cat "$TLOR_TEST_QUEUE_DIR/lock"; echo; ps -o pgid= -p $$'],
+        queue_env(queue, "0"),
+    )
+    result = payload(proc)
+    lock_text, pgid_text = result["stdout_tail"].strip().splitlines()
+    data = json.loads(lock_text)
+    assert isinstance(data["pid"], int)
+    assert data["child_pgid"] == int(pgid_text.strip())
+    assert sorted(path.name for path in queue.iterdir()) == []
