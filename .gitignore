@@ -16,3 +16,8 @@ skill-creator-workspace/
 .DS_Store
 *.bak-*
 playbook/.build/
+
+# Mods: engine-generated types and JS tooling
+.claude-plugin/types/
+node_modules/
+*.tsbuildinfo

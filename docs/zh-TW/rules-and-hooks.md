@@ -80,3 +80,17 @@
 ### Session-snapshot 誠實提醒
 
 Claude Code 只在 session 啟動時讀取一次 `settings.json` 裡的 PreToolUse hook——在既有或 `--continue`/`--resume` 的 session 中新註冊 hook 不會讓它在那個 session 生效。任何新註冊的 hook 都請只在全新 session 中驗證。
+
+## Mods（僅 plugin 安裝路徑）
+
+自 v0.17.0 起，plugin 的 `hooks/hooks.json` 另外載入一個 hooks module：`hooks/mods/register.tsx`（Claude Code 2.1.296 以上），內含三個 mod。透過 `/plugin` marketplace 安裝或更新才會拿到；`install.sh` 不安裝它們。
+
+| Mod | 顯示內容 | 開關（`/plugin` → tlor → configure） |
+|---|---|---|
+| Fellowship | 每個 Agent tool 列前加角色圖示；「Fellowship」pane 列出本 session 的 subagent：類型、model/effort、描述、狀態、經過時間、token（最近一次請求的總量，也就是 agent 目前的 context）、tool 次數。用 `/fellowship` 開啟。 | `fellowship`：`auto`（預設，第一個 subagent 出現時開啟）、`manual`、`off`。`fellowship_max_rows`：預設 8，分成 5 列執行中、3 列最近完成；多出的執行中列收成 `+K running`，較舊的完成列直接不顯示 |
+| STDD progress | prompt 上方一條帶狀列，顯示最近修改、尚未完成的 `STDD/<name>/` change：階段；execute 階段另有 K/T 進度條與第一個 `[wip]` id。K 計 `[x]` 行，T 計全部 task 行，`[MANUAL]` 行不計。 | `stdd_progress`：`on`（預設）、`off` |
+| Plan progress | 沒有未完成的 STDD change 時，同一條帶狀列改顯示主對話的任務清單（TodoWrite，或 TaskCreate/TaskUpdate）：`Plan · K/T tasks`、進度條與進行中的任務。清單為空或全部完成時隱藏；subagent 的任務清單不計。沒有這類任務清單時，改讀本對話最近用 Write/Edit 寫入或修改（或 ExitPlanMode 存下的 plan 檔）、且至少有兩個 `- [ ]` / `- [x]` 項目的 `.md` 檔，顯示為 `Plan · <檔名> · K/T items` 與下一個未勾項目；之後的 Bash/Write/Edit 會更新它。 | `plan_progress`：`on`（預設）、`off` |
+
+STDD 帶狀列只讀檔案，照寫顯示 `spec.md` 的 `status`，不重算核准 fingerprint；權威檢查請跑 `/stdd`。
+
+顏色使用 Claude Code 的 theme key，會跟著淺色／深色主題：角色名依 model 家族上色，狀態依執行結果上色；進度條完成格為綠色、進行中那格為黃色、其餘為灰色。

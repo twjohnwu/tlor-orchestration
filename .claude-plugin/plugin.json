@@ -1,10 +1,40 @@
 {
   "name": "tlor",
   "displayName": "TLOR Agents — a Middle-earth fellowship for Claude Code",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "description": "Orchestration framework for Claude Code: fourteen Middle-earth-themed subagent roles plus an Explore backup mirror, dispatch rules, judgment rubrics, risk tiers, and the /tlor-init setup skill. Roles pin model/effort/tools by design; rules enforce delegation discipline and verification.",
   "author": { "name": "twjohnwu", "url": "https://github.com/twjohnwu" },
   "repository": "https://github.com/twjohnwu/tlor-orchestration",
   "license": "MIT",
-  "keywords": ["agents", "subagents", "lotr", "roles", "dispatch", "rivendell-council", "rules", "orchestration", "tlor-init"]
+  "keywords": ["agents", "subagents", "lotr", "roles", "dispatch", "rivendell-council", "rules", "orchestration", "tlor-init"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "fellowship": {
+      "type": "string",
+      "title": "Fellowship pane",
+      "description": "auto opens the pane on the first subagent; manual opens it only with /fellowship; off disables the fellowship mod.",
+      "default": "auto",
+      "options": ["auto", "manual", "off"]
+    },
+    "fellowship_max_rows": {
+      "type": "number",
+      "title": "Fellowship pane rows",
+      "description": "Maximum number of agent rows shown in the Fellowship pane.",
+      "default": 8
+    },
+    "stdd_progress": {
+      "type": "string",
+      "title": "STDD progress band",
+      "description": "Shows the newest unfinished STDD change and execute-task progress above the prompt.",
+      "default": "on",
+      "options": ["on", "off"]
+    },
+    "plan_progress": {
+      "type": "string",
+      "title": "Plan progress band",
+      "description": "Shows the main conversation's active task-list progress above the prompt when no unfinished STDD change exists.",
+      "default": "on",
+      "options": ["on", "off"]
+    }
+  }
 }

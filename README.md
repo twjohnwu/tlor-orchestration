@@ -137,6 +137,7 @@ in [Skills](docs/en/skills.md).
 - [Roles & dispatch](docs/en/roles.md) — all fourteen roles (plus the Explore backup mirror) in full, the theme behind the names, and the CLAUDE.md dispatch snippet
 - [Skills](docs/en/skills.md) — every skill in detail, plus the opt-in STDD workflow
 - [Rules & hooks](docs/en/rules-and-hooks.md) — the bundled rules files, the agent_doc lazy-load layer, the four opt-in hooks
+- [Mods](docs/en/rules-and-hooks.md#mods-plugin-route-only) — Fellowship pane and STDD progress band (plugin route)
 - [Installation](docs/en/installation.md) — the two install paths, who owns which file, the install flags, and the optional companions (Serena, Codex)
 - [Maintenance](docs/en/maintenance.md) — notes, honest limits, how a release is cut
 - [History](docs/en/history.md) — the project rename and the versioning reset

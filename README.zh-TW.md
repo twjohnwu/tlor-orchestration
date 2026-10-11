@@ -109,6 +109,7 @@ v0.12.0 在同一個 markdown 層之上加了一層 BDD：`stdd-explore` 多了�
 - [角色與派工](docs/zh-TW/roles.md) — 十四個角色（另含 Explore 備援鏡像）的完整說明、名稱背後的世界觀，以及 CLAUDE.md 的派工 snippet
 - [Skills](docs/zh-TW/skills.md) — 每個 skill 的完整細節，以及選配的 STDD 工作流程
 - [Rules 與 Hooks](docs/zh-TW/rules-and-hooks.md) — 附帶的 rules 檔案、agent_doc 懶載入層、四個選配 hooks
+- [Mods](docs/zh-TW/rules-and-hooks.md) — Fellowship pane 與 STDD 進度帶狀列（plugin 路徑）
 - [安裝](docs/zh-TW/installation.md) — 兩種安裝方式、哪個檔案歸誰管、安裝旗標，以及選配的 Serena／Codex
 - [維護](docs/zh-TW/maintenance.md) — 備註、誠實限制、怎麼發一個版本
 - [歷史](docs/zh-TW/history.md) — 專案更名與版本重置
