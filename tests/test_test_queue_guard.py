@@ -118,6 +118,28 @@ def test_non_test_words_allow(run_hook, repo, cmd):
 
 
 @pytest.mark.parametrize("cmd", [
+    "pytest --version", "python3 -m pytest -h",
+    "/usr/local/bin/python3 -m pytest --version", "pytest --collect-only",
+    "cargo test --no-run", "go test -c ./pkg", "gradle build -x test",
+])
+def test_never_allows_info_and_build_only_test_commands(run_hook, repo, cmd):
+    _local(repo, "never")
+    result = run_hook(HOOK, _payload(repo, cmd), env_overrides=ENV_ON)
+    assert result.returncode == 0 and result.decision is None, cmd
+
+
+@pytest.mark.parametrize("cmd", [
+    "pytest --version tests/", "pytest -q", "pytest", "cargo test",
+    "go test ./...", "gradle test", "go test ./... -args -c",
+    "cargo test -- --no-run",
+])
+def test_never_denies_actual_test_commands(run_hook, repo, cmd):
+    _local(repo, "never")
+    result = run_hook(HOOK, _payload(repo, cmd), env_overrides=ENV_ON)
+    assert "tests: never" in _reason(result), cmd
+
+
+@pytest.mark.parametrize("cmd", [
     "cd a && go test ./...", "FOO=1 python3.12 -m pytest", "(cargo test)",
     "yarn run test", "make; npx jest", "echo hi | gradlew test",
 ])

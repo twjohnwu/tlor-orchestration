@@ -35,6 +35,10 @@ _DIRECT_RUNNERS = {
     "pytest", "py.test", "tox", "nox", "jest", "vitest", "mocha", "rspec",
     "phpunit", "ctest",
 }
+_INFO_ONLY_FLAGS = {"--version", "-V", "--help", "-h"}
+_PYTEST_INFO_ONLY_FLAGS = _INFO_ONLY_FLAGS | {
+    "--markers", "--fixtures", "--collect-only", "--co",
+}
 _SHELLS = {"bash", "sh", "zsh", "dash", "ksh"}
 _PYTHON = re.compile(r"^python[0-9.]*$")
 _ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
@@ -266,9 +270,15 @@ def _first_arg(words):
     return next((w for w in words if not w.startswith(("-", "+"))), "")
 
 
+def _info_only(words, pytest=False):
+    flags = _PYTEST_INFO_ONLY_FLAGS if pytest else _INFO_ONLY_FLAGS
+    return bool(words) and all(word in flags for word in words)
+
+
 def _pm_positionals(name, words):
     """Non-option words of a package-manager command line, skipping the
-    values of its value-taking options; `yarn workspace <name>` is dropped."""
+    values of its value-taking options; return their original indexes.
+    `yarn workspace <name>` is dropped."""
     takes_arg = _PM_ARG_OPTIONS[name]
     positionals = []
     index = 0
@@ -277,9 +287,9 @@ def _pm_positionals(name, words):
         if word.startswith(("-", "+")):
             index += 2 if word in takes_arg else 1
             continue
-        positionals.append(word)
+        positionals.append((word, index))
         index += 1
-    if name == "yarn" and positionals[:1] == ["workspace"]:
+    if name == "yarn" and positionals[:1] and positionals[0][0] == "workspace":
         positionals = positionals[2:]
     return positionals
 
@@ -290,35 +300,81 @@ def _is_test_segment(words):
     first = _base(words[0])
     rest = words[1:]
     if first in _DIRECT_RUNNERS:
-        return True
+        return not _info_only(rest, first in ("pytest", "py.test"))
     if _PYTHON.match(first):
         for index, word in enumerate(rest):
             if not word.startswith("-"):
                 return False
             if word == "-m":
-                return index + 1 < len(rest) and rest[index + 1] in ("pytest", "unittest")
+                if index + 1 >= len(rest):
+                    return False
+                runner = rest[index + 1]
+                return (
+                    runner in ("pytest", "unittest")
+                    and not _info_only(rest[index + 2:], runner == "pytest")
+                )
             if word.startswith("-m"):
-                return word[2:] in ("pytest", "unittest")
+                runner = word[2:]
+                return (
+                    runner in ("pytest", "unittest")
+                    and not _info_only(rest[index + 1:], runner == "pytest")
+                )
         return False
     if first in ("go", "cargo", "swift", "dotnet"):
-        return _first_arg(rest) == "test"
+        if _first_arg(rest) != "test":
+            return False
+        # Build-only flags count only before args passed to the test binary.
+        own = rest
+        for stop in ("--", "-args", "--args"):
+            if stop in own:
+                own = own[:own.index(stop)]
+        if first == "cargo" and "--no-run" in own:
+            return False
+        if first == "go" and "-c" in own:
+            return False
+        index = rest.index("test")
+        return not _info_only(rest[index + 1:])
     if first in ("mvn", "mvnw", "gradle", "gradlew"):
-        return any(w == "test" or w.endswith(":test") for w in rest)
+        excluded = set()
+        if first in ("gradle", "gradlew"):
+            excluded = {
+                index + 1 for index, word in enumerate(rest[:-1])
+                if word in ("-x", "--exclude-task")
+            }
+        tests = [
+            index for index, word in enumerate(rest)
+            if index not in excluded and (word == "test" or word.endswith(":test"))
+        ]
+        return bool(tests) and not _info_only(rest[tests[0] + 1:])
     if first in _PM_ARG_OPTIONS:
         args = _pm_positionals(first, rest)
-        arg = args[0] if args else ""
+        arg = args[0][0] if args else ""
         if arg in ("test", "t"):
-            return True
+            return not _info_only(rest[args[0][1] + 1:])
         if arg in ("run", "run-script"):
-            return len(args) > 1 and args[1].startswith("test")
-        return first in ("yarn", "pnpm") and arg in ("jest", "vitest")
-    if first in ("make", "gmake"):
-        return any(
-            w.startswith(("test", "check")) for w in rest
-            if not w.startswith("-") and "=" not in w
+            return (
+                len(args) > 1
+                and args[1][0].startswith("test")
+                and not _info_only(rest[args[1][1] + 1:])
+            )
+        return (
+            first in ("yarn", "pnpm")
+            and arg in ("jest", "vitest")
+            and not _info_only(rest[args[0][1] + 1:])
         )
+    if first in ("make", "gmake"):
+        tests = [
+            index for index, word in enumerate(rest)
+            if (not word.startswith("-") and "=" not in word
+                and word.startswith(("test", "check")))
+        ]
+        return bool(tests) and not _info_only(rest[tests[0] + 1:])
     if first == "xcodebuild":
-        return any(w in ("test", "test-without-building") for w in rest)
+        tests = [
+            index for index, word in enumerate(rest)
+            if word in ("test", "test-without-building")
+        ]
+        return bool(tests) and not _info_only(rest[tests[0] + 1:])
     return False
 
 
