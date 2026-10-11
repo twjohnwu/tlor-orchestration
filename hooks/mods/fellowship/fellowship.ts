@@ -1,4 +1,13 @@
+import type { ThemeKey } from 'claude-code'
+
 import type { FellowshipAgent } from '../../../types'
+
+export type Segment = {
+  text: string
+  color?: ThemeKey
+  bold?: boolean
+  dim?: boolean
+}
 
 export const FALLBACK_ICON = '🤖'
 
@@ -38,13 +47,41 @@ export const shortModel = (model: string | undefined): string => {
   return family === null ? model : family[0]
 }
 
-export const formatRow = (agent: FellowshipAgent, now: number): string => {
+const modelColor = (model: string): ThemeKey => {
+  if (model === 'opus') return 'claude'
+  if (model === 'sonnet') return 'suggestion'
+  if (model === 'haiku') return 'ide'
+  if (model === 'fable') return 'merged'
+  return 'text'
+}
+
+const statusStyle = (status: FellowshipAgent['status']): Pick<Segment, 'color' | 'bold'> => {
+  if (status === 'running') return { color: 'warning', bold: true }
+  if (status === 'completed') return { color: 'success' }
+  if (status === 'failed') return { color: 'error', bold: true }
+  return { color: 'inactive' }
+}
+
+export const rowSegments = (agent: FellowshipAgent, now: number): Segment[] => {
   const elapsed = formatElapsed((agent.endedAt ?? now) - agent.startedAt)
   const tokens = (agent.tokens / 1000).toFixed(1)
   const effort = agent.effort === undefined || agent.effort === '' ? '-' : agent.effort
+  const model = shortModel(agent.model)
+  const dim = agent.status === 'running' ? {} : { dim: true }
 
-  return `${iconFor(agent.type)} ${agent.type}  ${shortModel(agent.model)}/${effort}  ${agent.description}  ${agent.status}  ${elapsed}  ${tokens}k tok  ${agent.tools} tools`
+  return [
+    { text: `${iconFor(agent.type)} ${agent.type}`, color: modelColor(model), bold: true, ...dim },
+    { text: `  ${model}/${effort}`, color: 'subtle', ...dim },
+    { text: `  ${agent.description}`, color: 'text', ...dim },
+    { text: `  ${agent.status}`, ...statusStyle(agent.status) },
+    { text: `  ${elapsed}`, color: 'subtle', ...dim },
+    { text: `  ${tokens}k tok`, color: 'subtle', ...dim },
+    { text: `  ${agent.tools} tools`, color: 'subtle', ...dim },
+  ]
 }
+
+export const formatRow = (agent: FellowshipAgent, now: number): string =>
+  rowSegments(agent, now).map(segment => segment.text).join('')
 
 // Records a spawned agent: the only way a row is created. A repeated spawn of one id updates its row.
 export const register = (

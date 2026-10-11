@@ -4,13 +4,13 @@ import type { FellowshipAgent } from '../../../types'
 import {
   addStepTokens,
   completeAgent,
-  formatRow,
   hasRunning,
   iconFor,
   isKnown,
   isRoleName,
   parseFrontmatter,
   register as registerAgent,
+  rowSegments,
   selectPaneRows,
   statusOf,
   update,
@@ -224,9 +224,13 @@ export const register: Register = (on, options) => {
       <Box flexDirection="column">
         {selection.rows.length === 0 && selection.hiddenCompleted === 0 && <Text dimColor>No subagents yet.</Text>}
         {selection.rows.map(agent => (
-          <Text dimColor={agent.status !== 'running'}>{formatRow(agent, now)}</Text>
+          <Box flexDirection="row">
+            {rowSegments(agent, now).map(segment => (
+              <Text color={segment.color} bold={segment.bold} dimColor={segment.dim}>{segment.text}</Text>
+            ))}
+          </Box>
         ))}
-        {selection.hiddenCompleted > 0 && <Text dimColor>+{selection.hiddenCompleted} done</Text>}
+        {selection.hiddenCompleted > 0 && <Text color="inactive">+{selection.hiddenCompleted} done</Text>}
       </Box>
     )
   })

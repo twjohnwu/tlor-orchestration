@@ -1,7 +1,7 @@
 import type { On, PluginOptions } from 'claude-code'
 
 import type { StddProgressView } from './progress'
-import { formatProgress, scanProgress } from './progress'
+import { progressSegments, scanProgress } from './progress'
 
 const THROTTLE_MS = 1000
 const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'] as const
@@ -91,12 +91,17 @@ export const register = (on: On, _options: PluginOptions): void => {
       }
       if (view !== undefined && view !== null) {
         const { Box, Text } = $.ui.resolve(e)
-        const lines = formatProgress(view, e.viewport?.columns)
+        const lines = progressSegments(view, e.viewport?.columns)
 
         return (
           <Box flexDirection="column">
-            <Text>{lines[0]}</Text>
-            {lines[1] !== undefined && <Text>{lines[1]}</Text>}
+            {lines.map(line => (
+              <Text>
+                {line.map(segment => (
+                  <Text color={segment.color} bold={segment.bold} dimColor={segment.dim}>{segment.text}</Text>
+                ))}
+              </Text>
+            ))}
           </Box>
         )
       }

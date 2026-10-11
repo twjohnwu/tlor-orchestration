@@ -7,6 +7,7 @@ import {
   parseTasks,
   phaseOf,
   pickNewestChange,
+  progressSegments,
 } from '../../hooks/mods/stdd-progress/progress'
 
 test('task parsing mirrors formal task lines and fenced-code handling', async () => {
@@ -70,6 +71,68 @@ test('newest-change selection skips completed changes and empty directories', as
   })
 })
 
+test('progress segments colour phases and preserve the plain formatter', async () => {
+  const phases = [
+    ['uiux', 'merged'],
+    ['spec (draft)', 'warning'],
+    ['plan', 'suggestion'],
+    ['execute', 'success'],
+  ] as const
+
+  for (const [phase, color] of phases) {
+    const view = { name: 'checkout-flow', phase, completed: 0, total: 0 }
+    const lines = progressSegments(view, 42)
+    expect(lines[0]?.[4]).toEqual({ text: phase, color })
+    expect(lines.map(line => line.map(segment => segment.text).join(''))).toEqual(formatProgress(view, 42))
+  }
+})
+
+test('progress bar segments represent completed, wip, complete-edge, and zero-task states', async () => {
+  const executing = {
+    name: 'checkout-flow',
+    phase: 'execute' as const,
+    completed: 7,
+    total: 12,
+  }
+
+  const noWip = progressSegments(executing, 42)[1]
+  expect(noWip?.slice(0, 3)).toEqual([
+    { text: '▓'.repeat(7), color: 'success' },
+    { text: '', color: 'warning' },
+    { text: '░'.repeat(5), color: 'inactive' },
+  ])
+
+  const withWipView = { ...executing, wip: 'S-03,S-04' }
+  const withWip = progressSegments(withWipView, 42)[1]
+  expect(withWip?.slice(0, 3)).toEqual([
+    { text: '▓'.repeat(7), color: 'success' },
+    { text: '▓', color: 'warning' },
+    { text: '░'.repeat(4), color: 'inactive' },
+  ])
+  expect(withWip?.map(segment => segment.text).join('')).toBe(
+    '▓▓▓▓▓▓▓▓░░░░ 7/12 tasks · wip S-03,S-04',
+  )
+
+  const complete = progressSegments({ ...withWipView, completed: 12 }, 42)[1]
+  expect(complete?.slice(0, 3)).toEqual([
+    { text: '▓'.repeat(12), color: 'success' },
+    { text: '', color: 'warning' },
+    { text: '', color: 'inactive' },
+  ])
+
+  const zeroView = { ...executing, completed: 0, total: 0 }
+  const zero = progressSegments(zeroView, undefined)[1]
+  expect(zero?.slice(0, 3)).toEqual([
+    { text: '', color: 'success' },
+    { text: '', color: 'warning' },
+    { text: '░'.repeat(24), color: 'inactive' },
+  ])
+
+  for (const view of [executing, withWipView, { ...withWipView, completed: 12 }, zeroView]) {
+    expect(progressSegments(view, 42).map(line => line.map(segment => segment.text).join(''))).toEqual(formatProgress(view, 42))
+  }
+})
+
 test('progress formatting sizes the bar and handles zero tasks', async () => {
   const executing = {
     name: 'checkout-flow',
@@ -81,10 +144,10 @@ test('progress formatting sizes the bar and handles zero tasks', async () => {
 
   expect(formatProgress(executing, 42)).toEqual([
     'STDD checkout-flow · execute',
-    '▓▓▓▓▓▓▓░░░░░ 7/12 tasks · wip S-03,S-04',
+    '▓▓▓▓▓▓▓▓░░░░ 7/12 tasks · wip S-03,S-04',
   ])
-  expect(formatProgress({ ...executing, completed: 6 }, 100)[1]).toStartWith('▓'.repeat(12) + '░'.repeat(12))
-  expect(formatProgress({ ...executing, completed: 0 }, 20)[1]).toStartWith('░'.repeat(4))
+  expect(formatProgress({ ...executing, completed: 6 }, 100)[1]).toStartWith('▓'.repeat(13) + '░'.repeat(11))
+  expect(formatProgress({ ...executing, completed: 0 }, 20)[1]).toStartWith('▓' + '░'.repeat(3))
   expect(formatProgress({ ...executing, completed: 0, total: 0, wip: undefined }, undefined)).toEqual([
     'STDD checkout-flow · execute',
     `${'░'.repeat(24)} 0/0 tasks`,

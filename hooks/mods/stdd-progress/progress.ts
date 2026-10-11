@@ -1,3 +1,12 @@
+import type { ThemeKey } from 'claude-code'
+
+export type Segment = {
+  text: string
+  color?: ThemeKey
+  bold?: boolean
+  dim?: boolean
+}
+
 export type StddPhase = 'uiux' | 'spec (draft)' | 'plan' | 'execute' | 'done'
 
 export type StddFiles = {
@@ -138,18 +147,42 @@ export const pickNewestChange = (candidates: readonly StddCandidate[]): StddProg
   return null
 }
 
-export const formatProgress = (view: StddProgressView, columns: number | undefined): string[] => {
-  const lines = [`STDD ${view.name} · ${view.phase}`]
+const PHASE_COLORS: Record<StddProgressView['phase'], ThemeKey> = {
+  uiux: 'merged',
+  'spec (draft)': 'warning',
+  plan: 'suggestion',
+  execute: 'success',
+}
+
+export const progressSegments = (view: StddProgressView, columns: number | undefined): Segment[][] => {
+  const lines: Segment[][] = [[
+    { text: 'STDD', color: 'claude', bold: true },
+    { text: ' ' },
+    { text: view.name, color: 'text', bold: true },
+    { text: ' · ', color: 'subtle' },
+    { text: view.phase, color: PHASE_COLORS[view.phase] },
+  ]]
   if (view.phase !== 'execute') return lines
 
   const width = columns === undefined ? 24 : Math.max(4, Math.min(24, columns - 30))
   const ratio = view.total === 0 ? 0 : view.completed / view.total
   const filled = Math.max(0, Math.min(width, Math.round(width * ratio)))
-  const suffix = view.wip === undefined ? '' : ` · wip ${view.wip}`
-  lines.push(`${'▓'.repeat(filled)}${'░'.repeat(width - filled)} ${view.completed}/${view.total} tasks${suffix}`)
+  const hasWipCell = view.wip !== undefined && filled < width
+  lines.push([
+    { text: '▓'.repeat(filled), color: 'success' },
+    { text: hasWipCell ? '▓' : '', color: 'warning' },
+    { text: '░'.repeat(width - filled - (hasWipCell ? 1 : 0)), color: 'inactive' },
+    { text: ' ' },
+    { text: `${view.completed}/${view.total}`, color: 'text', bold: true },
+    { text: ' tasks', color: 'subtle' },
+    ...(view.wip === undefined ? [] : [{ text: ` · wip ${view.wip}`, color: 'warning' as const }]),
+  ])
 
   return lines
 }
+
+export const formatProgress = (view: StddProgressView, columns: number | undefined): string[] =>
+  progressSegments(view, columns).map(line => line.map(segment => segment.text).join(''))
 
 const parentOf = (path: string): string | null => {
   const trimmed = path.length > 1 ? path.replace(/\/+$/, '') : path

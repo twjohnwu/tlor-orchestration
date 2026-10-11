@@ -11,6 +11,7 @@ import {
   iconFor,
   parseFrontmatter,
   register,
+  rowSegments,
   selectPaneRows,
   shortModel,
   statusOf,
@@ -46,6 +47,60 @@ test('pane row format', async () => {
   expect(formatRow({ ...agent, model: undefined, effort: undefined }, 1000)).toBe(
     '🦅 eagle-sentinel  -/-  verify diff  running  00:00  12.3k tok  7 tools',
   )
+})
+
+test('row segments colour model families and preserve the plain formatter', async () => {
+  const base = {
+    id: 'a1',
+    type: 'eagle-sentinel',
+    description: 'verify diff',
+    status: 'running' as const,
+    startedAt: 1000,
+    endedAt: null,
+    tokens: 12345,
+    tools: 7,
+    effort: 'medium',
+  }
+  const families = [
+    ['claude-opus-4-7', 'claude'],
+    ['claude-sonnet-4-5', 'suggestion'],
+    ['claude-haiku-4-5', 'ide'],
+    ['claude-fable-5', 'merged'],
+    ['gpt-x', 'text'],
+  ] as const
+
+  for (const [model, color] of families) {
+    const agent = { ...base, model }
+    const segments = rowSegments(agent, 76_000)
+    expect(segments[0]).toEqual({ text: '🦅 eagle-sentinel', color, bold: true })
+    expect(segments.map(segment => segment.text).join('')).toBe(formatRow(agent, 76_000))
+  }
+})
+
+test('row segments colour statuses and dim every non-status segment after finishing', async () => {
+  const base = {
+    ...spawned,
+    model: 'sonnet',
+    effort: 'high',
+    endedAt: 1000,
+  }
+  const statuses = [
+    ['running', 'warning', true],
+    ['completed', 'success', undefined],
+    ['failed', 'error', true],
+    ['killed', 'inactive', undefined],
+  ] as const
+
+  for (const [status, color, bold] of statuses) {
+    const agent = { ...base, status, endedAt: status === 'running' ? null : 1000 }
+    const segments = rowSegments(agent, 1000)
+    const statusSegment = segments.find(segment => segment.text === `  ${status}`)
+    expect(statusSegment).toEqual({ text: `  ${status}`, color, ...(bold === undefined ? {} : { bold }) })
+    expect(segments.filter(segment => segment !== statusSegment).every(segment =>
+      status === 'running' ? segment.dim !== true : segment.dim === true,
+    )).toBe(true)
+    expect(segments.map(segment => segment.text).join('')).toBe(formatRow(agent, 1000))
+  }
 })
 
 test('model ids shorten to their family', async () => {
