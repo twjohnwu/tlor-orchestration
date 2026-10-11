@@ -69,6 +69,7 @@
 | `plugin_update_sync` | SessionStart（`startup`） | 僅 plugin 安裝、僅升級時動作：plugin 版本比 `~/.claude/.tlor-init-state`（由 `/tlor-init` 寫入）新時，透過 `scripts/tlor_sync.py` 同步 user 層安裝的 agents（有改動的先備份，並列出每個備份路徑）、base rules、agent_doc、workflows 與 scripts，再提醒你跑 `/tlor-init` 處理互動步驟。project 層安裝只會收到「請到該處跑 `/tlor-init`」的提醒，不會被寫入。`/tlor-init` 0.14.0 以上至少跑過一次前不動作（跑過舊版 `/tlor-init` 的使用者要再跑一次），版本相同或較舊時也不動作；絕不擋 session | 預設啟用；`TLOR_AUTO_SYNC=0` 關閉 |
 | `verify_gate` | Stop | 攔「沒有證據的完成宣稱」：本輪改了程式碼卻沒跑測試指令，擋回一次要求補 fail-then-pass 證據 | `TLOR_VERIFY_GATE=1` |
 | `stdd_test_guard` | PreToolUse | STDD 執行期保護：`tasks.md` 中 `[wip]` 任務所引用的測試檔，在該任務標成 `[x]` 前不得再被 Edit/Write | 無啟用 env；由 `install.sh --install-hook` 註冊進 `settings.json` |
+| `test_queue_guard` | PreToolUse（Bash） | 選配：擋掉違反 AGENTS.local.md 單機測試政策（`tests: never\|serial`）的測試指令，供 `stdd-review-loop` 使用 | `TLOR_TEST_QUEUE_GUARD=1`；由 `install.sh --install-hook` 註冊 |
 
 三則補充：
 

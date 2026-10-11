@@ -239,3 +239,54 @@ def test_register_root_not_object_exits_with_clear_message(run_hook, tmp_path):
     assert result.returncode != 0
     assert "Traceback" not in result.stderr
     assert "ERROR" in result.stderr
+
+
+def test_matcher_bash_registers_and_is_idempotent(run_hook, tmp_path):
+    settings_path = tmp_path / "settings.json"
+    hook_script = tmp_path / "test_queue_guard.py"
+    args = [str(settings_path), str(hook_script), "--matcher", "Bash"]
+    first = run_hook(SCRIPT, "", args=args)
+    second = run_hook(SCRIPT, "", args=args)
+    assert first.returncode == 0 and second.returncode == 0
+    assert "already registered" in second.stdout
+    entries = json.loads(settings_path.read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+    assert len(entries) == 1
+    assert entries[0]["matcher"] == "Bash"
+
+
+def test_env_prefix_is_inline_in_command(run_hook, tmp_path):
+    settings_path = tmp_path / "settings.json"
+    hook_script = tmp_path / "test_queue_guard.py"
+    run_hook(SCRIPT, "", args=[
+        str(settings_path), str(hook_script), "--matcher", "Bash",
+        "--env", "TLOR_TEST_QUEUE_GUARD=1",
+    ])
+    entries = json.loads(settings_path.read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+    assert entries[0]["hooks"][0]["command"] == (
+        'TLOR_TEST_QUEUE_GUARD=1 python3 "%s"' % hook_script
+    )
+
+
+def test_default_matcher_unchanged(run_hook, tmp_path):
+    settings_path = tmp_path / "settings.json"
+    _run_register(run_hook, settings_path, tmp_path / "stdd_test_guard.py")
+    entries = json.loads(settings_path.read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+    assert entries[0]["matcher"] == "Write|Edit|NotebookEdit"
+
+
+def test_remove_leaves_other_script_entry(run_hook, tmp_path):
+    settings_path = tmp_path / "settings.json"
+    stdd = tmp_path / "stdd_test_guard.py"
+    queue = tmp_path / "test_queue_guard.py"
+    _run_register(run_hook, settings_path, stdd)
+    run_hook(SCRIPT, "", args=[str(settings_path), str(queue), "--matcher", "Bash"])
+    result = run_hook(SCRIPT, "", args=[str(settings_path), str(queue), "--remove"])
+    assert result.returncode == 0
+    entries = json.loads(settings_path.read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+    assert len(entries) == 1
+    assert "stdd_test_guard.py" in entries[0]["hooks"][0]["command"]
+    # and the reverse: removing stdd leaves the queue entry
+    run_hook(SCRIPT, "", args=[str(settings_path), str(queue), "--matcher", "Bash"])
+    run_hook(SCRIPT, "", args=[str(settings_path), str(stdd), "--remove"])
+    entries = json.loads(settings_path.read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+    assert len(entries) == 1 and "test_queue_guard.py" in entries[0]["hooks"][0]["command"]

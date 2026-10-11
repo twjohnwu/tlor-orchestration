@@ -7,6 +7,12 @@ Usage:
   python3 register_stdd_hook.py <settings.json path> <hook script path>
   python3 register_stdd_hook.py <settings.json path> <hook script path> --remove
 
+Optional flags (register mode): `--matcher <pattern>` sets the entry's tool
+matcher (default `Write|Edit|NotebookEdit`, the stdd_test_guard.py scope);
+`--env NAME=VALUE` prefixes the command with an inline env assignment (how
+opt-in guards such as test_queue_guard.py get switched on). `--remove` only
+removes entries mentioning the given script's file name.
+
 Register mode (default): creates settings.json (and its parent dir) if
 missing. Never removes any existing hook entries; only appends this one if
 an entry with the exact same command isn't already present. Exits non-zero
@@ -45,12 +51,12 @@ import shutil
 import sys
 
 
-def _mentions_stdd_guard(command):
+def _mentions_script(command, script_name):
     """A PreToolUse hook entry belongs to our guard if its command MENTIONS
-    stdd_test_guard.py at all — not just the exact `python3 "<path>"` string
+    the script file name at all — not just the exact `python3 "<path>"` string
     this installer writes. A hand-edited entry (unquoted path, python3.12,
     an unexpanded $HOME, ...) still gets caught by this substring check."""
-    return isinstance(command, str) and "stdd_test_guard.py" in command
+    return isinstance(command, str) and script_name in command
 
 
 def _backup_settings(settings_path):
@@ -92,7 +98,7 @@ def _write_settings(settings_path, settings):
     os.replace(tmp_path, real_path)
 
 
-def register(settings_path, command):
+def register(settings_path, command, matcher="Write|Edit|NotebookEdit"):
     settings, err = _load_settings(settings_path)
     if err:
         print("ERROR: %s" % err, file=sys.stderr)
@@ -117,17 +123,17 @@ def register(settings_path, command):
                 print("already registered: %s" % command)
                 return 0
 
-    pretool.append({"matcher": "Write|Edit|NotebookEdit", "hooks": [{"type": "command", "command": command}]})
+    pretool.append({"matcher": matcher, "hooks": [{"type": "command", "command": command}]})
     _write_settings(settings_path, settings)
     print("registered: %s" % command)
     return 0
 
 
-def unregister(settings_path, command):
+def unregister(settings_path, command, script_name="stdd_test_guard.py"):
     """Remove every hooks entry, under ANY event (PreToolUse, PostToolUse,
     Stop, whatever keys exist under `hooks`), whose command mentions
-    stdd_test_guard.py — not just the exact `command` string this installer
-    registered (see _mentions_stdd_guard). Container shapes that don't match
+    `script_name` — not just the exact `command` string this installer
+    registered (see _mentions_script). Container shapes that don't match
     the expected settings.json layout (a non-object JSON root, `hooks` not
     an object, an event value that isn't a list) get a clear error and
     non-zero exit rather than an AttributeError. An entry whose own `hooks`
@@ -146,7 +152,7 @@ def unregister(settings_path, command):
     if not isinstance(settings, dict):
         print(
             "ERROR: %s root is a %s, expected a JSON object — not touching it, "
-            "remove the stdd_test_guard.py entry by hand." % (settings_path, type(settings).__name__),
+            "remove the %s entry by hand." % (settings_path, type(settings).__name__, script_name),
             file=sys.stderr,
         )
         return 1
@@ -155,8 +161,8 @@ def unregister(settings_path, command):
     if not isinstance(hooks_container, dict):
         print(
             "ERROR: %s 'hooks' is a %s, expected an object — not touching it, "
-            "remove the stdd_test_guard.py entry by hand."
-            % (settings_path, type(hooks_container).__name__),
+            "remove the %s entry by hand."
+            % (settings_path, type(hooks_container).__name__, script_name),
             file=sys.stderr,
         )
         return 1
@@ -167,8 +173,8 @@ def unregister(settings_path, command):
         if not isinstance(event_list, list):
             print(
                 "ERROR: %s 'hooks.%s' is a %s, expected a list — not touching it, "
-                "remove the stdd_test_guard.py entry by hand."
-                % (settings_path, event_name, type(event_list).__name__),
+                "remove the %s entry by hand."
+                % (settings_path, event_name, type(event_list).__name__, script_name),
                 file=sys.stderr,
             )
             return 1
@@ -178,14 +184,14 @@ def unregister(settings_path, command):
         for entry in event_list:
             entry_hooks = entry.get("hooks") if isinstance(entry, dict) else None
             if not isinstance(entry_hooks, list):
-                if "stdd_test_guard.py" in json.dumps(entry, ensure_ascii=False):
+                if script_name in json.dumps(entry, ensure_ascii=False):
                     unparseable.append(entry)
                 new_entries.append(entry)
                 continue
 
             remaining_hooks = [
                 h for h in entry_hooks
-                if not _mentions_stdd_guard(h.get("command") if isinstance(h, dict) else None)
+                if not _mentions_script(h.get("command") if isinstance(h, dict) else None, script_name)
             ]
             removed_here += len(entry_hooks) - len(remaining_hooks)
 
@@ -201,9 +207,9 @@ def unregister(settings_path, command):
 
     for bad in unparseable:
         print(
-            "WARNING: found a hooks entry in %s mentioning stdd_test_guard.py that "
+            "WARNING: found a hooks entry in %s mentioning %s that "
             "could not be safely parsed and was left in place — remove it by hand: %r"
-            % (settings_path, bad),
+            % (settings_path, script_name, bad),
             file=sys.stderr,
         )
 
@@ -216,27 +222,41 @@ def unregister(settings_path, command):
         _write_settings(settings_path, settings)
         breakdown = ", ".join("%d from %s" % (c, e) for e, c in removed_by_event.items())
         print(
-            "unregistered %d stdd_test_guard.py entr%s (%s) from %s"
-            % (total_removed, "y" if total_removed == 1 else "ies", breakdown, settings_path)
+            "unregistered %d %s entr%s (%s) from %s"
+            % (total_removed, script_name, "y" if total_removed == 1 else "ies", breakdown, settings_path)
         )
 
     return 1 if unparseable else 0
 
 
 def main():
-    if len(sys.argv) not in (3, 4):
-        print("usage: register_stdd_hook.py <settings.json> <hook script> [--remove]", file=sys.stderr)
+    usage = "usage: register_stdd_hook.py <settings.json> <hook script> [--matcher <pattern>] [--env NAME=VALUE] [--remove]"
+    args = sys.argv[1:]
+    remove = "--remove" in args
+    args = [a for a in args if a != "--remove"]
+    matcher = "Write|Edit|NotebookEdit"
+    env_prefix = ""
+    for flag in ("--matcher", "--env"):
+        if flag in args:
+            idx = args.index(flag)
+            if idx + 1 >= len(args):
+                print(usage, file=sys.stderr)
+                return 1
+            value = args[idx + 1]
+            del args[idx:idx + 2]
+            if flag == "--matcher":
+                matcher = value
+            else:
+                env_prefix = value + " "
+    if len(args) != 2:
+        print(usage, file=sys.stderr)
         return 1
-    settings_path, hook_script = sys.argv[1], sys.argv[2]
-    mode = sys.argv[3] if len(sys.argv) == 4 else None
-    if mode not in (None, "--remove"):
-        print("usage: register_stdd_hook.py <settings.json> <hook script> [--remove]", file=sys.stderr)
-        return 1
-    command = "python3 \"%s\"" % hook_script
+    settings_path, hook_script = args
+    command = env_prefix + "python3 \"%s\"" % hook_script
 
-    if mode == "--remove":
-        return unregister(settings_path, command)
-    return register(settings_path, command)
+    if remove:
+        return unregister(settings_path, command, os.path.basename(hook_script))
+    return register(settings_path, command, matcher)
 
 
 if __name__ == "__main__":
