@@ -103,14 +103,20 @@ export const register = (on: On, options: PluginOptions): void => {
     const result = await next(e)
     const event = e as unknown as Readonly<Record<string, unknown>>
 
-    if (planEnabled && e.agentId === undefined) {
+    // A denied or failed call changed nothing, so the plan stays as it was.
+    const didSucceed = !('deny' in result) && result.isError !== true
+    if (planEnabled && e.agentId === undefined && didSucceed) {
       try {
-        const { value = [] } = await $.state.get(PLAN_TASKS)
-        const tasks = updatedPlanTasks(value, event, result, () => {
-          syntheticTaskId += 1
-          return `synthetic:${syntheticTaskId}`
-        })
-        if (tasks !== null) await $.state.set(PLAN_TASKS, tasks)
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          const { value = [], version } = await $.state.get(PLAN_TASKS)
+          const tasks = updatedPlanTasks(value, event, result, () => {
+            syntheticTaskId += 1
+            return `synthetic:${syntheticTaskId}`
+          })
+          if (tasks === null) break
+          const saved = await $.state.set(PLAN_TASKS, tasks, { ifVersion: version })
+          if (saved.isSet) break
+        }
       } catch {
         // Plan progress is observational; state failures never affect a tool call.
       }

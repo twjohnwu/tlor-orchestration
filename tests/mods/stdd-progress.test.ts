@@ -323,8 +323,8 @@ test('unfinished STDD progress takes precedence over plan progress', { options: 
 
 test('an all-completed or empty plan is hidden', async () => {
   expect(isPlanVisible([])).toBe(false)
-  expect(isPlanVisible([{ id: '1', label: 'done', status: 'completed' }] as never)).toBe(false)
-  expect(isPlanVisible([{ id: '1', label: 'a', status: 'completed' }, { id: '2', label: 'b', status: 'pending' }] as never)).toBe(true)
+  expect(isPlanVisible([{ id: '1', subject: 'done', status: 'completed' }] as never)).toBe(false)
+  expect(isPlanVisible([{ id: '1', subject: 'a', status: 'completed' }, { id: '2', subject: 'b', status: 'pending' }] as never)).toBe(true)
 })
 
 test('the first AbovePrompt render scans the disk without writing state', { options: { fellowship: 'off', stdd_progress: 'on' } }, async ($, on) => {
@@ -355,4 +355,19 @@ test('a throttled STDD edit still gets a trailing rescan when the window ends', 
   expect(await bandText(ui as never, /1\/2 tasks/)).toBe(false)
   await clock.advance(1000)
   expect(await bandText(ui as never, /1\/2 tasks/)).toBe(true)
+})
+
+test('a denied or failed task call leaves the plan unchanged', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  on('tool.call', async (_$, e) => {
+    const todos = (e as { todos?: Array<{ content: string }> }).todos ?? []
+    if (todos.some(todo => todo.content === 'denied')) return { deny: 'no' } as never
+    if (todos.some(todo => todo.content === 'failed')) return { result: 'boom', isError: true } as never
+    return { result: {} } as never
+  })
+  await $.tool.call({ tool: 'TodoWrite', todos: [{ content: 'kept', activeForm: 'Keeping', status: 'in_progress' }] })
+  await $.tool.call({ tool: 'TodoWrite', todos: [{ content: 'denied', activeForm: 'Denied', status: 'pending' }] }).catch(() => undefined)
+  await $.tool.call({ tool: 'TodoWrite', todos: [{ content: 'failed', activeForm: 'Failed', status: 'pending' }] }).catch(() => undefined)
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /▶ Keeping/)).toBe(true)
 })
