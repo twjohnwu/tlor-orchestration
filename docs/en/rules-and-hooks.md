@@ -116,11 +116,14 @@ hook there. Verify any newly-registered hook in a brand-new session only.
 
 ## Mods (plugin route only)
 
-Since v0.17.0 the plugin's `hooks/hooks.json` also loads one hooks module, `hooks/mods/register.tsx` (Claude Code 2.1.296+). It composes two mods. They arrive with `/plugin` marketplace install or update; `install.sh` does not install them.
+Since v0.17.0 the plugin's `hooks/hooks.json` also loads one hooks module, `hooks/mods/register.tsx` (Claude Code 2.1.296+). It composes three mods. They arrive with `/plugin` marketplace install or update; `install.sh` does not install them.
 
 | Mod | What it shows | Switch (`/plugin` → tlor → configure) |
 |---|---|---|
-| Fellowship | A role icon on every Agent tool row, and a "Fellowship" pane listing this session's subagents: type, model/effort, description, status, elapsed time, live tokens, tool count. Open it with `/fellowship`. | `fellowship`: `auto` (default; opens on the first subagent), `manual`, `off` |
+| Fellowship | A role icon on every Agent tool row, and a "Fellowship" pane listing this session's subagents: type, model/effort, description, status, elapsed time, tokens (the latest request's total, i.e. the agent's current context), tool count. Open it with `/fellowship`. | `fellowship`: `auto` (default; opens on the first subagent), `manual`, `off`. `fellowship_max_rows`: default 8, split 5 running / 3 most recently finished; extra rows fold into `+K running` / `+K done` |
 | STDD progress | A band above the prompt for the most recently modified unfinished `STDD/<name>/` change: phase, and during execute a K/T task bar plus the first `[wip]` id. K counts `[x]` lines, T all task lines; `[MANUAL]` lines are excluded. | `stdd_progress`: `on` (default), `off` |
+| Plan progress | When no unfinished STDD change exists, the same band shows the main conversation's task list (TodoWrite, or TaskCreate/TaskUpdate): `Plan · K/T tasks`, a bar, and the task in progress. Hidden when the list is empty or all done. Subagents' task lists are ignored. | `plan_progress`: `on` (default), `off` |
 
 The STDD band reads files only. It shows `spec.md`'s `status` as written and does not recompute approval fingerprints — run `/stdd` for the authoritative check.
+
+Colours use Claude Code theme keys, so they follow your light/dark theme: role names by model family, status by state, and the bars green for done, yellow for the cell in progress, grey for the rest.
