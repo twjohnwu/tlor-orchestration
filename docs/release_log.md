@@ -6,6 +6,13 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.16.0 (2026-10-11)
+
+- stdd-review-loop: the round cap is configurable via `max-rounds` in the repo AGENTS.md `## Review loop` section (default 10); `test-command` and `lint-command` are recorded there too.
+- stdd-review-loop: per-machine test policy in AGENTS.local.md (`tests: never|serial`, default `never`). `serial` runs tests one at a time machine-wide through `review_loop.py run-tests` (FIFO queue under `~/.claude/tlor/test-queue`, override with `TLOR_TEST_QUEUE_DIR`), foreground only.
+- New opt-in hook `hooks/test_queue_guard.py` (PreToolUse/Bash, `TLOR_TEST_QUEUE_GUARD=1`, installed with `install.sh --install-hook`) denies test commands that break the policy. `register_stdd_hook.py` gains `--matcher` and `--env`.
+- stdd-review-loop: failed CI jobs are now repaired in-loop (new step 4b, `review_loop.py job-log`) instead of stopping; repair rounds count against `max-rounds`.
+
 ## v0.15.0 (2026-10-10)
 
 - New opt-in STDD skill `stdd-review-loop` (Beacons of Gondor): after a feat/bug MR or PR is opened, it checks that `gh`/`glab` is installed and logged in, asks once for branch-level push authorization, then loops — wait for CI (X minutes, default 10, re-checked every X), read the AI code-review comment (5 retries for a lagging provider), verify each finding with eagle-sentinel, fix and push findings above Nit/Low (lint only before push, never tests), reply to false positives — until LGTM or Nit/Low only, with a 10-round cap. It fills an empty description from a default skeleton, records `ci-wait-minutes` and `review-job-name` in the repo's AGENTS.md, and writes an `## AI Review Fixes` table into the description at the end. Mechanical steps live in `references/review_loop.py` (Python 3.7, stdlib only, GitHub and GitLab).

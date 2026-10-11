@@ -92,6 +92,7 @@ Code starts outside a shell (e.g. the desktop app).
 | `plugin_update_sync` | SessionStart (`startup`) | Plugin route only, upgrades only: when the plugin version is newer than `~/.claude/.tlor-init-state` (written by `/tlor-init`), syncs the user-level install's agents (changed ones backed up, every backup path listed), base rules, agent_doc, workflows and scripts via `scripts/tlor_sync.py`, then tells you to run `/tlor-init` for the interactive steps. A project-level install only gets a reminder to run `/tlor-init` there, never a write. Silent until `/tlor-init` 0.14.0 or later has run once (users who ran an older `/tlor-init` re-run it once), and when the version is equal or older; never blocks the session | on by default; `TLOR_AUTO_SYNC=0` opts out |
 | `verify_gate` | Stop | Catches "done" claims with no evidence: if code files were edited this turn and no test command was run, it blocks the turn once, asking for fail-then-pass evidence | `TLOR_VERIFY_GATE=1` |
 | `stdd_test_guard` | PreToolUse | STDD execute-phase protection: a test file cited by a `[wip]` task in `tasks.md` cannot be edited or rewritten until that task is marked `[x]` | none — registered into `settings.json` by `install.sh --install-hook` |
+| `test_queue_guard` | PreToolUse (Bash) | Opt-in: denies test commands that break the per-machine test policy in AGENTS.local.md (`tests: never\|serial`) used by `stdd-review-loop` | `TLOR_TEST_QUEUE_GUARD=1`; registered by `install.sh --install-hook` |
 
 Three notes:
 
