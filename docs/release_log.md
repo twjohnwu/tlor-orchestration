@@ -6,6 +6,12 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.17.0 (2026-10-11)
+
+- Mods (plugin route only, Claude Code 2.1.296+): `hooks/hooks.json` now also loads one hooks module, `hooks/mods/register.tsx`, which composes two mods. install.sh does not install them.
+- Fellowship mod: Agent tool rows get a role icon; a "Fellowship" pane lists this session's subagents (type, model/effort, description, status, elapsed time, live token count, tool count). Running agents stay listed; older completed ones collapse into a `+K done` line. `/fellowship` opens the pane. userConfig `fellowship`: `auto` (default, opens on the first subagent), `manual` (only `/fellowship`), `off`.
+- STDD progress mod: an above-prompt band shows the most recently modified unfinished STDD change, its phase (uiux / spec (draft) / plan / execute) and, during execute, a task bar K/T plus the first `[wip]` id. It reads `STDD/<name>/` files only and refreshes after Edit/Write/Bash calls. It does not recompute approval fingerprints; `/stdd` stays the authority. userConfig `stdd_progress`: `on` (default) / `off`.
+
 ## v0.16.0 (2026-10-11)
 
 - stdd-review-loop: the round cap is configurable via `max-rounds` in the repo AGENTS.md `## Review loop` section (default 10); `test-command` and `lint-command` are recorded there too.

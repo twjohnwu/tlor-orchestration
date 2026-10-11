@@ -25,5 +25,6 @@
         ]
       }
     ]
-  }
+  },
+  "modules": ["./mods/register.tsx"]
 }

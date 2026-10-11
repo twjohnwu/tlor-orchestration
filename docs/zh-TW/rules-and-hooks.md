@@ -80,3 +80,14 @@
 ### Session-snapshot 誠實提醒
 
 Claude Code 只在 session 啟動時讀取一次 `settings.json` 裡的 PreToolUse hook——在既有或 `--continue`/`--resume` 的 session 中新註冊 hook 不會讓它在那個 session 生效。任何新註冊的 hook 都請只在全新 session 中驗證。
+
+## Mods（僅 plugin 安裝路徑）
+
+自 v0.17.0 起，plugin 的 `hooks/hooks.json` 另外載入一個 hooks module：`hooks/mods/register.tsx`（Claude Code 2.1.296 以上），內含兩個 mod。透過 `/plugin` marketplace 安裝或更新才會拿到；`install.sh` 不安裝它們。
+
+| Mod | 顯示內容 | 開關（`/plugin` → tlor → configure） |
+|---|---|---|
+| Fellowship | 每個 Agent tool 列前加角色圖示；「Fellowship」pane 列出本 session 的 subagent：類型、model/effort、描述、狀態、經過時間、即時 token、tool 次數。用 `/fellowship` 開啟。 | `fellowship`：`auto`（預設，第一個 subagent 出現時開啟）、`manual`、`off` |
+| STDD progress | prompt 上方一條帶狀列，顯示最近修改、尚未完成的 `STDD/<name>/` change：階段；execute 階段另有 K/T 進度條與第一個 `[wip]` id。K 計 `[x]` 行，T 計全部 task 行，`[MANUAL]` 行不計。 | `stdd_progress`：`on`（預設）、`off` |
+
+STDD 帶狀列只讀檔案，照寫顯示 `spec.md` 的 `status`，不重算核准 fingerprint；權威檢查請跑 `/stdd`。
