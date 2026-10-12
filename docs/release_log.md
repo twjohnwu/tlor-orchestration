@@ -6,6 +6,14 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.18.0 (2026-10-12)
+
+stdd-review-loop:
+- When every blocking finding in a round is refuted, the loop re-runs the AI review job (`rerun-review`: `gh run rerun --job` / GitLab job retry) and waits for a new review instead of stopping. Re-runs count toward `max-rounds`.
+- `fetch-review` without `--author` accepts only bot accounts (GitHub comments and reviews are now read through the REST API, which marks App accounts as `type: Bot`; `x` and `x[bot]` are treated as the same login); if only human accounts match it exits 3 with `candidate_authors`, and the skill asks the user once which login is the review bot.
+- New `fetch-comments`: comments from other reviewers (including GitHub inline review comments), returned with a `checked_at` time that starts the next round's window, are handled as extra fix suggestions; they never decide when the loop stops.
+- The review-comment wait is unchanged (every 3 minutes, up to 6 checks).
+
 ## v0.17.0 (2026-10-11)
 
 - Mods (plugin route only, Claude Code 2.1.296+): `hooks/hooks.json` now also loads one hooks module, `hooks/mods/register.tsx`, which composes three mods. install.sh does not install them.

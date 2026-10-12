@@ -35,6 +35,12 @@ GITLAB_PIPELINE_RECHECKS = 6
 GITLAB_PIPELINE_RECHECK_SECONDS = 30
 QUEUE_UNREADABLE_GRACE_SECONDS = 30
 
+# Process exit codes: 0 is success; 1 is a general command, test, or argparse
+# usage error (JsonArgumentParser.error); 3 means fetch-review saw matching
+# non-self comments but none was from a bot.
+EXIT_ERROR = 1
+EXIT_FETCH_REVIEW_NO_BOT = 3
+
 
 class ReviewLoopError(Exception):
     """An expected failure that should be returned as JSON."""
@@ -369,37 +375,77 @@ def parse_utc_timestamp(value):
 
 
 def pick_latest_comment(
-    comments, since, pattern=DEFAULT_COMMENT_PATTERN, author=None, exclude=()
+    comments, since, pattern=DEFAULT_COMMENT_PATTERN, author=None, exclude=(), bot_only=False
 ):
     """Return the newest normalized comment strictly newer than ``since``.
 
     Comments by any login in ``exclude`` (the authenticated user) never count.
     """
+    candidates = _matching_comments(comments, since, pattern, author, exclude)
+    if bot_only:
+        candidates = [candidate for candidate in candidates if candidate[4]]
+    if not candidates:
+        return None
+    newest = max(candidates, key=lambda value: value[0])
+    return {"body": newest[1], "author": newest[2], "created_at": newest[3]}
+
+
+def _normalize_login(login):
+    """Drop a trailing ``[bot]`` so ``x`` and ``x[bot]`` compare equal."""
+    if isinstance(login, str) and login.endswith("[bot]"):
+        return login[: -len("[bot]")]
+    return login
+
+
+def _comment_author(comment):
+    author = comment.get("author")
+    if not isinstance(author, dict):
+        author = comment.get("user")
+    if isinstance(author, dict):
+        login = author.get("login") or author.get("username")
+        is_bot = bool(
+            (isinstance(login, str) and login.endswith("[bot]"))
+            or author.get("type") == "Bot"
+            or author.get("bot") is True
+        )
+        return login, is_bot
+    return author, isinstance(author, str) and author.endswith("[bot]")
+
+
+def _matching_comments(comments, since, pattern, author, exclude):
     since_time = parse_utc_timestamp(since) if isinstance(since, str) else since
     matcher = re.compile(pattern)
+    excluded = set(_normalize_login(value) for value in exclude)
+    wanted = _normalize_login(author)
     candidates = []
     for comment in comments:
         if comment.get("system"):
             continue
-        login = comment.get("author")
-        if isinstance(login, dict):
-            login = login.get("login") or login.get("username")
-        created = comment.get("created_at") or comment.get("createdAt") or comment.get("submittedAt")
+        login, is_bot = _comment_author(comment)
+        created = comment.get("created_at") or comment.get("submitted_at")
         body = comment.get("body") or ""
         if (
             not created
-            or (login is not None and login in exclude)
-            or (author is not None and login != author)
+            or (login is not None and _normalize_login(login) in excluded)
+            or (author is not None and _normalize_login(login) != wanted)
             or not matcher.search(body)
         ):
             continue
         created_time = parse_utc_timestamp(created)
         if created_time > since_time:
-            candidates.append((created_time, body, login or "", created))
-    if not candidates:
-        return None
-    newest = max(candidates, key=lambda value: value[0])
-    return {"body": newest[1], "author": newest[2], "created_at": newest[3]}
+            candidates.append((created_time, body, login or "", created, is_bot))
+    return candidates
+
+
+def _candidate_authors(comments, since, pattern, exclude):
+    candidates = _matching_comments(comments, since, pattern, None, exclude)
+    candidates.sort(key=lambda value: value[0], reverse=True)
+    authors = []
+    for candidate in candidates:
+        login = _normalize_login(candidate[2])
+        if login and login not in authors:
+            authors.append(login)
+    return authors
 
 
 def _check_category(check):
@@ -693,7 +739,7 @@ def _write_description(platform, ref, number, text, body_file=None):
 def _checks(platform, ref):
     if platform == "github":
         proc = _run(
-            ["gh", "pr", "checks"] + _ref_args(ref) + ["--json", "name,state,bucket"],
+            ["gh", "pr", "checks"] + _ref_args(ref) + ["--json", "name,state,bucket,link"],
             allow_nonzero_json=True,
         )
         if not (proc.stdout or "").strip():
@@ -722,12 +768,47 @@ def _checks(platform, ref):
     return data
 
 
+def _paginated_json(args):
+    """Run a ``gh api --paginate`` call and join its concatenated JSON pages."""
+    text = _run(args).stdout
+    decoder = json.JSONDecoder()
+    items = []
+    position = 0
+    while True:
+        while position < len(text) and text[position].isspace():
+            position += 1
+        if position >= len(text):
+            return items
+        try:
+            page, position = decoder.raw_decode(text, position)
+        except ValueError:
+            raise ReviewLoopError("{0} returned invalid JSON".format(args[0]))
+        if not isinstance(page, list):
+            raise ReviewLoopError("{0} returned unexpected JSON".format(args[0]))
+        items.extend(page)
+
+
+def _github_comments(ref, inline=False):
+    """Issue comments and reviews via REST, whose users carry ``type`` (Bot/User)."""
+    number = _view("github", ref).get("number")
+    if number is None:
+        raise ReviewLoopError("pull request JSON is missing number")
+    endpoints = ["issues/{0}/comments", "pulls/{0}/reviews"]
+    if inline:
+        endpoints.append("pulls/{0}/comments")
+    comments = []
+    for endpoint in endpoints:
+        comments.extend(
+            _paginated_json(
+                ["gh", "api", "--paginate", "repos/{owner}/{repo}/" + endpoint.format(number)]
+            )
+        )
+    return comments
+
+
 def _comments(platform, ref):
     if platform == "github":
-        data = _json_command(["gh", "pr", "view"] + _ref_args(ref) + ["--json", "comments,reviews"])
-        comments = list(data.get("comments") or [])
-        comments.extend(data.get("reviews") or [])
-        return comments
+        return _github_comments(ref)
     mr = _view("gitlab", ref)
     if mr["number"] is None:
         raise ReviewLoopError("merge request JSON is missing iid")
@@ -743,6 +824,12 @@ def _comments(platform, ref):
     if not isinstance(data, list):
         raise ReviewLoopError("glab returned unexpected notes JSON")
     return data
+
+
+def _comments_with_inline(platform, ref):
+    if platform != "github":
+        return _comments(platform, ref)
+    return _github_comments(ref, inline=True)
 
 
 def command_preflight(args):
@@ -817,22 +904,80 @@ def _self_login(platform):
 def command_fetch_review(args):
     platform = _selected_platform(args)
     self_login = _self_login(platform)
+    candidate_authors = []
     for attempt in range(1, args.retries + 2):
+        comments = _comments(platform, args.pr)
         found = pick_latest_comment(
-            _comments(platform, args.pr),
+            comments,
             args.since,
             args.pattern,
             args.author,
             exclude=(self_login,),
+            bot_only=args.author is None,
         )
         if found is not None:
             result = {"found": True}
             result.update(found)
             result["attempts"] = attempt
             return result
+        if args.author is None:
+            candidate_authors = _candidate_authors(
+                comments, args.since, args.pattern, (self_login,)
+            )
         if attempt <= args.retries:
             scaled_sleep(args.interval)
+    if args.author is None and candidate_authors:
+        return {
+            "found": False,
+            "candidate_authors": candidate_authors,
+            "attempts": args.retries + 1,
+            "_exit_code": EXIT_FETCH_REVIEW_NO_BOT,
+        }
     return {"found": False, "body": "", "author": "", "created_at": "", "attempts": args.retries + 1}
+
+
+def command_fetch_comments(args):
+    platform = _selected_platform(args)
+    excluded = set(_normalize_login(value) for value in (args.exclude_author or ()))
+    excluded.add(_normalize_login(_self_login(platform)))
+    since = parse_utc_timestamp(args.since)
+    checked_at = _utc_iso(datetime.datetime.now(datetime.timezone.utc))
+    results = []
+    for comment in _comments_with_inline(platform, args.pr):
+        if comment.get("system"):
+            continue
+        login, _is_bot = _comment_author(comment)
+        created = comment.get("created_at") or comment.get("submitted_at")
+        if (
+            not created
+            or _normalize_login(login) in excluded
+            or not (comment.get("body") or "").strip()
+        ):
+            continue
+        created_time = parse_utc_timestamp(created)
+        if created_time <= since:
+            continue
+        item = {
+            "author": login or "",
+            "created_at": created,
+            "body": comment.get("body") or "",
+        }
+        position = comment.get("position")
+        if not isinstance(position, dict):
+            position = {}
+        path = comment.get("path") or position.get("new_path")
+        line = comment.get("line")
+        if line is None:
+            line = comment.get("original_line")
+        if line is None:
+            line = position.get("new_line")
+        if path is not None:
+            item["path"] = path
+        if line is not None:
+            item["line"] = line
+        results.append((created_time, item))
+    results.sort(key=lambda value: value[0])
+    return {"comments": [item for _created, item in results], "checked_at": checked_at}
 
 
 def command_parse(args):
@@ -1295,6 +1440,39 @@ def _log_tail(text, lines):
     return "\n".join(redact_text(text).splitlines()[-lines:])
 
 
+def _github_actions_job_ids(check, job_name):
+    link = re.match(
+        r"^https://[^/]+/[^/]+/[^/]+/actions/runs/(\d+)/jobs?/(\d+)(?:[/?#]|$)",
+        str(check.get("link") or ""),
+    )
+    if link is None:
+        raise ReviewLoopError("not a GitHub Actions job: {0}".format(job_name))
+    return link.group(1), link.group(2)
+
+
+def command_rerun_review(args):
+    platform = _selected_platform(args)
+    checks = _checks(platform, args.pr)
+    summary = summarize_checks(checks, args.job, args.job_pattern)
+    job_name = summary["review_job"]
+    if job_name is None:
+        raise ReviewLoopError("review job not found")
+    match = next((check for check in checks if (check.get("name") or "") == job_name), None)
+    if match is None:
+        raise ReviewLoopError("review job not found: {0}".format(job_name))
+    if platform == "github":
+        run_id, job_id = _github_actions_job_ids(match, job_name)
+        command = ["gh", "run", "rerun", run_id, "--job", job_id]
+    else:
+        job_id = match.get("id")
+        if job_id is None:
+            raise ReviewLoopError("review job is missing id: {0}".format(job_name))
+        command = ["glab", "api", "-X", "POST", "projects/:id/jobs/{0}/retry".format(job_id)]
+    since = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+    _run(command)
+    return {"since": since, "job": job_name}
+
+
 def command_job_log(args):
     platform = _selected_platform(args)
     if platform == "github":
@@ -1318,13 +1496,8 @@ def command_job_log(args):
         )
         if match is None:
             raise ReviewLoopError("failed job not found: {0}".format(args.job))
-        link = re.match(
-            r"^https://[^/]+/[^/]+/[^/]+/actions/runs/(\d+)/jobs?/(\d+)(?:[/?#]|$)",
-            str(match.get("link") or ""),
-        )
-        if link is None:
-            raise ReviewLoopError("not a GitHub Actions job: {0}".format(args.job))
-        view = ["gh", "run", "view", link.group(1), "--job", link.group(2)]
+        run_id, job_id = _github_actions_job_ids(match, args.job)
+        view = ["gh", "run", "view", run_id, "--job", job_id]
         proc = _run(view + ["--log-failed"])
         if not (proc.stdout or "").strip():
             proc = _run(view + ["--log"])
@@ -1443,6 +1616,12 @@ def _add_platform_args(parser, include_pr=True):
         parser.add_argument("--pr", help="PR/MR number, URL, or branch")
 
 
+def _add_job_selection_args(parser):
+    jobs = parser.add_mutually_exclusive_group()
+    jobs.add_argument("--job")
+    jobs.add_argument("--job-pattern", default=DEFAULT_JOB_PATTERN)
+
+
 def build_parser():
     parser = JsonArgumentParser(description="Run mechanical GitHub/GitLab AI review-loop steps.")
     subparsers = parser.add_subparsers(dest="command")
@@ -1462,10 +1641,13 @@ def build_parser():
     _add_platform_args(wait)
     wait.add_argument("--minutes", type=float, required=True)
     wait.add_argument("--max-extensions", type=int, default=3)
-    jobs = wait.add_mutually_exclusive_group()
-    jobs.add_argument("--job")
-    jobs.add_argument("--job-pattern", default=DEFAULT_JOB_PATTERN)
+    _add_job_selection_args(wait)
     wait.set_defaults(func=command_wait)
+
+    rerun = subparsers.add_parser("rerun-review", help="rerun the selected review job")
+    _add_platform_args(rerun)
+    _add_job_selection_args(rerun)
+    rerun.set_defaults(func=command_rerun_review)
 
     ensure = subparsers.add_parser("ensure-description", help="populate an empty description")
     _add_platform_args(ensure)
@@ -1480,6 +1662,14 @@ def build_parser():
     fetch.add_argument("--retries", type=int, default=5)
     fetch.add_argument("--interval", type=float, default=180)
     fetch.set_defaults(func=command_fetch_review)
+
+    fetch_comments = subparsers.add_parser(
+        "fetch-comments", help="fetch all new non-self PR/MR comments"
+    )
+    _add_platform_args(fetch_comments)
+    fetch_comments.add_argument("--since", required=True)
+    fetch_comments.add_argument("--exclude-author", action="append", default=[])
+    fetch_comments.set_defaults(func=command_fetch_comments)
 
     parse = subparsers.add_parser("parse", help="parse review text from stdin")
     parse.set_defaults(func=command_parse)
@@ -1531,22 +1721,26 @@ def build_parser():
 
 
 def main(argv=None):
+    args = None
     try:
         args = build_parser().parse_args(argv)
         if not hasattr(args, "func"):
             raise ReviewLoopError("a subcommand is required")
         result = args.func(args)
+        exit_code = 0
+        if isinstance(result, dict):
+            exit_code = result.pop("_exit_code", 0)
         print(json.dumps(result, separators=(",", ":")))
         if args.command == "run-tests" and result.get("status") in ("failed", "timeout"):
-            return 1
-        return 0
+            return EXIT_ERROR
+        return exit_code
     except (ReviewLoopError, OSError, ValueError, re.error) as exc:
         result = {"error": str(exc)}
         stderr = getattr(exc, "stderr", None)
         if isinstance(exc, ReviewLoopError) and stderr:
             result["stderr"] = stderr
         print(json.dumps(result, separators=(",", ":")))
-        return 1
+        return EXIT_ERROR
 
 
 if __name__ == "__main__":

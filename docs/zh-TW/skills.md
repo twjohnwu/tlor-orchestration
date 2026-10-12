@@ -49,7 +49,7 @@ High-risk verdicts (irreversible ops, contract/schema changes, money/precision, 
 | `/stdd-plan` | Map 行軍圖 | 從已核准的 spec 產生條件式的 `design-be.md`/`design-fe.md`/`api.yml` 與涵蓋所有情境的 `tasks.md` | 把已核准的 spec 轉成設計與任務清單 |
 | `/stdd-execute` | Forge 鑄造 | 對已核准的 `tasks.md` 逐任務跑 RED → GREEN → REFACTOR 迴圈，雙派工模型＋獨立驗證者 | 逐一實作 STDD 任務 |
 | `/stdd-lint` | Eagle Vision 鷹之視野 | 純規則式（非模型判斷）機械檢查：佔位字串洩漏、ID 連續性、GWT 完整性、test-mapping/涵蓋率、fingerprint 狀態 | 由 stdd-spec/stdd-plan/stdd-execute 的邊界檢查內部呼叫，使用者也可直接呼叫 |
-| `/stdd-review-loop` | Beacons of Gondor 烽火台 | 開 MR/PR 後：等 CI、讀 AI code review 留言、修掉 Nit/Low 以上的 finding、push，重複直到 LGTM 或只剩 Nit/Low（預設上限 10 輪，可用 `max-rounds` 調整）；CI job 失敗時在迴圈內修復，並可選用全機 serial test queue；最後把 `## AI Review Fixes` 段落寫進描述。支援 `gh` 與 `glab`，輔助腳本在 `references/review_loop.py` | 為 feat 或 bug fix 開 MR/PR，或說「修到 LGTM」 |
+| `/stdd-review-loop` | Beacons of Gondor 烽火台 | 開 MR/PR 後：等 CI、讀 AI code review 留言、修掉 Nit/Low 以上的 finding、push，重複直到 LGTM 或只剩 Nit/Low（預設上限 10 輪，可用 `max-rounds` 調整）；CI job 失敗時在迴圈內修復，並可選用全機 serial test queue；最後把 `## AI Review Fixes` 段落寫進描述。支援 `gh` 與 `glab`，輔助腳本在 `references/review_loop.py`。一輪裡所有 finding 都被駁回時，會重跑 review job 再等新的 review；人工 reviewer 的 comment 當作額外的修正建議處理，但不影響迴圈何時結束。 | 為 feat 或 bug fix 開 MR/PR，或說「修到 LGTM」 |
 | `/westmarch-scribe` | Westmarch 記事錄 | 決策歸檔：把已填 Outcome 的精簡 MADR 決策寫入專案 decision log（或 instruction 檔、通用決策紀錄） | 由 stdd-explore/stdd-uiux/stdd-spec/stdd-plan 的建議性收尾步驟呼叫，使用者也可直接呼叫，或對話中出現決策關鍵詞時主動觸發 |
 | `/minas-tirith-archivist` | Minas Tirith 檔案守護者 | 決策查詢：`/westmarch-scribe` 的唯讀對應版，搜尋已歸檔的決策紀錄（通用與專案層級）並附引用回答，絕不寫入或編輯 | 詢問過去的決策或某個慣例的緣由，或使用者直接呼叫 |
 

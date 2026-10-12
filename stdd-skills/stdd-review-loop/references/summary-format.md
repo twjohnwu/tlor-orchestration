@@ -52,3 +52,11 @@ rerunning step 7 never duplicates it.
 | 2 | 2 | Nit | — | Trailing whitespace in the module docstring | Not fixed — non-blocking (Nit) | — |
 | 2 | 3 | CI | — | unit-tests: AssertionError: expected 3 orders, got 2 | Fixed — CI repair | e4f5a6b |
 ```
+
+### Human review comments
+
+| Reviewer | Comment (file:line) | Outcome | Commit |
+|---|---|---|---|
+| <login> | <one-line gist> (`path:line` if inline) | fixed / replied | <short sha or —> |
+
+Omit this section when H was empty in every round.

@@ -190,7 +190,13 @@ In the first round only, once the review comment is found (step 4):
   (`job_written` says whether it changed).
 - The review comment's `author` → `record --bot LOGIN`, stored as
   `review-bot` (`bot_written` says whether it changed). Later rounds pass it
-  to `fetch-review --author`.
+  to `fetch-review --author`. Without `--author`, `fetch-review` only
+  accepts a comment from a bot account (GitHub login ending in `[bot]` or
+  an author marked as a bot; GitLab `author.bot`), so a human reviewer is
+  never recorded as the bot. If it exits 3 with `candidate_authors` (matching
+  comments came only from non-bot accounts), ask the user once which login
+  posts the AI review, run `record --bot <login>`, and re-run `fetch-review`
+  with `--author <login>`.
 
 The `max-rounds` default (step 2) and a first-time `lint-command` (steps
 4b and 6) are recorded the same way. `max_rounds_written` stays `false`
@@ -231,10 +237,11 @@ Handle the `wait` result, first matching line wins:
 
 ```
 python3 <skill-dir>/references/review_loop.py fetch-review --pr <ref> \
-  --since <push time> --retries 5 --interval 180 [--author <review_bot>]
+  --since <since> --retries 5 --interval 180 [--author <review_bot>]
 ```
 
-Output: `found`, `body`, `author`, `created_at`, `attempts`. Only comments
+Output: `found`, `body`, `author`, `created_at`, `attempts`. `<since>` is the
+push time, or the `since` printed by `rerun-review` (step 7 row 5). Only comments
 strictly newer than `--since` count; on GitHub both PR comments and PR
 reviews are searched. Comments written by the authenticated CLI user (the
 Maia's own replies) are always excluded: the script looks up that login
@@ -248,6 +255,27 @@ and whenever `review_bot` is already recorded, pass `--author <review_bot>`.
 
 A failed review job by itself does not stop the loop: many review bots fail
 their job on purpose to signal findings. Its comment is what counts.
+
+**Human review comments.** Once the bot's comment is found, collect every
+other reviewer's comment from the same window:
+
+```
+python3 <skill-dir>/references/review_loop.py fetch-comments --pr <ref> \
+  --since <h_since> --exclude-author <review_bot>
+```
+
+The output is `{"comments": [...], "checked_at": "<UTC>"}`. Each comment
+is one not written by the bot or by the CLI user (`author`, `created_at`,
+`body`, and `path`/`line` for inline comments; on GitHub inline review
+comments are included; empty-body approvals are skipped). `<h_since>` is
+the push time in the first round, and the previous round's `checked_at`
+after that, so no human comment falls between two rounds' windows. Call
+the comment list H. Each entry in H is a fix suggestion: step 6 verifies it
+the same way as a bot finding (fix it if it holds, reply once with evidence
+if not). An entry that asks for no change (a thank-you, an acknowledgement
+of a reply) needs neither a fix nor a reply; record it as "no action". H
+never decides when the loop ends — step 7 reads only the bot's verdict and
+N, except where a row names H explicitly.
 
 ## 4b. CI repair
 
@@ -383,13 +411,15 @@ For each finding in N (step 5):
    `python3 <skill-dir>/references/review_loop.py comment --pr <ref> --body-file <file>`.
    A finding that repeats one already answered in an earlier round is not
    in N (step 5) and gets no new reply.
+   Comments in H (step 4) go through items 1–3 the same way.
 
 After all findings of the round are handled:
 
-- If any finding was fixed or a CI repair (step 4b) is pending: make ONE
+- If any finding or H comment was fixed or a CI repair (step 4b) is pending: make ONE
   commit per round, staging only the files the fixes touched (plus the
   `chore: record CI settings` commit from step 3 if pending, as its own
   commit). Message (R = round number): `fix: address AI review round <R>`
+  (H fixes use the same message)
   for review fixes only; `fix: repair CI (<job>[, <job>…]) round <R>` for
   a CI repair only; `fix: repair CI (<job>[, <job>…]) and address AI
   review round <R>` for both.
@@ -415,21 +445,26 @@ Take the first row whose condition holds:
 
 | # | When | Condition | Next |
 |---|---|---|---|
-| 1 | after step 5 | N is not empty | Step 6. |
-| 2 | after step 5 | N is empty and a CI repair is pending | Step 6's commit and push only (CI-repair message), then rows 4–7. |
-| 3 | after step 5 | N is empty and no CI repair pending (a failed CI job left unresolved by step 4b is named in the report): `verdict` is `lgtm`, only non-blocking findings, only false positives already answered, or the hand reading found nothing | Stop and summarize. If `verdict` was `unknown`, say so in the user report. |
-| 4 | after the push decision | A finding in N held but no fix for it landed (the builder could not fix it), or a CI repair failed, or a CI-repair-only round (no review comment) repaired no job — every failed job failed to repair or had its log unavailable — and nothing was pushed | Stop and summarize; tell the user which findings and CI jobs remain unresolved, and that any fixes pushed this round were not re-reviewed. |
-| 5 | after the push decision | Nothing was pushed: every finding in N was judged a false positive and replied to, and there was no CI repair attempted (a job whose log was unavailable is named in the report but is no attempt) | Stop and summarize. |
-| 6 | after the push decision | A fix (review, CI repair, or both) was pushed and this was round `max_rounds` | Round cap: stop, summarize, and tell the user that round's fixes were pushed but not re-reviewed. |
-| 7 | after the push decision | A fix was pushed in an earlier round | Back to step 2 (next round). |
+| 1 | after step 5 | N is not empty, or H is not empty | Step 6. |
+| 2 | after step 5 | N is empty and a CI repair is pending | Step 6's commit and push only (CI-repair message), then rows 4–8. |
+| 3 | after step 5 | N is empty and H is empty and no CI repair pending (a failed CI job left unresolved by step 4b is named in the report): `verdict` is `lgtm`, only non-blocking findings, only false positives already answered, or the hand reading found nothing | Stop and summarize. If `verdict` was `unknown`, say so in the user report. |
+| 4 | after the push decision | A finding in N or a comment in H held but no fix for it landed (the builder could not fix it), or a CI repair failed, or a CI-repair-only round (no review comment) repaired no job — every failed job failed to repair or had its log unavailable — and nothing was pushed | Stop and summarize; tell the user which findings, H comments, and CI jobs remain unresolved, and that any fixes pushed this round were not re-reviewed. |
+| 5 | after the push decision | Nothing was pushed, N was not empty, every finding in N was judged a false positive and replied to, and there was no CI repair attempted (a job whose log was unavailable is named in the report but is no attempt) | If this round is below `max_rounds`: re-run the review job with `python3 <skill-dir>/references/review_loop.py rerun-review --pr <ref>` (same `--job` as `wait`), keep the `since` it prints, and go to step 4 (`fetch-review --since <since>`; same retries and interval). The re-run counts as a round. If the round cap is reached, stop and summarize. If `rerun-review` exits non-zero, stop and report its error. |
+| 6 | after the push decision | Nothing was pushed and N was empty: only comments in H were handled, each replied to or recorded as no action | Stop and summarize. |
+| 7 | after the push decision | A fix (review, H comment, CI repair, or any mix) was pushed and this was round `max_rounds` (re-run rounds count) | Round cap: stop, summarize, and tell the user that round's fixes were pushed but not re-reviewed. |
+| 8 | after the push decision | A fix was pushed in an earlier round | Back to step 2 (next round). |
 
-These rows cover every case: after step 5, N is either non-empty (row 1)
-or empty, with a CI repair pending (row 2) or not (row 3); after the push
-decision, either a held finding or a failed CI repair was left unfixed, or
-a CI-repair-only round repaired nothing (row 4),
-or every held finding was fixed and then nothing was pushed (row 5) or a fix was pushed,
-in round `max_rounds` (row 6) or earlier (row 7). The loop never waits on
-anything else.
+These rows cover every case: after step 5, N or H is non-empty (row 1) or
+both are empty, with a CI repair pending (row 2) or not (row 3); after the
+push decision, either a held bot finding or H comment or a failed CI repair
+was left unfixed, or a CI-repair-only round repaired nothing (row 4), or
+nothing was pushed because every bot finding was refuted, so the review
+job is re-run, or the loop stops if the round cap is reached (row 5), or
+nothing was pushed and only H was handled, so the loop stops (row 6), or a
+fix was pushed, in round `max_rounds` (row 7) or earlier (row 8). The loop
+never waits on anything else.
+
+Re-running the review job (row 5) is a remote action covered by the same step-1 authorization as the loop's pushes.
 
 To stop and summarize (the early stops in steps 2, 4, and 4b — extensions
 exhausted, no review job, no review comment, an unrepairable or repeating
