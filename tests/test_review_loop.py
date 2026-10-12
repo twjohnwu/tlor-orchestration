@@ -400,6 +400,30 @@ def test_gitlab_wait_success(tmp_path):
     assert result["review_job_status"] == "success"
 
 
+def rest(login, body, created, kind="User", key="created_at"):
+    """A GitHub REST comment/review as `gh api` returns it."""
+    return {"user": {"login": login, "type": kind}, key: created, "body": body}
+
+
+def gh_rest_cli(tmp_path, issue=(), reviews=(), inline=(), log=None):
+    """Stub gh serving `pr view` plus the three paginated REST endpoints for PR 7."""
+    source = (
+        "import json, os, pathlib, sys\n"
+        "a=sys.argv[1:]\n"
+        "if os.environ.get('LOG'):\n"
+        " p=pathlib.Path(os.environ['LOG'])\n"
+        " p.write_text((p.read_text() if p.exists() else '')+json.dumps(a)+'\\n')\n"
+        "base='repos/{owner}/{repo}/'\n"
+        "if a[:2] == ['api','user']:\n print('me')\n"
+        "elif a[:2] == ['pr','view']:\n print(json.dumps({'number':7}))\n"
+        "elif a == ['api','--paginate',base+'issues/7/comments']:\n print(json.dumps(" + repr(list(issue)) + "))\n"
+        "elif a == ['api','--paginate',base+'pulls/7/reviews']:\n print(json.dumps(" + repr(list(reviews)) + "))\n"
+        "elif a == ['api','--paginate',base+'pulls/7/comments']:\n print(json.dumps(" + repr(list(inline)) + "))\n"
+        "else:\n sys.exit(2)\n"
+    )
+    write_cli(tmp_path, "gh", source)
+
+
 def test_fetch_review_found_after_two_empty_attempts(tmp_path):
     counter = tmp_path / "fetch-count"
     write_cli(
@@ -407,12 +431,14 @@ def test_fetch_review_found_after_two_empty_attempts(tmp_path):
         "gh",
         "import json, os, pathlib, sys\n"
         "if sys.argv[1:3] == ['api', 'user']:\n print('me')\n sys.exit(0)\n"
+        "if sys.argv[1:3] == ['pr', 'view']:\n print(json.dumps({'number':7}))\n sys.exit(0)\n"
+        "if 'reviews' in sys.argv[-1] or 'pulls/7/comments' in sys.argv[-1]:\n print('[]')\n sys.exit(0)\n"
         "p=pathlib.Path(os.environ['COUNTER'])\n"
         "n=int(p.read_text())+1 if p.exists() else 1\n"
         "p.write_text(str(n))\n"
-        "comments=[] if n < 3 else [{'author':{'login':'bot'},'body':'Code review: LGTM',"
-        "'createdAt':'2026-01-01T00:00:01Z'}]\n"
-        "print(json.dumps({'comments':comments,'reviews':[]}))\n",
+        "comments=[] if n < 3 else [{'user':{'login':'bot[bot]','type':'Bot'},'body':'Code review: LGTM',"
+        "'created_at':'2026-01-01T00:00:01Z'}]\n"
+        "print(json.dumps(comments))\n",
     )
     result = payload(
         run_cli(
@@ -421,18 +447,12 @@ def test_fetch_review_found_after_two_empty_attempts(tmp_path):
         )
     )
     assert result["found"] is True
-    assert result["author"] == "bot"
+    assert result["author"] == "bot[bot]"
     assert result["attempts"] == 3
 
 
 def test_fetch_review_not_found_after_retries(tmp_path):
-    write_cli(
-        tmp_path,
-        "gh",
-        "import json, sys\n"
-        "if sys.argv[1:3] == ['api', 'user']:\n print('me')\n sys.exit(0)\n"
-        "print(json.dumps({'comments':[],'reviews':[]}))\n",
-    )
+    gh_rest_cli(tmp_path)
     result = payload(
         run_cli(
             ["fetch-review", "--platform", "github", "--since", "2026-01-01T00:00:00Z", "--retries", "2"],
@@ -443,16 +463,13 @@ def test_fetch_review_not_found_after_retries(tmp_path):
 
 
 def test_fetch_review_since_is_strict_and_chooses_newest(tmp_path):
-    write_cli(
+    gh_rest_cli(
         tmp_path,
-        "gh",
-        "import json, sys\n"
-        "if sys.argv[1:3] == ['api', 'user']:\n print('me')\n sys.exit(0)\n"
-        "print(json.dumps({'comments':["
-        "{'author':{'login':'bot'},'body':'Review at boundary','createdAt':'2026-01-01T00:00:00Z'},"
-        "{'author':{'login':'bot'},'body':'Review newer','createdAt':'2026-01-01T00:00:02+00:00'},"
-        "{'author':{'login':'bot'},'body':'Review newest','createdAt':'2026-01-01T00:00:03Z'}"
-        "],'reviews':[]}))\n",
+        issue=[
+            rest("bot[bot]", "Review at boundary", "2026-01-01T00:00:00Z", "Bot"),
+            rest("bot[bot]", "Review newer", "2026-01-01T00:00:02+00:00", "Bot"),
+            rest("bot[bot]", "Review newest", "2026-01-01T00:00:03Z", "Bot"),
+        ],
     )
     result = payload(
         run_cli(
@@ -462,6 +479,296 @@ def test_fetch_review_since_is_strict_and_chooses_newest(tmp_path):
     )
     assert result["body"] == "Review newest"
     assert result["created_at"] == "2026-01-01T00:00:03Z"
+
+
+def test_fetch_review_author_is_exact_and_does_not_require_bot(tmp_path):
+    gh_rest_cli(
+        tmp_path,
+        issue=[
+            rest("Reviewer", "Review exact", "2026-01-01T00:00:01Z"),
+            rest("reviewer", "Review wrong case", "2026-01-01T00:00:03Z"),
+            rest("someone", "Review newest human", "2026-01-01T00:00:04Z"),
+        ],
+    )
+    result = payload(
+        run_cli(
+            [
+                "fetch-review", "--platform", "github", "--since", "2026-01-01T00:00:00Z",
+                "--author", "Reviewer", "--retries", "0",
+            ],
+            {"PATH": cli_path(tmp_path)},
+        )
+    )
+    assert result["author"] == "Reviewer"
+    assert result["body"] == "Review exact"
+
+
+def test_fetch_review_without_author_prefers_older_bot_to_newer_human(tmp_path):
+    gh_rest_cli(
+        tmp_path,
+        issue=[
+            rest("review-service[bot]", "Review from bot", "2026-01-01T00:00:01Z", "Bot"),
+            rest("human", "Review from human", "2026-01-01T00:00:03Z"),
+        ],
+    )
+    result = payload(
+        run_cli(
+            ["fetch-review", "--platform", "github", "--since", "2026-01-01T00:00:00Z", "--retries", "0"],
+            {"PATH": cli_path(tmp_path)},
+        )
+    )
+    assert result["author"] == "review-service[bot]"
+    assert result["body"] == "Review from bot"
+
+
+def test_fetch_review_finds_rest_bot_review_unlocked(tmp_path):
+    gh_rest_cli(
+        tmp_path,
+        reviews=[rest("x[bot]", "Review: LGTM", "2026-01-01T00:00:01Z", "Bot", key="submitted_at")],
+    )
+    result = payload(
+        run_cli(
+            ["fetch-review", "--platform", "github", "--since", "2026-01-01T00:00:00Z", "--retries", "0"],
+            {"PATH": cli_path(tmp_path)},
+        )
+    )
+    assert result["found"] is True
+    assert result["author"] == "x[bot]"
+    assert result["created_at"] == "2026-01-01T00:00:01Z"
+
+
+def test_fetch_review_type_bot_without_suffix_is_bot(tmp_path):
+    gh_rest_cli(tmp_path, issue=[rest("svc", "Review ok", "2026-01-01T00:00:01Z", "Bot")])
+    result = payload(
+        run_cli(
+            ["fetch-review", "--platform", "github", "--since", "2026-01-01T00:00:00Z", "--retries", "0"],
+            {"PATH": cli_path(tmp_path)},
+        )
+    )
+    assert result["author"] == "svc"
+
+
+def test_fetch_review_without_author_reports_human_candidates(tmp_path):
+    gh_rest_cli(
+        tmp_path,
+        issue=[
+            rest("sam", "Review first", "2026-01-01T00:00:01Z"),
+            rest("alex", "Review newest", "2026-01-01T00:00:04Z"),
+            rest("sam", "Review again", "2026-01-01T00:00:03Z"),
+        ],
+    )
+    result = payload(
+        run_cli(
+            ["fetch-review", "--platform", "github", "--since", "2026-01-01T00:00:00Z", "--retries", "0"],
+            {"PATH": cli_path(tmp_path)},
+        ),
+        expected_code=3,
+    )
+    assert result == {"found": False, "candidate_authors": ["alex", "sam"], "attempts": 1}
+
+
+def test_fetch_review_human_user_type_is_exit_3(tmp_path):
+    gh_rest_cli(tmp_path, issue=[rest("x", "Review by a human", "2026-01-01T00:00:01Z", "User")])
+    result = payload(
+        run_cli(
+            ["fetch-review", "--platform", "github", "--since", "2026-01-01T00:00:00Z", "--retries", "0"],
+            {"PATH": cli_path(tmp_path)},
+        ),
+        expected_code=3,
+    )
+    assert result == {"found": False, "candidate_authors": ["x"], "attempts": 1}
+
+
+def test_candidate_authors_are_normalized_without_bot_suffix():
+    comments = [
+        {"user": {"login": "x[bot]", "type": "Bot"}, "body": "review", "created_at": "2026-01-01T00:00:02Z"},
+        {"user": {"login": "x"}, "body": "review", "created_at": "2026-01-01T00:00:03Z"},
+    ]
+    assert review_loop._candidate_authors(
+        comments, review_loop.parse_utc_timestamp("2026-01-01T00:00:00Z"), review_loop.DEFAULT_COMMENT_PATTERN, ()
+    ) == ["x"]
+
+
+def test_fetch_review_author_matches_with_or_without_bot_suffix(tmp_path):
+    gh_rest_cli(tmp_path, issue=[rest("x[bot]", "Review by bot", "2026-01-01T00:00:01Z", "Bot")])
+    for requested in ("x", "x[bot]"):
+        result = payload(
+            run_cli(
+                [
+                    "fetch-review", "--platform", "github", "--since", "2026-01-01T00:00:00Z",
+                    "--author", requested, "--retries", "0",
+                ],
+                {"PATH": cli_path(tmp_path)},
+            )
+        )
+        assert result["found"] is True, requested
+        assert result["author"] == "x[bot]"
+    gh_rest_cli(tmp_path, issue=[rest("x", "Review by plain login", "2026-01-01T00:00:01Z")])
+    result = payload(
+        run_cli(
+            [
+                "fetch-review", "--platform", "github", "--since", "2026-01-01T00:00:00Z",
+                "--author", "x[bot]", "--retries", "0",
+            ],
+            {"PATH": cli_path(tmp_path)},
+        )
+    )
+    assert result["author"] == "x"
+
+
+def test_github_rest_calls_are_all_paginated(tmp_path):
+    log = tmp_path / "calls"
+    gh_rest_cli(tmp_path)
+    payload(
+        run_cli(
+            ["fetch-comments", "--platform", "github", "--pr", "7", "--since", "2026-01-01T00:00:00Z"],
+            {"PATH": cli_path(tmp_path), "LOG": str(log)},
+        )
+    )
+    calls = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+    rest_calls = [call for call in calls if call[0] == "api" and call[1] != "user"]
+    assert sorted(call[-1] for call in rest_calls) == [
+        "repos/{owner}/{repo}/issues/7/comments",
+        "repos/{owner}/{repo}/pulls/7/comments",
+        "repos/{owner}/{repo}/pulls/7/reviews",
+    ]
+    assert all("--paginate" in call for call in rest_calls)
+
+
+def test_github_paginated_pages_are_concatenated():
+    pages = "[1,2]\n[3]"
+    proc = type("Proc", (), {"stdout": pages})()
+    original = review_loop._run
+    review_loop._run = lambda args, **kwargs: proc
+    try:
+        assert review_loop._paginated_json(["gh", "api", "--paginate", "x"]) == [1, 2, 3]
+    finally:
+        review_loop._run = original
+
+
+def test_fetch_comments_github_collects_issue_review_and_inline_comments(tmp_path):
+    gh_rest_cli(
+        tmp_path,
+        issue=[
+            rest("issue-human", "issue", "2026-01-01T00:00:02Z"),
+            rest("me", "self", "2026-01-01T00:00:06Z"),
+            rest("old-human", "old", "2025-12-31T23:59:59Z"),
+        ],
+        reviews=[rest("review-human", "review", "2026-01-01T00:00:03Z", key="submitted_at")],
+        inline=[
+            dict(
+                rest("inline-human", "inline", "2026-01-01T00:00:04Z"),
+                path="src/a.py", line=None, original_line=9,
+            ),
+            rest("review-bot[bot]", "bot", "2026-01-01T00:00:05Z", "Bot"),
+        ],
+    )
+    result = payload(
+        run_cli(
+            [
+                "fetch-comments", "--platform", "github", "--pr", "7",
+                "--since", "2026-01-01T00:00:00Z", "--exclude-author", "review-bot[bot]",
+            ],
+            {"PATH": cli_path(tmp_path)},
+        )
+    )
+    assert result["comments"] == [
+        {"author": "issue-human", "created_at": "2026-01-01T00:00:02Z", "body": "issue"},
+        {"author": "review-human", "created_at": "2026-01-01T00:00:03Z", "body": "review"},
+        {
+            "author": "inline-human", "created_at": "2026-01-01T00:00:04Z",
+            "body": "inline", "path": "src/a.py", "line": 9,
+        },
+    ]
+    assert set(result) == {"comments", "checked_at"}
+
+
+def test_fetch_comments_exclude_author_matches_bot_suffix_on_inline(tmp_path):
+    gh_rest_cli(
+        tmp_path,
+        inline=[
+            rest("x[bot]", "bot inline", "2026-01-01T00:00:05Z", "Bot"),
+            rest("keeper", "human inline", "2026-01-01T00:00:06Z"),
+        ],
+    )
+    result = payload(
+        run_cli(
+            [
+                "fetch-comments", "--platform", "github", "--pr", "7",
+                "--since", "2026-01-01T00:00:00Z", "--exclude-author", "x",
+            ],
+            {"PATH": cli_path(tmp_path)},
+        )
+    )
+    assert [item["author"] for item in result["comments"]] == ["keeper"]
+
+
+def test_fetch_comments_skips_empty_and_whitespace_bodies(tmp_path):
+    gh_rest_cli(
+        tmp_path,
+        issue=[rest("human", "real", "2026-01-01T00:00:02Z")],
+        reviews=[
+            rest("approver", "", "2026-01-01T00:00:03Z", key="submitted_at"),
+            rest("container", " \n\t", "2026-01-01T00:00:04Z", key="submitted_at"),
+        ],
+    )
+    result = payload(
+        run_cli(
+            ["fetch-comments", "--platform", "github", "--pr", "7", "--since", "2026-01-01T00:00:00Z"],
+            {"PATH": cli_path(tmp_path)},
+        )
+    )
+    assert [item["author"] for item in result["comments"]] == ["human"]
+
+
+def test_fetch_comments_returns_checked_at_taken_before_fetching(tmp_path):
+    gh_rest_cli(tmp_path)
+    before = review_loop.parse_utc_timestamp(review_loop._utc_iso(review_loop.datetime.datetime.now(review_loop.datetime.timezone.utc)))
+    result = payload(
+        run_cli(
+            ["fetch-comments", "--platform", "github", "--pr", "7", "--since", "2026-01-01T00:00:00Z"],
+            {"PATH": cli_path(tmp_path)},
+        )
+    )
+    assert result["comments"] == []
+    assert result["checked_at"].endswith("Z")
+    assert review_loop.parse_utc_timestamp(result["checked_at"]) >= before
+
+
+def test_fetch_comments_gitlab_collects_notes_with_positions(tmp_path):
+    write_cli(
+        tmp_path,
+        "glab",
+        "import json, sys\n"
+        "a=sys.argv[1:]\n"
+        "if a[:2] == ['api','user']:\n print(json.dumps({'username':'me'}))\n"
+        "elif a[:2] == ['mr','view']:\n print(json.dumps({'iid':9,'sha':'abc'}))\n"
+        "elif a and a[0] == 'api':\n"
+        " print(json.dumps(["
+        "{'author':{'username':'position-human'},'body':'positioned','created_at':'2026-01-01T00:00:04Z','position':{'new_path':'lib/a.rb','new_line':12}},"
+        "{'author':{'username':'plain-human'},'body':'plain','created_at':'2026-01-01T00:00:02Z'},"
+        "{'author':{'username':'me'},'body':'self','created_at':'2026-01-01T00:00:06Z'},"
+        "{'author':{'username':'review-bot','bot':True},'body':'bot','created_at':'2026-01-01T00:00:05Z'},"
+        "{'author':{'username':'system'},'body':'system','created_at':'2026-01-01T00:00:03Z','system':True},"
+        "{'author':{'username':'old-human'},'body':'old','created_at':'2025-12-31T23:59:59Z'}]))\n"
+        "else:\n sys.exit(2)\n",
+    )
+    result = payload(
+        run_cli(
+            [
+                "fetch-comments", "--platform", "gitlab", "--pr", "9",
+                "--since", "2026-01-01T00:00:00Z", "--exclude-author", "review-bot",
+            ],
+            {"PATH": cli_path(tmp_path)},
+        )
+    )
+    assert result["comments"] == [
+        {"author": "plain-human", "created_at": "2026-01-01T00:00:02Z", "body": "plain"},
+        {
+            "author": "position-human", "created_at": "2026-01-01T00:00:04Z",
+            "body": "positioned", "path": "lib/a.rb", "line": 12,
+        },
+    ]
 
 
 def test_ensure_description_only_writes_when_empty(tmp_path):
@@ -733,8 +1040,8 @@ def test_help_lists_all_subcommands():
     assert proc.returncode == 0
     for name in (
         "preflight", "detect", "wait", "ensure-description", "fetch-review",
-        "parse", "record", "run-tests", "job-log", "comment", "set-section",
-        "push-time", "elapsed",
+        "fetch-comments", "rerun-review", "parse", "record", "run-tests",
+        "job-log", "comment", "set-section", "push-time", "elapsed",
     ):
         assert name in proc.stdout
 
@@ -927,16 +1234,12 @@ def test_push_time_gitlab_stale_pipeline_then_fresh(tmp_path):
 
 
 def test_fetch_review_excludes_self_comments_github(tmp_path):
-    write_cli(
+    gh_rest_cli(
         tmp_path,
-        "gh",
-        "import json, sys\n"
-        "a=sys.argv[1:]\n"
-        "if a[:2] == ['api','user']:\n print('me')\n sys.exit(0)\n"
-        "print(json.dumps({'comments':["
-        "{'author':{'login':'bot'},'body':'Review: [High] bug','createdAt':'2026-01-01T00:00:01Z'},"
-        "{'author':{'login':'me'},'body':'Review reply: not a bug','createdAt':'2026-01-01T00:00:05Z'}"
-        "],'reviews':[]}))\n",
+        issue=[
+            rest("bot[bot]", "Review: [High] bug", "2026-01-01T00:00:01Z", "Bot"),
+            rest("me", "Review reply: not a bug", "2026-01-01T00:00:05Z"),
+        ],
     )
     result = payload(
         run_cli(
@@ -944,7 +1247,7 @@ def test_fetch_review_excludes_self_comments_github(tmp_path):
             {"PATH": cli_path(tmp_path)},
         )
     )
-    assert result["author"] == "bot"
+    assert result["author"] == "bot[bot]"
     assert result["body"] == "Review: [High] bug"
 
 
@@ -959,7 +1262,7 @@ def test_fetch_review_excludes_self_comments_gitlab(tmp_path):
         "elif a and a[0] == 'api':\n"
         " print(json.dumps(["
         "{'author':{'username':'me'},'body':'Review reply','created_at':'2026-01-01T00:00:05Z'},"
-        "{'author':{'username':'bot'},'body':'Review LGTM','created_at':'2026-01-01T00:00:01Z'}]))\n"
+        "{'author':{'username':'bot','bot':True},'body':'Review LGTM','created_at':'2026-01-01T00:00:01Z'}]))\n"
         "else:\n sys.exit(2)\n",
     )
     result = payload(
@@ -973,8 +1276,8 @@ def test_fetch_review_excludes_self_comments_gitlab(tmp_path):
 
 def test_pick_latest_comment_exclude():
     comments = [
-        {"author": {"login": "me"}, "body": "review", "createdAt": "2026-01-01T00:00:05Z"},
-        {"author": {"login": "bot"}, "body": "review", "createdAt": "2026-01-01T00:00:01Z"},
+        {"author": {"login": "me"}, "body": "review", "created_at": "2026-01-01T00:00:05Z"},
+        {"author": {"login": "bot"}, "body": "review", "created_at": "2026-01-01T00:00:01Z"},
     ]
     found = review_loop.pick_latest_comment(
         comments, "2026-01-01T00:00:00Z", exclude=("me",)
@@ -1290,6 +1593,103 @@ def gh_job_log_cli(tmp_path, checks, log_failed, full_log="", view_exit=0):
         " sys.exit(" + repr(view_exit) + ")\n"
         "else:\n sys.exit(2)\n",
     )
+
+
+def test_rerun_review_github_calls_run_rerun_and_returns_since(tmp_path):
+    log = tmp_path / "calls"
+    write_cli(
+        tmp_path,
+        "gh",
+        "import json, os, pathlib, sys\n"
+        "a=sys.argv[1:]\n"
+        "p=pathlib.Path(os.environ['LOG'])\n"
+        "p.write_text((p.read_text() if p.exists() else '')+json.dumps(a)+'\\n')\n"
+        "if a[:2] == ['pr','checks']:\n"
+        " print(json.dumps([{'name':'AI Review','state':'SUCCESS','bucket':'pass','link':"
+        + repr(GH_JOB_LINK) + "}]))\n"
+        "elif a == ['run','rerun','123','--job','456']:\n pass\n"
+        "else:\n sys.exit(2)\n",
+    )
+    result = payload(
+        run_cli(
+            ["rerun-review", "--platform", "github", "--pr", "7", "--job", "AI Review"],
+            {"PATH": cli_path(tmp_path), "LOG": str(log)},
+        )
+    )
+    calls = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+    assert calls[-1] == ["run", "rerun", "123", "--job", "456"]
+    assert result["job"] == "AI Review"
+    assert result["since"].endswith("Z")
+    assert review_loop.parse_utc_timestamp(result["since"]).tzinfo is not None
+
+
+def test_rerun_review_gitlab_posts_retry(tmp_path):
+    log = tmp_path / "retry-call"
+    write_cli(
+        tmp_path,
+        "glab",
+        "import json, os, pathlib, sys\n"
+        "a=sys.argv[1:]\n"
+        "if a[:2] == ['mr','view']:\n print(json.dumps({'iid':9,'head_pipeline':{'id':44}}))\n"
+        "elif a == ['api','projects/:id/pipelines/44/jobs?per_page=100']:\n"
+        " print(json.dumps([{'id':55,'name':'ai-review','status':'success'}]))\n"
+        "elif a == ['api','-X','POST','projects/:id/jobs/55/retry']:\n"
+        " pathlib.Path(os.environ['LOG']).write_text(json.dumps(a))\n"
+        "else:\n sys.exit(2)\n",
+    )
+    result = payload(
+        run_cli(
+            ["rerun-review", "--platform", "gitlab", "--pr", "9"],
+            {"PATH": cli_path(tmp_path), "LOG": str(log)},
+        )
+    )
+    assert json.loads(log.read_text(encoding="utf-8")) == [
+        "api", "-X", "POST", "projects/:id/jobs/55/retry",
+    ]
+    assert result["job"] == "ai-review"
+    assert result["since"].endswith("Z")
+
+
+def test_rerun_review_no_job_does_not_call_rerun(tmp_path):
+    log = tmp_path / "calls"
+    write_cli(
+        tmp_path,
+        "gh",
+        "import json, os, pathlib, sys\n"
+        "a=sys.argv[1:]\n"
+        "p=pathlib.Path(os.environ['LOG'])\n"
+        "p.write_text((p.read_text() if p.exists() else '')+json.dumps(a)+'\\n')\n"
+        "if a[:2] == ['pr','checks']:\n print(json.dumps([{'name':'lint','state':'SUCCESS','bucket':'pass'}]))\n"
+        "else:\n sys.exit(2)\n",
+    )
+    proc = run_cli(
+        ["rerun-review", "--platform", "github", "--job", "AI Review"],
+        {"PATH": cli_path(tmp_path), "LOG": str(log)},
+    )
+    assert proc.returncode != 0
+    assert "review job not found" in proc.stdout
+    calls = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+    assert all(call[:2] != ["run", "rerun"] for call in calls)
+
+
+def test_rerun_review_cli_failure_is_error(tmp_path):
+    write_cli(
+        tmp_path,
+        "gh",
+        "import json, sys\n"
+        "a=sys.argv[1:]\n"
+        "if a[:2] == ['pr','checks']:\n"
+        " print(json.dumps([{'name':'AI Review','state':'SUCCESS','bucket':'pass','link':"
+        + repr(GH_JOB_LINK) + "}]))\n"
+        "elif a[:2] == ['run','rerun']:\n print('cannot rerun', file=sys.stderr)\n sys.exit(7)\n"
+        "else:\n sys.exit(2)\n",
+    )
+    proc = run_cli(
+        ["rerun-review", "--platform", "github", "--job-pattern", "AI Review"],
+        {"PATH": cli_path(tmp_path)},
+    )
+    assert proc.returncode != 0
+    assert "gh command failed (exit 7)" in proc.stdout
 
 
 def test_job_log_github_tail_and_redaction(tmp_path):
