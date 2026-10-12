@@ -2058,11 +2058,13 @@ def test_purge_keeps_lock_while_child_process_group_lives(tmp_path):
 def test_run_tests_lock_records_child_pgid(tmp_path):
     repo = serial_repo(tmp_path)
     queue = tmp_path / "queue"
-    proc = run_cli_in(
-        repo,
-        ["run-tests", "--cmd", 'cat "$TLOR_TEST_QUEUE_DIR/lock"; echo; ps -o pgid= -p $$'],
-        queue_env(queue, "0"),
+    # The lock gains child_pgid only after the child starts, so wait for it.
+    command = (
+        'i=0; until grep -q child_pgid "$TLOR_TEST_QUEUE_DIR/lock" || [ $i -ge 100 ]; '
+        'do sleep 0.05; i=$((i+1)); done; '
+        'cat "$TLOR_TEST_QUEUE_DIR/lock"; echo; ps -o pgid= -p $$'
     )
+    proc = run_cli_in(repo, ["run-tests", "--cmd", command], queue_env(queue, "0"))
     result = payload(proc)
     lock_text, pgid_text = result["stdout_tail"].strip().splitlines()
     data = json.loads(lock_text)
