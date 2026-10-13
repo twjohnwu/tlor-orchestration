@@ -7,6 +7,7 @@ import {
   FALLBACK_ICON,
   recordStepTokens,
   completeAgent,
+  formatClock,
   formatRow,
   iconFor,
   parseFrontmatter,
@@ -41,13 +42,31 @@ test('pane row format', async () => {
     model: 'claude-opus-4-7',
     effort: 'medium',
   }
+  const endedClock = formatClock(61_000)
   expect(formatRow(agent, 1000 + 75_000)).toBe('🦅 eagle-sentinel  opus/medium  verify diff  running  01:15  12.3k tok  7 tools')
   expect(formatRow({ ...agent, status: 'completed', endedAt: 61_000 }, 999_999)).toBe(
-    '🦅 eagle-sentinel  opus/medium  verify diff  completed  01:00  12.3k tok  7 tools',
+    `🦅 eagle-sentinel  opus/medium  verify diff  completed  01:00  ended ${endedClock}  12.3k tok  7 tools`,
   )
   expect(formatRow({ ...agent, model: undefined, effort: undefined }, 1000)).toBe(
     '🦅 eagle-sentinel  -/-  verify diff  running  00:00  12.3k tok  7 tools',
   )
+})
+
+test('clock formatting uses local time with zero-padded fields', async () => {
+  const timestamp = new Date(2026, 0, 2, 3, 4, 5).getTime()
+  expect(formatClock(timestamp)).toBe('03:04:05')
+})
+
+test('finished rows show their local end clock and running rows do not', async () => {
+  const endedAt = new Date(2026, 0, 2, 3, 4, 5).getTime()
+  const expected = new Date(endedAt)
+  const clock = [expected.getHours(), expected.getMinutes(), expected.getSeconds()]
+    .map(value => String(value).padStart(2, '0'))
+    .join(':')
+  const finished = { ...spawned, status: 'completed' as const, endedAt }
+
+  expect(formatRow(finished, endedAt)).toContain(`ended ${clock}`)
+  expect(formatRow(spawned, endedAt)).not.toContain('ended ')
 })
 
 test('row segments colour model families and preserve the plain formatter', async () => {

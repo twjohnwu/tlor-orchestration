@@ -34,6 +34,15 @@ export const formatElapsed = (ms: number): string => {
   return `${mm}:${ss}`
 }
 
+export const formatClock = (ms: number): string => {
+  const date = new Date(ms)
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  const ss = String(date.getSeconds()).padStart(2, '0')
+
+  return `${hh}:${mm}:${ss}`
+}
+
 export const shortModel = (model: string | undefined): string => {
   if (model === undefined || model === '') return '-'
   const family = /haiku|sonnet|opus|fable/.exec(model.toLowerCase())
@@ -71,6 +80,9 @@ export const rowSegments = (agent: FellowshipAgent, now: number): Segment[] => {
     { text: `  ${agent.description}`, color: 'text', ...dim },
     { text: `  ${agent.status}`, ...statusStyle(agent.status) },
     { text: `  ${elapsed}`, color: detail, ...dim },
+    ...(typeof agent.endedAt === 'number'
+      ? [{ text: `  ended ${formatClock(agent.endedAt)}`, color: detail, ...dim }]
+      : []),
     { text: `  ${tokens}k tok`, color: detail, ...dim },
     { text: `  ${agent.tools} tools`, color: detail, ...dim },
   ]
