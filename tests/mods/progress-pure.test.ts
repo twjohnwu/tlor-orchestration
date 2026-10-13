@@ -7,6 +7,36 @@ import {
   taskCreateId,
   updatedPlanTasks,
 } from '../../hooks/mods/stdd-progress/progress'
+import { addPlanReminder } from '../../hooks/mods/stdd-progress/planReminder'
+
+const PLAN_REMINDER = "Track this plan's progress in the plan file at /plans/session.md: if it has no `- [ ]` step list, add one (one line per step); tick each step `- [x]` right after it is done."
+
+test('plan reminder is appended to successful main-session ExitPlanMode results', async () => {
+  const result = {
+    result: { filePath: '/plans/session.md' },
+    context: ['existing context'],
+    ref: 42,
+    text: 'approved',
+  }
+
+  expect(addPlanReminder({ tool: 'ExitPlanMode' }, result, true)).toEqual({
+    ...result,
+    context: ['existing context', PLAN_REMINDER],
+  })
+})
+
+test('plan reminder leaves ineligible results unchanged by identity', async () => {
+  const cases = [
+    { enabled: false, event: { tool: 'ExitPlanMode' }, result: { result: { filePath: '/plans/session.md' } } },
+    { enabled: true, event: { tool: 'ExitPlanMode', agentId: 'agent-1' }, result: { result: { filePath: '/plans/session.md' } } },
+    { enabled: true, event: { tool: 'ExitPlanMode' }, result: { deny: 'not approved' } },
+    { enabled: true, event: { tool: 'ExitPlanMode' }, result: { result: { filePath: '/plans/session.md' }, isError: true } },
+  ]
+
+  for (const one of cases) {
+    expect(addPlanReminder(one.event, one.result, one.enabled)).toBe(one.result)
+  }
+})
 
 test('taskCreateId reads structured and text task ids in priority order', async () => {
   expect(taskCreateId({ result: { task: { id: 7 }, taskId: 'lower' } })).toBe('7')

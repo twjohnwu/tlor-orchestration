@@ -5,6 +5,7 @@ import { createPlanTasksSource } from './sources/planTasks'
 import { BAND_RETRY, orderedLines } from './sources/source'
 import type { ProgressReadIo, ProgressSource, ProgressToolIo } from './sources/source'
 import { createStddSource } from './sources/stdd'
+import { addPlanReminder } from './planReminder'
 
 const PLAN_TASKS = { plugin: 'tlor', key: 'planTasks' } as const
 const PLAN_CHECKLIST = { plugin: 'tlor', key: 'planChecklist' } as const
@@ -45,7 +46,7 @@ export const register = (on: On, options: PluginOptions): void => {
       }
     }
 
-    return result
+    return addPlanReminder(e, result, planEnabled)
   }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {

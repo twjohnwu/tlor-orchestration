@@ -6,6 +6,12 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.19.0 (2026-10-13)
+
+Mods:
+- Plan progress band: after a plan is approved (ExitPlanMode, main session only), the mod itself reminds the model to keep a `- [ ]` step list in the plan file and tick it, so no user rule is needed. Off when `plan_progress` is off.
+- Fellowship pane: finished rows show `ended HH:MM:SS` (local time) after the elapsed time.
+
 ## v0.18.0 (2026-10-12)
 
 stdd-review-loop:
