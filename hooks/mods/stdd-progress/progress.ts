@@ -17,6 +17,11 @@ export type StddCandidate = {
   files: StddFiles
 }
 
+export type StddScan = {
+  view: StddProgressView | null
+  phases: Readonly<Record<string, StddPhase>>
+}
+
 export type StddProgressView = {
   name: string
   phase: Exclude<StddPhase, 'done'>
@@ -40,6 +45,12 @@ export type ChecklistProgress = {
 export type ChecklistFileView = {
   path: string
   checklist: ChecklistProgress
+}
+
+export type ChecklistItem = {
+  checked: boolean
+  text: string
+  title: string
 }
 
 type TaskLine = {
@@ -305,8 +316,10 @@ const checklistLabel = (label: string): string => {
   return truncateLabel(withoutEmphasis.trim())
 }
 
-export const parseMarkdownChecklist = (text: string): ChecklistProgress => {
-  const items: Array<{ checked: boolean; text: string }> = []
+export const normalizeChecklistTitle = (title: string): string => title.trim().replace(/\s+/g, ' ')
+
+export const parseMarkdownChecklistItems = (text: string): ChecklistItem[] => {
+  const items: ChecklistItem[] = []
   let fence: { marker: '`' | '~'; width: number } | undefined
 
   for (const line of stripBom(text).split(/\r?\n/)) {
@@ -335,16 +348,25 @@ export const parseMarkdownChecklist = (text: string): ChecklistProgress => {
     items.push({
       checked: match[1] === 'x' || match[1] === 'X',
       text: checklistLabel(match[2]),
+      title: normalizeChecklistTitle(match[2]),
     })
   }
 
+  return items
+}
+
+export const checklistProgress = (items: readonly ChecklistItem[]): ChecklistProgress => {
   const next = items.find(item => !item.checked)?.text
+
   return {
     completed: items.filter(item => item.checked).length,
     total: items.length,
     ...(next === undefined ? {} : { next }),
   }
 }
+
+export const parseMarkdownChecklist = (text: string): ChecklistProgress =>
+  checklistProgress(parseMarkdownChecklistItems(text))
 
 // The plan band shows only while some task is still open.
 export const isPlanVisible = (tasks: readonly PlanTask[]): boolean =>
@@ -404,7 +426,7 @@ const parentOf = (path: string): string | null => {
   return cut <= 0 ? '/' : trimmed.slice(0, cut)
 }
 
-export const scanProgress = async (cwd: string, fs: ProgressFs): Promise<StddProgressView | null> => {
+export const scanStdd = async (cwd: string, fs: ProgressFs): Promise<StddScan> => {
   let directory: string | null = cwd
   let stddRoot: string | undefined
 
@@ -417,7 +439,7 @@ export const scanProgress = async (cwd: string, fs: ProgressFs): Promise<StddPro
     directory = parentOf(directory)
   }
 
-  if (stddRoot === undefined) return null
+  if (stddRoot === undefined) return { view: null, phases: {} }
 
   const candidates: StddCandidate[] = []
   const changes = await fs.list(stddRoot)
@@ -446,5 +468,11 @@ export const scanProgress = async (cwd: string, fs: ProgressFs): Promise<StddPro
   }
 
   // Do not recompute custody fingerprints here: /stdd remains the authority.
-  return pickNewestChange(candidates)
+  return {
+    view: pickNewestChange(candidates),
+    phases: Object.fromEntries(candidates.map(candidate => [candidate.name, phaseOf(candidate.files)])),
+  }
 }
+
+export const scanProgress = async (cwd: string, fs: ProgressFs): Promise<StddProgressView | null> =>
+  (await scanStdd(cwd, fs)).view

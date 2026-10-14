@@ -7,8 +7,10 @@ import {
   checklistProgressSegments,
   isRecord,
   normalizedPath,
-  parseMarkdownChecklist,
+  checklistProgress,
+  parseMarkdownChecklistItems,
 } from '../progress'
+import { createPlanCompletion } from '../planCompletion'
 import { THROTTLE_MS, invalidateQuietly, succeeded } from '../shared'
 import { throttled } from '../throttle'
 import type { ProgressReadIo, ProgressSource, ProgressToolIo } from './source'
@@ -18,6 +20,7 @@ type LazyChecklist = {
   load: (io: ProgressReadIo) => Promise<ChecklistFileView | null>
   reload: (io: ProgressReadIo) => Promise<ChecklistFileView | null>
   replace: (tracked: PlanChecklist | null, view: ChecklistFileView | null) => void
+  parse: (path: string, text: string) => ChecklistFileView | null
   hide: () => void
 }
 
@@ -25,6 +28,25 @@ type LazyChecklist = {
 const lazyChecklist = (): LazyChecklist => {
   let trackedChecklist: PlanChecklist | null | undefined
   let trackedChecklistView: ChecklistFileView | null | undefined
+  let rememberedPath: string | undefined
+  let checkedTitles = new Set<string>()
+
+  const parse = (path: string, text: string): ChecklistFileView | null => {
+    const pathKey = normalizedPath(path)
+    if (rememberedPath !== pathKey) {
+      rememberedPath = pathKey
+      checkedTitles = new Set()
+    }
+
+    const items = parseMarkdownChecklistItems(text)
+    for (const item of items) if (item.checked) checkedTitles.add(item.title)
+    const remembered = items.map(item => ({
+      ...item,
+      checked: item.checked || checkedTitles.has(item.title),
+    }))
+    const checklist = checklistProgress(remembered)
+    return checklist.total >= 2 ? { path, checklist } : null
+  }
 
   const tracked = async (io: ProgressReadIo): Promise<PlanChecklist | null> => {
     if (trackedChecklist === undefined) trackedChecklist = (await io.getPlanChecklist()).value ?? null
@@ -38,8 +60,7 @@ const lazyChecklist = (): LazyChecklist => {
       return null
     }
 
-    const checklist = parseMarkdownChecklist(await io.read(selected.path))
-    trackedChecklistView = checklist.total >= 2 ? { path: selected.path, checklist } : null
+    trackedChecklistView = parse(selected.path, await io.read(selected.path))
     return trackedChecklistView
   }
 
@@ -47,6 +68,7 @@ const lazyChecklist = (): LazyChecklist => {
     tracked,
     load: async io => trackedChecklistView === undefined ? reload(io) : trackedChecklistView,
     reload,
+    parse,
     replace: (selected, view) => {
       trackedChecklist = selected
       trackedChecklistView = view
@@ -57,9 +79,10 @@ const lazyChecklist = (): LazyChecklist => {
   }
 }
 
-export const createChecklistSource = (): ProgressSource => {
+export const createChecklistSource = (autocloseSeconds = -1): ProgressSource => {
   const selected = lazyChecklist()
   const throttle = throttled(THROTTLE_MS)
+  const completion = createPlanCompletion(autocloseSeconds)
 
   return {
     onToolCall: async (event, result, io) => {
@@ -76,7 +99,8 @@ export const createChecklistSource = (): ProgressSource => {
 
       if (filePath !== undefined && /\.md$/i.test(filePath)) {
         try {
-          const checklist = parseMarkdownChecklist(await io.read(filePath))
+          const view = selected.parse(filePath, await io.read(filePath))
+          const checklist = view?.checklist ?? { completed: 0, total: 0 }
           let replacement: { path: string } | null | undefined
           const didUpdate = await casUpdate(
             io.getPlanChecklist,
@@ -95,11 +119,16 @@ export const createChecklistSource = (): ProgressSource => {
           if (didUpdate && replacement !== undefined) {
             selected.replace(
               replacement,
-              replacement === null ? null : { path: filePath, checklist },
+              replacement === null ? null : view,
             )
             // A newly selected file starts a throttle window, so a rescan in this call is trailing.
             throttle.markRun(await io.now())
             io.invalidate()
+            await completion.observe(
+              replacement === null ? undefined : normalizedPath(filePath),
+              replacement !== null && checklist.total > 0 && checklist.completed >= checklist.total,
+              io,
+            )
           }
         } catch {
           // An unreadable markdown edit does not replace the last known checklist.
@@ -117,7 +146,12 @@ export const createChecklistSource = (): ProgressSource => {
 
       await throttle.run(io.now, io.after, async () => {
         try {
-          await selected.reload(io)
+          const view = await selected.reload(io)
+          await completion.observe(
+            view === null ? undefined : normalizedPath(view.path),
+            view !== null && view.checklist.completed >= view.checklist.total,
+            io,
+          )
         } catch {
           selected.hide()
           throw new Error('Checklist progress scan failed')
@@ -138,7 +172,13 @@ export const createChecklistSource = (): ProgressSource => {
       try {
         if (await selected.tracked(io) === null) return undefined
         const view = await selected.load(io)
-        if (view === null || view.checklist.completed >= view.checklist.total) return null
+        if (view === null) {
+          await completion.observe(undefined, false, io)
+          return null
+        }
+        const complete = view.checklist.completed >= view.checklist.total
+        const visible = await completion.observe(normalizedPath(view.path), complete, io)
+        if (complete && !visible) return null
         return checklistProgressSegments(view.path, view.checklist, columns)
       } catch {
         selected.hide()

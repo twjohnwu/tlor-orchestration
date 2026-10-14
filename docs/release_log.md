@@ -6,6 +6,14 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.20.0 (2026-10-14)
+
+Mods:
+- Fellowship pane: running rows show `slow tool` while the agent's oldest running tool call has run 30 s or more, and `idle` after 2 minutes with no event from that agent. There is no "waiting for approval" tag: the mod API has no permission-prompt event.
+- Fellowship pane: new `/fellowship` command prints the current rows as plain text, for terminals or hosts where the pane cannot be drawn. Not registered when `fellowship` is `off`.
+- Plan progress band: a step that was ticked stays ticked when the plan file is rewritten with it unticked (matched by title, per plan file). New option `plan_autoclose_s` (default 60, 0 = never) hides the band that many seconds after it reaches 100%; before this release a finished plan hid at once.
+- New option `notify` (`off` default, `toast`, `sound`): one notice when a subagent finishes or fails, when the plan first reaches 100%, and when an STDD change is first done. Main session only. `sound` plays only on macOS.
+
 ## v0.19.0 (2026-10-13)
 
 Mods:

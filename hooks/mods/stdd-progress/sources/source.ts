@@ -15,12 +15,16 @@ export type ProgressReadIo = {
   cwd: () => Promise<string>
   getPlanTasks: () => Promise<StateRead<PlanTask[]>>
   getPlanChecklist: () => Promise<StateRead<PlanChecklist | null>>
+  now?: () => Promise<number>
+  after?: (ms: number, fn: () => void) => void
+  invalidate?: () => void
+  notify?: (text: string) => Promise<void>
 }
 
 export type ProgressToolIo = ProgressReadIo & {
-  now: () => Promise<number>
-  after: (ms: number, fn: () => void) => void
-  invalidate: () => void
+  now: NonNullable<ProgressReadIo['now']>
+  after: NonNullable<ProgressReadIo['after']>
+  invalidate: NonNullable<ProgressReadIo['invalidate']>
   setPlanTasks: (value: PlanTask[], version: number) => Promise<StateSetResult>
   setPlanChecklist: (value: PlanChecklist | null, version: number) => Promise<StateSetResult>
 }

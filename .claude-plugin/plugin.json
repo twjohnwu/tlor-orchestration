@@ -1,7 +1,7 @@
 {
   "name": "tlor",
   "displayName": "TLOR Agents — a Middle-earth fellowship for Claude Code",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "description": "Orchestration framework for Claude Code: fourteen Middle-earth-themed subagent roles plus an Explore backup mirror, dispatch rules, judgment rubrics, risk tiers, and the /tlor-init setup skill. Roles pin model/effort/tools by design; rules enforce delegation discipline and verification.",
   "author": { "name": "twjohnwu", "url": "https://github.com/twjohnwu" },
   "repository": "https://github.com/twjohnwu/tlor-orchestration",
@@ -35,6 +35,19 @@
       "description": "Shows the main conversation's active task-list progress above the prompt when no unfinished STDD change exists.",
       "default": "on",
       "options": ["on", "off"]
+    },
+    "plan_autoclose_s": {
+      "type": "number",
+      "title": "Plan completion delay",
+      "description": "Seconds to keep a completed plan visible before hiding it; 0 keeps it visible.",
+      "default": 60
+    },
+    "notify": {
+      "type": "string",
+      "title": "Completion notifications",
+      "description": "Shows a toast or plays the bundled sound with a toast when tracked work completes.",
+      "default": "off",
+      "options": ["off", "toast", "sound"]
     }
   }
 }

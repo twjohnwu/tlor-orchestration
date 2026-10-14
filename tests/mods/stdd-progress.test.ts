@@ -511,7 +511,7 @@ test('ExitPlanMode without a plan file path changes nothing', { options: { fello
   expect(await bandText(ui as never, /Plan ·/)).toBe(false)
 })
 
-test('an all-done chosen checklist hides the plan band without falling through', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+test('an all-done chosen checklist remains visible until the default autoclose deadline', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
   const tracked = '/work/done.md'
   mountChecklistDisk(on, {
     files: {
@@ -521,7 +521,7 @@ test('an all-done chosen checklist hides the plan band without falling through',
   await $.tool.call({ tool: 'Write', file_path: tracked, content: '- [x] one\n- [X] two' })
 
   const ui = await $.ui.mount(BAND)
-  expect(await bandText(ui as never, /Plan ·/)).toBe(false)
+  expect(await bandText(ui as never, /Plan · done\.md · 2\/2 items/)).toBe(true)
 })
 
 test('unfinished STDD progress takes precedence over tracked checklists', { options: { fellowship: 'off', stdd_progress: 'on', plan_progress: 'on' } }, async ($, on) => {

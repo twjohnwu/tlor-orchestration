@@ -124,6 +124,9 @@ Since v0.17.0 the plugin's `hooks/hooks.json` also loads one hooks module, `hook
 | STDD progress | A band above the prompt for the most recently modified unfinished `STDD/<name>/` change: phase, and during execute a K/T task bar plus the first `[wip]` id. K counts `[x]` lines, T all task lines; `[MANUAL]` lines are excluded. | `stdd_progress`: `on` (default), `off` |
 | Plan progress | When no unfinished STDD change exists, the same band shows the main conversation's task list (TodoWrite, or TaskCreate/TaskUpdate): `Plan · K/T tasks`, a bar, and the task in progress. Hidden when the list is empty or all done. Subagents' task lists are ignored. When no such task list exists, it falls back to the most recent `.md` file this conversation wrote or edited (Write/Edit, or the plan file ExitPlanMode saved) that has at least two `- [ ]` / `- [x]` items, shown as `Plan · <file> · K/T items` with the next unchecked item; later Bash/Write/Edit calls refresh it. After a plan is approved, the mod itself reminds the model to keep a `- [ ]` step list in the plan file and tick each step, so no user rule is needed. | `plan_progress`: `on` (default), `off` |
 
+`plan_autoclose_s` keeps a completed plan visible for that many seconds before hiding it (default 60; 0 never hides it).
+`notify` controls completion alerts for agents, plans, and STDD changes: `off` (default), `toast`, or `sound` (sound also shows a toast).
+
 The STDD band reads files only. It shows `spec.md`'s `status` as written and does not recompute approval fingerprints — run `/stdd` for the authoritative check.
 
 Colours use Claude Code theme keys, so they follow your light/dark theme: role names by model family, status by state, and the bars green for done, yellow for the cell in progress, grey for the rest.
