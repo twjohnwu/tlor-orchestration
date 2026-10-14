@@ -1,7 +1,7 @@
 import type { ThemeKey } from 'claude-code'
 
-import type { FellowshipAgent } from '../../../types'
 import type { Segment } from '../segment'
+import type { FellowshipAgent } from '../../../types'
 
 export const FALLBACK_ICON = '🤖'
 
@@ -85,6 +85,16 @@ export const rowSegments = (agent: FellowshipAgent, now: number): Segment[] => {
       : []),
     { text: `  ${tokens}k tok`, color: detail, ...dim },
     { text: `  ${agent.tools} tools`, color: detail, ...dim },
+    ...attentionTags(agent, now).map(text => ({ text: `  [${text}]`, color: 'warning' as const, bold: true })),
+  ]
+}
+
+export const attentionTags = (agent: FellowshipAgent, now: number): string[] => {
+  if (agent.status !== 'running') return []
+
+  return [
+    ...(typeof agent.toolStartedAt === 'number' && now - agent.toolStartedAt >= 30_000 ? ['slow tool'] : []),
+    ...(typeof agent.lastEventAt === 'number' && now - agent.lastEventAt >= 120_000 ? ['idle'] : []),
   ]
 }
 

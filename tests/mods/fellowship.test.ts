@@ -321,6 +321,17 @@ const mountPane = async ($: Engine, rows: number) => {
   } as never)
 }
 
+const fellowshipRows = async ($: Engine): Promise<string> =>
+  ((await $.command.run({ command: 'fellowship' })) as { text: string }).text
+
+const deferred = () => {
+  let resolve!: () => void
+  const promise = new Promise<void>(done => {
+    resolve = done
+  })
+  return { promise, resolve }
+}
+
 test('fellowship manual does not open the pane on agent.spawn', { options: { fellowship: 'manual', stdd_progress: 'off' } }, async ($, on) => {
   const opened: string[] = []
   bottom(on, opened)
@@ -333,6 +344,62 @@ test('fellowship auto opens the pane on agent.spawn', { options: { fellowship: '
   bottom(on, opened)
   await $.agent.spawn(spawnInput('locate'))
   expect(opened).toEqual(['tlor-fellowship'])
+})
+
+test('slow tool follows the oldest of two parallel calls until both finish', { options: { fellowship: 'manual', stdd_progress: 'off' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const first = deferred()
+  const second = deferred()
+  const bothStarted = deferred()
+  let started = 0
+  on('agent.spawn', async () => ({ agentId: 'parallel-agent', model: 'claude-sonnet-4-5' }) as never)
+  on('ui.open', async () => ({ value: { isPlaced: true } }) as never)
+  on('tool.call', async (_$, e) => {
+    started += 1
+    if (started === 2) bothStarted.resolve()
+    await (e.tool === 'First' ? first.promise : second.promise)
+    return { result: {} } as never
+  })
+
+  const spawned = await $.agent.spawn(spawnInput('parallel tools'))
+  const id = (spawned as { agentId: string }).agentId
+  const firstCall = $.tool.call({ tool: 'First', agentId: id } as never)
+  const secondCall = $.tool.call({ tool: 'Second', agentId: id } as never)
+  await bothStarted.promise
+
+  await clock.advance(5000)
+  first.resolve()
+  await firstCall
+  await clock.advance(26_000)
+  expect(await fellowshipRows($)).toContain('slow tool')
+
+  second.resolve()
+  await secondCall
+  expect(await fellowshipRows($)).not.toContain('slow tool')
+})
+
+test('a thrown tool call clears slow tool state and preserves the error', { options: { fellowship: 'manual', stdd_progress: 'off' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const failure = new Error('tool exploded')
+  on('agent.spawn', async () => ({ agentId: 'throwing-agent', model: 'claude-sonnet-4-5' }) as never)
+  on('ui.open', async () => ({ value: { isPlaced: true } }) as never)
+  on('tool.call', async () => {
+    throw failure
+  })
+
+  const spawned = await $.agent.spawn(spawnInput('throwing tool'))
+  const id = (spawned as { agentId: string }).agentId
+  let caught: unknown
+  try {
+    await $.tool.call({ tool: 'Throwing', agentId: id } as never)
+  } catch (error) {
+    caught = error
+  }
+  expect(caught).toBeDefined()
+  expect((caught as Error).message).toContain('no implementation for tool.call')
+
+  await clock.advance(40_000)
+  expect(await fellowshipRows($)).not.toContain('slow tool')
 })
 
 test('pane render drops older completed rows without a +K done line', { options: { fellowship: 'manual', stdd_progress: 'off' } }, async ($, on) => {

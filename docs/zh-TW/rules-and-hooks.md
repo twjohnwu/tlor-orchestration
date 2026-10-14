@@ -91,6 +91,9 @@ Claude Code 只在 session 啟動時讀取一次 `settings.json` 裡的 PreToolU
 | STDD progress | prompt 上方一條帶狀列，顯示最近修改、尚未完成的 `STDD/<name>/` change：階段；execute 階段另有 K/T 進度條與第一個 `[wip]` id。K 計 `[x]` 行，T 計全部 task 行，`[MANUAL]` 行不計。 | `stdd_progress`：`on`（預設）、`off` |
 | Plan progress | 沒有未完成的 STDD change 時，同一條帶狀列改顯示主對話的任務清單（TodoWrite，或 TaskCreate/TaskUpdate）：`Plan · K/T tasks`、進度條與進行中的任務。清單為空或全部完成時隱藏；subagent 的任務清單不計。沒有這類任務清單時，改讀本對話最近用 Write/Edit 寫入或修改（或 ExitPlanMode 存下的 plan 檔）、且至少有兩個 `- [ ]` / `- [x]` 項目的 `.md` 檔，顯示為 `Plan · <檔名> · K/T items` 與下一個未勾項目；之後的 Bash/Write/Edit 會更新它。plan 核准後，mod 本身會提醒模型在 plan 檔中維護 `- [ ]` 步驟清單並逐步勾選，因此不需要額外的 user rule。 | `plan_progress`：`on`（預設）、`off` |
 
+`plan_autoclose_s` 會讓已完成的 plan 保留顯示指定秒數後再隱藏（預設 60；設為 0 則永不隱藏）。
+`notify` 控制 Agent、plan 與 STDD change 的完成通知：`off`（預設）、`toast` 或 `sound`（音效也會同時顯示 toast）。
+
 STDD 帶狀列只讀檔案，照寫顯示 `spec.md` 的 `status`，不重算核准 fingerprint；權威檢查請跑 `/stdd`。
 
 顏色使用 Claude Code 的 theme key，會跟著淺色／深色主題：角色名依 model 家族上色，狀態依執行結果上色；進度條完成格為綠色、進行中那格為黃色、其餘為灰色。

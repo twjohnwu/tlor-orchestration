@@ -9,6 +9,8 @@ export type FellowshipAgent = {
   tools: number
   model?: string
   effort?: string
+  toolStartedAt?: number
+  lastEventAt?: number
 }
 
 export type PlanTask = {

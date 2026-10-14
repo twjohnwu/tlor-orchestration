@@ -1,10 +1,12 @@
 import { casUpdate } from '../../state'
 import { PLAN_TOOLS, isPlanVisible, planProgressSegments, updatedPlanTasks } from '../progress'
+import { createPlanCompletion } from '../planCompletion'
 import { succeeded } from '../shared'
 import type { ProgressSource } from './source'
 
-export const createPlanTasksSource = (): ProgressSource => {
+export const createPlanTasksSource = (autocloseSeconds = -1): ProgressSource => {
   let syntheticTaskId = 0
+  const completion = createPlanCompletion(autocloseSeconds)
 
   return {
     onToolCall: async (event, result, io) => {
@@ -14,7 +16,8 @@ export const createPlanTasksSource = (): ProgressSource => {
         !succeeded(result)
       ) return
 
-      await casUpdate(
+      let updated: ReturnType<typeof updatedPlanTasks> = null
+      const didUpdate = await casUpdate(
         io.getPlanTasks,
         io.setPlanTasks,
         value => {
@@ -23,14 +26,29 @@ export const createPlanTasksSource = (): ProgressSource => {
             return `synthetic:${syntheticTaskId}`
           })
 
+          updated = tasks
           return tasks === null ? null : { value: tasks }
         },
       )
+      if (didUpdate && updated !== null) {
+        await completion.observe(
+          updated.length === 0 ? undefined : 'tasks',
+          updated.length > 0 && !isPlanVisible(updated),
+          io,
+        )
+      }
     },
     lines: async (io, columns) => {
       const { value: tasks = [] } = await io.getPlanTasks()
-      if (tasks.length === 0) return undefined
-      return isPlanVisible(tasks) ? planProgressSegments(tasks, columns) : null
+      if (tasks.length === 0) {
+        await completion.observe(undefined, false, io)
+        return undefined
+      }
+      if (isPlanVisible(tasks)) {
+        await completion.observe('tasks', false, io)
+        return planProgressSegments(tasks, columns)
+      }
+      return await completion.observe('tasks', true, io) ? planProgressSegments(tasks, columns) : null
     },
   }
 }

@@ -1,5 +1,7 @@
 import type { On, PluginOptions } from 'claude-code'
 
+import { notify, notifyMode } from '../notify'
+import { parsePlanAutoclose } from './planCompletion'
 import { createChecklistSource } from './sources/checklist'
 import { createPlanTasksSource } from './sources/planTasks'
 import { BAND_RETRY, orderedLines } from './sources/source'
@@ -13,12 +15,14 @@ const PLAN_CHECKLIST = { plugin: 'tlor', key: 'planChecklist' } as const
 export const register = (on: On, options: PluginOptions): void => {
   const stddEnabled = options.stdd_progress !== 'off'
   const planEnabled = options.plan_progress === 'on'
+  const autocloseSeconds = parsePlanAutoclose(options.plan_autoclose_s)
+  const notifications = notifyMode(options.notify)
   // A fourth source needs its file, one entry here, its feature switch, and any
   // state key or io method it uses added to ProgressReadIo/ProgressToolIo in
   // sources/source.ts and wired in the two io objects below.
   const sources: ProgressSource[] = [
     ...(stddEnabled ? [createStddSource()] : []),
-    ...(planEnabled ? [createPlanTasksSource(), createChecklistSource()] : []),
+    ...(planEnabled ? [createPlanTasksSource(autocloseSeconds), createChecklistSource(autocloseSeconds)] : []),
   ]
 
   // The matcher is a literal so `claude plugin validate` can print it; it must list every tool
@@ -36,6 +40,7 @@ export const register = (on: On, options: PluginOptions): void => {
       setPlanTasks: (value, version) => $.state.set(PLAN_TASKS, value, { ifVersion: version }),
       getPlanChecklist: () => $.state.get(PLAN_CHECKLIST),
       setPlanChecklist: (value, version) => $.state.set(PLAN_CHECKLIST, value, { ifVersion: version }),
+      notify: text => notify($, notifications, text),
     }
     const event = e as unknown as Readonly<Record<string, unknown>>
     for (const source of sources) {
@@ -59,6 +64,10 @@ export const register = (on: On, options: PluginOptions): void => {
         cwd: () => $.session.cwd(),
         getPlanTasks: () => $.state.get(PLAN_TASKS),
         getPlanChecklist: () => $.state.get(PLAN_CHECKLIST),
+        now: () => $.clock.now(),
+        after: (ms, fn) => { $.clock.after(ms, fn) },
+        invalidate: () => $.ui.invalidate('ui.render'),
+        notify: text => notify($, notifications, text),
       }
       const lines = await orderedLines(sources, io, e.viewport?.columns)
       if (lines !== undefined && lines !== null && lines !== BAND_RETRY) {

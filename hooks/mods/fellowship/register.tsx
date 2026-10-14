@@ -1,10 +1,11 @@
 import type { Register } from 'claude-code'
 
-import type { FellowshipAgent } from '../../../types'
+import { notify, notifyMode } from '../notify'
 import { casUpdate } from '../state'
 import {
   recordStepTokens,
   completeAgent,
+  formatElapsed,
   hasRunning,
   iconFor,
   isKnown,
@@ -17,14 +18,22 @@ import {
   statusOf,
   update,
 } from './fellowship'
+import type { FellowshipAgent } from '../../../types'
 
 const PANE = 'tlor-fellowship'
 const TITLE = 'Fellowship'
 const agents = { plugin: 'tlor', key: 'agents' } as const
+const inFlightToolStarts = new Map<string, number[]>()
+
+const oldestToolStart = (agentId: string): number | undefined => {
+  const starts = inFlightToolStarts.get(agentId)
+  return starts === undefined ? undefined : Math.min(...starts)
+}
 
 export const register: Register = (on, options) => {
   const opensAutomatically = options.fellowship === 'auto'
   const maxRows = parseMaxRows(options.fellowship_max_rows)
+  const notifications = notifyMode(options.notify)
   let isOpened = false
   let ticker: { cancel: () => void } | undefined
   // role type -> its pinned frontmatter, read once per type
@@ -36,7 +45,7 @@ export const register: Register = (on, options) => {
     try {
       await $.command.register({
         name: 'fellowship',
-        description: 'Open the Fellowship pane listing this session\'s subagents',
+        description: 'Show the Fellowship pane and list this session\'s subagents',
       })
       if (await $.store.get('fellowshipNoticeShown') === undefined) {
         $.ui.toast('Fellowship pane: /fellowship')
@@ -52,8 +61,11 @@ export const register: Register = (on, options) => {
   on('command.run', { command: 'fellowship' }, async $ => {
     isOpened = true
     await $.ui.open({ id: PANE, title: TITLE })
+    const { value: list = [] } = await $.state.get(agents)
+    if (list.length === 0) return { text: 'No agents yet.' }
+    const now = await $.clock.now()
 
-    return { text: 'Fellowship pane opened.' }
+    return { text: list.map(agent => rowSegments(agent, now).map(segment => segment.text).join('')).join('\n') }
   })
 
   on('agent.spawn', async ($, e, next) => {
@@ -100,6 +112,7 @@ export const register: Register = (on, options) => {
               tools: 0,
               model,
               effort: found.effort,
+              lastEventAt: now,
             }),
           }),
         )
@@ -136,20 +149,61 @@ export const register: Register = (on, options) => {
   }).catch(($, e, next) => next(e))
 
   on('tool.call', async ($, e, next) => {
-    if (e.agentId !== undefined) {
+    const id = e.agentId
+    let startedAt: number | undefined
+    if (id !== undefined) {
       try {
-        const id = e.agentId
+        const now = await $.clock.now()
+        startedAt = now
+        const starts = inFlightToolStarts.get(id) ?? []
+        starts.push(now)
+        inFlightToolStarts.set(id, starts)
         await casUpdate(
           () => $.state.get(agents),
           (value, version) => $.state.set(agents, value, { ifVersion: version }),
-          value => ({ value: update(value ?? [], id, one => ({ ...one, tools: one.tools + 1 })) }),
+          value => ({
+            value: update(value ?? [], id, one => ({
+              ...one,
+              tools: one.tools + 1,
+              toolStartedAt: oldestToolStart(id),
+              lastEventAt: now,
+            })),
+          }),
         )
       } catch {
         // observing only: never break the call
       }
     }
 
-    return next(e)
+    try {
+      return await next(e)
+    } finally {
+      if (id !== undefined && startedAt !== undefined) {
+        const starts = inFlightToolStarts.get(id)
+        if (starts !== undefined) {
+          const index = starts.indexOf(startedAt)
+          if (index !== -1) starts.splice(index, 1)
+          if (starts.length === 0) inFlightToolStarts.delete(id)
+        }
+
+        try {
+          const now = await $.clock.now()
+          await casUpdate(
+            () => $.state.get(agents),
+            (value, version) => $.state.set(agents, value, { ifVersion: version }),
+            value => ({
+              value: update(value ?? [], id, one => ({
+                ...one,
+                toolStartedAt: oldestToolStart(id),
+                lastEventAt: now,
+              })),
+            }),
+          )
+        } catch {
+          // observing only: never break the call
+        }
+      }
+    }
   }).catch(($, e, next) => next(e))
 
   on('turn.step', async function* ($, e, next) {
@@ -157,6 +211,7 @@ export const register: Register = (on, options) => {
     const id = e.agentId
     if (id !== undefined) {
       try {
+        const now = await $.clock.now()
         const shouldFillDetails = !stepped.has(id)
         const didStep = await casUpdate(
           () => $.state.get(agents),
@@ -170,8 +225,9 @@ export const register: Register = (on, options) => {
                   ...one,
                   model: one.model ?? e.model,
                   effort: e.effort === undefined ? one.effort : String(e.effort),
+                  lastEventAt: now,
                 }))
-              : withTokens
+              : update(withTokens, id, one => ({ ...one, lastEventAt: now }))
 
             return { value: list }
           },
@@ -190,11 +246,24 @@ export const register: Register = (on, options) => {
       try {
         const id = e.agentId
         const now = await $.clock.now()
+        const status = statusOf(e.reason)
+        let completed: FellowshipAgent | undefined
         await casUpdate(
           () => $.state.get(agents),
           (value, version) => $.state.set(agents, value, { ifVersion: version }),
-          value => ({ value: completeAgent(value ?? [], id, statusOf(e.reason), now) }),
+          value => {
+            const current = (value ?? []).find(agent => agent.id === id)
+            if (current === undefined || current.status !== 'running') return null
+            completed = { ...current, status, endedAt: now }
+            return { value: completeAgent(value ?? [], id, status, now) }
+          },
         )
+        if (completed !== undefined && (status === 'completed' || status === 'failed')) {
+          const text = status === 'failed'
+            ? `${completed.type} failed`
+            : `${completed.type} done (${formatElapsed(now - completed.startedAt)})`
+          await notify($, notifications, text)
+        }
       } catch {
         // observing only: never break the turn
       }
