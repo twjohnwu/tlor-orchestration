@@ -274,6 +274,42 @@ const mountDisk = (on: On, disk: { tasks: string }) => {
   return clock
 }
 
+type StddChangeDisk = {
+  name: string
+  mtimeMs: number
+  tasks: string
+}
+
+const mountChangesDisk = (on: On, changes: readonly StddChangeDisk[]) => {
+  const clock = mock.clock(on)
+  on('session.cwd', async () => ({ value: '/work' }) as never)
+  on('fs.list', async (_$, e) => {
+    const path = (e as { path: string }).path
+    if (path === '/work') return { value: [{ name: 'STDD', kind: 'dir', mtimeMs: 1 }] } as never
+    if (path === '/work/STDD') {
+      return { value: changes.map(change => ({ name: change.name, kind: 'dir', mtimeMs: change.mtimeMs })) } as never
+    }
+    const change = changes.find(candidate => path === `/work/STDD/${candidate.name}`)
+    if (change !== undefined) {
+      return {
+        value: [
+          { name: 'spec.md', kind: 'file', mtimeMs: change.mtimeMs - 1 },
+          { name: 'tasks.md', kind: 'file', mtimeMs: change.mtimeMs },
+        ],
+      } as never
+    }
+    return { value: [] } as never
+  })
+  on('fs.read', async (_$, e) => {
+    const path = (e as { path: string }).path
+    if (path.endsWith('/spec.md')) return { value: SPEC } as never
+    const change = changes.find(candidate => path === `/work/STDD/${candidate.name}/tasks.md`)
+    return { value: change?.tasks ?? '' } as never
+  })
+
+  return clock
+}
+
 const BAND = {
   plugin: 'tlor',
   surface: 'terminal',
@@ -395,10 +431,82 @@ test('unfinished STDD progress takes precedence over plan progress', { options: 
     tool: 'TodoWrite',
     todos: [{ content: 'main', activeForm: 'Working main', status: 'in_progress' }],
   })
+  await $.tool.call({ tool: 'Edit', file_path: '/work/STDD/checkout/tasks.md' } as never)
 
   const ui = await $.ui.mount(BAND)
   expect(await bandText(ui as never, /STDD checkout · execute/)).toBe(true)
   expect(await bandText(ui as never, /Plan ·/)).toBe(false)
+})
+
+test('an untouched STDD change does not hide this session plan', { options: { fellowship: 'off', stdd_progress: 'on', plan_progress: 'on' } }, async ($, on) => {
+  mountLowerBand(on)
+  mountDisk(on, { tasks: '- [ ] `S-01`\n' })
+  mountTaskTools(on)
+  await $.tool.call({
+    tool: 'TodoWrite',
+    todos: [{ content: 'main', activeForm: 'Working main', status: 'in_progress' }],
+  })
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan ·/)).toBe(true)
+  expect(await bandText(ui as never, /STDD/)).toBe(false)
+})
+
+test('editing an STDD change makes it take precedence over this session plan', { options: { fellowship: 'off', stdd_progress: 'on', plan_progress: 'on' } }, async ($, on) => {
+  mountLowerBand(on)
+  mountDisk(on, { tasks: '- [ ] `S-01`\n' })
+  mountTaskTools(on)
+  await $.tool.call({
+    tool: 'TodoWrite',
+    todos: [{ content: 'main', activeForm: 'Working main', status: 'in_progress' }],
+  })
+  await $.tool.call({ tool: 'Edit', file_path: '/work/STDD/checkout/tasks.md' } as never)
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /STDD checkout · execute/)).toBe(true)
+  expect(await bandText(ui as never, /Plan ·/)).toBe(false)
+})
+
+test('STDD progress shows an older touched change instead of a newer untouched change', { options: { fellowship: 'off', stdd_progress: 'on' } }, async ($, on) => {
+  mountLowerBand(on)
+  mountChangesDisk(on, [
+    { name: 'older-touched', mtimeMs: 10, tasks: '- [ ] `S-01`\n' },
+    { name: 'newer-untouched', mtimeMs: 20, tasks: '- [ ] `S-01`\n' },
+  ])
+  mountTaskTools(on)
+  await $.tool.call({ tool: 'Edit', file_path: '/work/STDD/older-touched/tasks.md' } as never)
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /STDD older-touched · execute/)).toBe(true)
+  expect(await bandText(ui as never, /newer-untouched/)).toBe(false)
+})
+
+test('a subagent STDD edit counts as touching that change', { options: { fellowship: 'off', stdd_progress: 'on' } }, async ($, on) => {
+  mountLowerBand(on)
+  mountDisk(on, { tasks: '- [ ] `S-01`\n' })
+  mountTaskTools(on)
+  await $.tool.call({
+    tool: 'Edit',
+    agentId: 'subagent-1',
+    file_path: '/work/STDD/checkout/tasks.md',
+  } as never)
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /STDD checkout · execute/)).toBe(true)
+})
+
+test('an STDD skill call without a path shows the newest unfinished change', { options: { fellowship: 'off', stdd_progress: 'on' } }, async ($, on) => {
+  mountLowerBand(on)
+  mountChangesDisk(on, [
+    { name: 'older', mtimeMs: 10, tasks: '- [ ] `S-01`\n' },
+    { name: 'newer', mtimeMs: 20, tasks: '- [ ] `S-01`\n' },
+  ])
+  mountTaskTools(on)
+  await $.tool.call({ tool: 'Skill', skill: 'tlor:stdd-execute' } as never)
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /STDD newer · execute/)).toBe(true)
+  expect(await bandText(ui as never, /STDD older · execute/)).toBe(false)
 })
 
 test('plan source priority is task list, then tracked checklist', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
@@ -544,6 +652,7 @@ test('unfinished STDD progress takes precedence over tracked checklists', { opti
     file_path: '/work/notes.md',
     content: '- [ ] first\n- [ ] second\n- [ ] third',
   })
+  await $.tool.call(stddEdit)
 
   const ui = await $.ui.mount(BAND)
   expect(await bandText(ui as never, /STDD checkout · execute/)).toBe(true)
@@ -556,9 +665,11 @@ test('an all-completed or empty plan is hidden', async () => {
   expect(isPlanVisible([{ id: '1', subject: 'a', status: 'completed' }, { id: '2', subject: 'b', status: 'pending' }] as never)).toBe(true)
 })
 
-test('the first AbovePrompt render scans the disk without writing state', { options: { fellowship: 'off', stdd_progress: 'on' } }, async ($, on) => {
+test('the first AbovePrompt render after an STDD touch scans the disk', { options: { fellowship: 'off', stdd_progress: 'on' } }, async ($, on) => {
   mountLowerBand(on)
   mountDisk(on, { tasks: '- [x] `S-01`\n- [wip] `S-02`\n' })
+  mountTaskTools(on)
+  await $.tool.call(stddEdit)
   const ui = await $.ui.mount({ ...(BAND as object), plugin: 'tlor' } as never)
   expect(await bandText(ui as never, /STDD checkout · execute/)).toBe(true)
   expect(await bandText(ui as never, /1\/2 tasks · wip S-02/)).toBe(true)
@@ -567,6 +678,8 @@ test('the first AbovePrompt render scans the disk without writing state', { opti
 test('a BOM on tasks.md still counts its first task in the band', { options: { fellowship: 'off', stdd_progress: 'on' } }, async ($, on) => {
   mountLowerBand(on)
   mountDisk(on, { tasks: '﻿- [x] `S-01`\n- [ ] `S-02`\n' })
+  mountTaskTools(on)
+  await $.tool.call(stddEdit)
   const ui = await $.ui.mount(BAND)
   expect(await bandText(ui as never, /1\/2 tasks/)).toBe(true)
 })
@@ -578,10 +691,12 @@ test('a throttled STDD edit still gets a trailing rescan when the window ends', 
   const disk = { tasks: '- [ ] `S-01`\n- [ ] `S-02`\n' }
   const clock = mountDisk(on, disk)
   on('tool.call', async () => ({ result: {} }) as never)
+  await $.tool.call(stddEdit)
+  await clock.advance(1000)
   const ui = await $.ui.mount(BAND)
   expect(await bandText(ui as never, /0\/2 tasks/)).toBe(true)
 
-  await $.tool.call(stddEdit) // first scan runs at once
+  await $.tool.call(stddEdit) // the throttle window has elapsed, so this scan runs at once
   disk.tasks = '- [x] `S-01`\n- [ ] `S-02`\n'
   await $.tool.call(stddEdit) // inside the 1 s window: skipped, trailing rescan queued
   expect(await bandText(ui as never, /1\/2 tasks/)).toBe(false)

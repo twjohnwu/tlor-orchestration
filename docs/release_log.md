@@ -10,6 +10,7 @@ release first — new sections go at the top.
 
 Mods:
 - Plan / STDD progress band: the band now draws on top of other plugins' bands above the prompt instead of replacing them. Before this release, any other plugin's `AbovePrompt` band disappeared while tlor's band was showing.
+- Made the STDD band per-session: it appears only after that session edits under `STDD/<name>/` or calls an `stdd` skill.
 
 ## v0.20.0 (2026-10-14)
 

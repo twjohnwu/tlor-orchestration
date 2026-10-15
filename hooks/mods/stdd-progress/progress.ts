@@ -77,6 +77,7 @@ const CHECKLIST_FENCE_LINE = /^\s*(`{3,}|~{3,})(.*)$/
 const ARTIFACTS = ['tasks.md', 'spec.md', 'design-ux.md'] as const
 
 export const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'] as const
+export const STDD_TOOLS = [...EDIT_TOOLS, 'Bash', 'Skill'] as const
 export const PLAN_TOOLS = ['TodoWrite', 'TaskCreate', 'TaskUpdate'] as const
 // NotebookEdit is excluded because a notebook edit cannot change a .md checklist.
 export const CHECKLIST_TOOLS = ['Bash', 'Write', 'Edit', 'MultiEdit', 'ExitPlanMode'] as const
@@ -156,6 +157,7 @@ export const updatedPlanTasks = (
 export const isStddEdit = (event: Readonly<Record<string, unknown>>): boolean => {
   const tool = String(event.tool)
   if (tool === 'Bash') return true
+  if (tool === 'Skill') return typeof event.skill === 'string' && /^(?:[^:]+:)?stdd/.test(event.skill)
   if (!EDIT_TOOLS.some(name => name === tool)) return false
   const path = typeof event.file_path === 'string'
     ? event.file_path
@@ -426,26 +428,36 @@ const parentOf = (path: string): string | null => {
   return cut <= 0 ? '/' : trimmed.slice(0, cut)
 }
 
-export const scanStdd = async (cwd: string, fs: ProgressFs): Promise<StddScan> => {
-  let directory: string | null = cwd
-  let stddRoot: string | undefined
+export const scanStdd = async (
+  cwd: string,
+  fs: ProgressFs,
+  selectedChanges?: readonly string[],
+): Promise<StddScan> => {
+  let changePaths: string[]
+  if (selectedChanges !== undefined) {
+    changePaths = [...new Set(selectedChanges.map(normalizedPath))]
+  } else {
+    let directory: string | null = cwd
+    let stddRoot: string | undefined
 
-  while (directory !== null) {
-    const entries = await fs.list(directory)
-    if (entries.some(entry => entry.name === 'STDD' && entry.kind === 'dir')) {
-      stddRoot = directory === '/' ? '/STDD' : `${directory}/STDD`
-      break
+    while (directory !== null) {
+      const entries = await fs.list(directory)
+      if (entries.some(entry => entry.name === 'STDD' && entry.kind === 'dir')) {
+        stddRoot = directory === '/' ? '/STDD' : `${directory}/STDD`
+        break
+      }
+      directory = parentOf(directory)
     }
-    directory = parentOf(directory)
+
+    if (stddRoot === undefined) return { view: null, phases: {} }
+    const changes = await fs.list(stddRoot)
+    changePaths = changes
+      .filter(change => change.kind === 'dir')
+      .map(change => `${stddRoot}/${change.name}`)
   }
 
-  if (stddRoot === undefined) return { view: null, phases: {} }
-
   const candidates: StddCandidate[] = []
-  const changes = await fs.list(stddRoot)
-  for (const change of changes) {
-    if (change.kind !== 'dir') continue
-    const changePath = `${stddRoot}/${change.name}`
+  for (const changePath of changePaths) {
     const entries = await fs.list(changePath)
     const artifacts = entries.filter(entry =>
       entry.kind === 'file' && ARTIFACTS.some(name => name === entry.name),
@@ -461,7 +473,7 @@ export const scanStdd = async (cwd: string, fs: ProgressFs): Promise<StddScan> =
     }
 
     candidates.push({
-      name: change.name,
+      name: changePath.slice(changePath.lastIndexOf('/') + 1),
       mtimeMs: Math.max(...artifacts.map(artifact => artifact.mtimeMs)),
       files,
     })

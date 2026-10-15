@@ -1,6 +1,6 @@
 import type { StateRead, StateSetResult } from 'claude-code'
 
-import type { PlanChecklist, PlanTask } from '../../../../types'
+import type { PlanChecklist, PlanTask, StddTouched } from '../../../../types'
 import type { Segment } from '../../segment'
 
 export type ProgressFsEntry = {
@@ -15,6 +15,7 @@ export type ProgressReadIo = {
   cwd: () => Promise<string>
   getPlanTasks: () => Promise<StateRead<PlanTask[]>>
   getPlanChecklist: () => Promise<StateRead<PlanChecklist | null>>
+  getStddTouched: () => Promise<StateRead<StddTouched>>
   now?: () => Promise<number>
   after?: (ms: number, fn: () => void) => void
   invalidate?: () => void
@@ -27,6 +28,7 @@ export type ProgressToolIo = ProgressReadIo & {
   invalidate: NonNullable<ProgressReadIo['invalidate']>
   setPlanTasks: (value: PlanTask[], version: number) => Promise<StateSetResult>
   setPlanChecklist: (value: PlanChecklist | null, version: number) => Promise<StateSetResult>
+  setStddTouched: (value: StddTouched, version: number) => Promise<StateSetResult>
 }
 
 // Returned by `lines` when the source could not produce its view and the whole
