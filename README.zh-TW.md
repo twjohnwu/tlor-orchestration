@@ -104,6 +104,12 @@ STDD spec 範本中的 `## State model` 一節只在 spec+lint（markdown）層�
 
 v0.12.0 在同一個 markdown 層之上加了一層 BDD：`stdd-explore` 多了條件性的 Example Map 步驟，`stdd-spec` 多了條件性的 `## Domain Language` 一節，stdd-execute 的 prompt 帶著 observable-THEN 準則，`stdd-lint` 的 Check 16 檢查 scenario 的 test mapping 是否存在，新的 scenario runner `scripts/stdd_verify.py` 則把一份 spec.md 轉成逐 scenario 的 PASS／FAIL 涵蓋率報表。兩個條件性步驟各自在什麼情況下適用，見 [Skills](docs/zh-TW/skills.md)。
 
+## 安裝
+
+    /plugin install tlor --marketplace twjohnwu/tlor-orchestration
+
+其他安裝方式（install.sh、參數、搭配工具）見 [安裝](docs/zh-TW/installation.md)。
+
 ## 文件
 
 - [角色與派工](docs/zh-TW/roles.md) — 十四個角色（另含 Explore 備援鏡像）的完整說明、名稱背後的世界觀，以及 CLAUDE.md 的派工 snippet

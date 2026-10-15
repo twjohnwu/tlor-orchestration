@@ -1,7 +1,7 @@
 import type { On, PluginOptions } from 'claude-code'
 import { test, expect } from 'claude-code/testing'
 
-import { CHECKLIST_TOOLS, EDIT_TOOLS, PLAN_TOOLS } from '../../hooks/mods/stdd-progress/progress'
+import { CHECKLIST_TOOLS, PLAN_TOOLS, STDD_TOOLS } from '../../hooks/mods/stdd-progress/progress'
 import { register } from '../../hooks/mods/stdd-progress/register'
 import { createChecklistSource } from '../../hooks/mods/stdd-progress/sources/checklist'
 import { createPlanTasksSource } from '../../hooks/mods/stdd-progress/sources/planTasks'
@@ -60,6 +60,7 @@ const readIo = (overrides: Partial<ProgressReadIo> = {}): ProgressReadIo => ({
   cwd: async () => '/work',
   getPlanTasks: async () => ({ value: [], version: 0 }),
   getPlanChecklist: async () => ({ value: null, version: 0 }),
+  getStddTouched: async () => ({ value: undefined, version: 0 }),
   ...overrides,
 })
 
@@ -134,6 +135,7 @@ test('writing a tracked checklist file does not read it twice in the same call',
       tracked = { value, version: tracked.version + 1 }
       return { isSet: true } as never
     },
+    setStddTouched: async () => ({ isSet: true }) as never,
   }
 
   await createChecklistSource().onToolCall({ tool: 'Write', file_path: '/work/plan.md' }, {}, io)
@@ -145,6 +147,7 @@ test('a failed first STDD scan empties the band, skips later sources, and retrie
   let failing = true
   const stdd = createStddSource()
   const io = readIo({
+    getStddTouched: async () => ({ value: { changes: [], any: true }, version: 1 }),
     cwd: async () => {
       if (failing) throw new Error('no cwd')
       return '/work'
@@ -182,6 +185,7 @@ const toolIo = (overrides: Partial<ProgressToolIo> = {}): ProgressToolIo => ({
   invalidate: () => undefined,
   setPlanTasks: async () => ({ isSet: true }) as never,
   setPlanChecklist: async () => ({ isSet: true }) as never,
+  setStddTouched: async () => ({ isSet: true }) as never,
   ...overrides,
 })
 
@@ -239,7 +243,7 @@ test('the watched-tool matcher literal lists exactly the tools the sources react
   const listed = (matcher as RegExp).source.replace(/^\^\(\?:/, '').replace(/\)\$$/, '').split('|')
 
   expect([...listed].sort()).toEqual(
-    [...new Set<string>([...EDIT_TOOLS, ...PLAN_TOOLS, ...CHECKLIST_TOOLS])].sort(),
+    [...new Set<string>([...STDD_TOOLS, ...PLAN_TOOLS, ...CHECKLIST_TOOLS])].sort(),
   )
-  expect(listed).toHaveLength(9)
+  expect(listed).toHaveLength(10)
 })

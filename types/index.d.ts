@@ -24,12 +24,18 @@ export type PlanChecklist = {
   path: string
 }
 
+export type StddTouched = {
+  changes: string[]
+  any: boolean
+}
+
 declare module 'claude-code' {
   interface PluginState {
     tlor: {
       agents: FellowshipAgent[]
       planTasks: PlanTask[]
       planChecklist: PlanChecklist | null
+      stddTouched: StddTouched
     }
   }
 }
