@@ -132,6 +132,12 @@ and the scenario runner `scripts/stdd_verify.py` turns a spec.md into a
 per-scenario PASS/FAIL coverage report. When each conditional step applies is
 in [Skills](docs/en/skills.md).
 
+## Install
+
+    /plugin install tlor --marketplace twjohnwu/tlor-orchestration
+
+Other paths (install.sh, flags, companions): [Installation](docs/en/installation.md).
+
 ## Docs
 
 - [Roles & dispatch](docs/en/roles.md) — all fourteen roles (plus the Explore backup mirror) in full, the theme behind the names, and the CLAUDE.md dispatch snippet
