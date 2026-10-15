@@ -6,6 +6,11 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.20.1 (2026-10-15)
+
+Mods:
+- Plan / STDD progress band: the band now draws on top of other plugins' bands above the prompt instead of replacing them. Before this release, any other plugin's `AbovePrompt` band disappeared while tlor's band was showing.
+
 ## v0.20.0 (2026-10-14)
 
 Mods:

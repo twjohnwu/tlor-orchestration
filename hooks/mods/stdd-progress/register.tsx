@@ -57,6 +57,7 @@ export const register = (on: On, options: PluginOptions): void => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
 
+    let lines: Awaited<ReturnType<typeof orderedLines>> | undefined
     try {
       const io: ProgressReadIo = {
         read: path => $.fs.read(path),
@@ -69,26 +70,28 @@ export const register = (on: On, options: PluginOptions): void => {
         invalidate: () => $.ui.invalidate('ui.render'),
         notify: text => notify($, notifications, text),
       }
-      const lines = await orderedLines(sources, io, e.viewport?.columns)
-      if (lines !== undefined && lines !== null && lines !== BAND_RETRY) {
-        const { Box, Text } = $.ui.resolve(e)
-
-        return (
-          <Box flexDirection="column">
-            {lines.map(line => (
-              <Text>
-                {line.map(segment => (
-                  <Text color={segment.color} bold={segment.bold} dimColor={segment.dim}>{segment.text}</Text>
-                ))}
-              </Text>
-            ))}
-          </Box>
-        )
-      }
+      lines = await orderedLines(sources, io, e.viewport?.columns)
     } catch {
-      // Missing or unreadable progress never takes over the prompt band.
+      // Missing or unreadable progress draws nothing; the bands beneath still render.
     }
 
-    return next(e)
+    // The drawing beneath resolves once per render, outside the try so its errors are not swallowed.
+    const below = await next(e)
+    if (lines === undefined || lines === null || lines === BAND_RETRY) return below
+
+    const { Box, Text } = $.ui.resolve(e)
+
+    return (
+      <Box flexDirection="column">
+        {lines.map(line => (
+          <Text>
+            {line.map(segment => (
+              <Text color={segment.color} bold={segment.bold} dimColor={segment.dim}>{segment.text}</Text>
+            ))}
+          </Text>
+        ))}
+        {below}
+      </Box>
+    )
   })
 }

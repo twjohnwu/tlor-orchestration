@@ -286,6 +286,14 @@ const bandText = async (ui: { find: (q: { type: string; text: RegExp }) => Promi
   return (await ui.find({ type: 'Text', text })) !== undefined
 }
 
+// The plugin's band draws above whatever the stack beneath it draws, so a mounted band needs a terminal hook.
+const mountLowerBand = (on: On, text = ''): void => {
+  on('ui.render', ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return h(Text, null, text) as never
+  })
+}
+
 const mountEmptyDisk = (on: On): void => {
   on('session.cwd', async () => ({ value: '/work' }) as never)
   on('fs.list', async () => ({ value: [] }) as never)
@@ -296,7 +304,7 @@ type ChecklistDisk = {
   exitPlanPath?: string
 }
 
-const mountChecklistDisk = (on: On, disk: ChecklistDisk) => {
+const mountChecklistDisk = (on: On, disk: ChecklistDisk, lowerBand = '') => {
   const clock = mock.clock(on)
   on('session.cwd', async () => ({ value: '/work' }) as never)
   on('fs.list', async () => ({ value: [] }) as never)
@@ -312,10 +320,7 @@ const mountChecklistDisk = (on: On, disk: ChecklistDisk) => {
     if (e.tool === 'ExitPlanMode') return { result: { filePath: disk.exitPlanPath } } as never
     return { result: {} } as never
   })
-  on('ui.render', ($, e) => {
-    const { Text } = $.ui.resolve(e)
-    return h(Text, null, '') as never
-  })
+  mountLowerBand(on, lowerBand)
   return clock
 }
 
@@ -331,6 +336,7 @@ const mountTaskTools = (on: On): void => {
 }
 
 test('TodoWrite replaces the plan list and renders its active task', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  mountLowerBand(on)
   mountTaskTools(on)
   await $.tool.call({
     tool: 'TodoWrite',
@@ -350,6 +356,7 @@ test('TodoWrite replaces the plan list and renders its active task', { options: 
 })
 
 test('TaskCreate and TaskUpdate edit the task plan, ignoring unknown ids and removing deleted tasks', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  mountLowerBand(on)
   mountTaskTools(on)
   await $.tool.call({ tool: 'TaskCreate', subject: 'first', description: '' })
   await $.tool.call({ tool: 'TaskCreate', subject: 'second', description: '', activeForm: 'Working second' })
@@ -363,6 +370,7 @@ test('TaskCreate and TaskUpdate edit the task plan, ignoring unknown ids and rem
 })
 
 test('subagent task tool calls do not change the main plan', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  mountLowerBand(on)
   mountTaskTools(on)
   await $.tool.call({
     tool: 'TodoWrite',
@@ -380,6 +388,7 @@ test('subagent task tool calls do not change the main plan', { options: { fellow
 })
 
 test('unfinished STDD progress takes precedence over plan progress', { options: { fellowship: 'off', stdd_progress: 'on', plan_progress: 'on' } }, async ($, on) => {
+  mountLowerBand(on)
   mountDisk(on, { tasks: '- [ ] `S-01`\n' })
   mountTaskTools(on)
   await $.tool.call({
@@ -525,6 +534,7 @@ test('an all-done chosen checklist remains visible until the default autoclose d
 })
 
 test('unfinished STDD progress takes precedence over tracked checklists', { options: { fellowship: 'off', stdd_progress: 'on', plan_progress: 'on' } }, async ($, on) => {
+  mountLowerBand(on)
   const disk = { tasks: '- [ ] `S-01`\n' }
   mountDisk(on, disk)
   on('env.get', async () => ({ value: '/home/test' }) as never)
@@ -547,6 +557,7 @@ test('an all-completed or empty plan is hidden', async () => {
 })
 
 test('the first AbovePrompt render scans the disk without writing state', { options: { fellowship: 'off', stdd_progress: 'on' } }, async ($, on) => {
+  mountLowerBand(on)
   mountDisk(on, { tasks: '- [x] `S-01`\n- [wip] `S-02`\n' })
   const ui = await $.ui.mount({ ...(BAND as object), plugin: 'tlor' } as never)
   expect(await bandText(ui as never, /STDD checkout · execute/)).toBe(true)
@@ -554,6 +565,7 @@ test('the first AbovePrompt render scans the disk without writing state', { opti
 })
 
 test('a BOM on tasks.md still counts its first task in the band', { options: { fellowship: 'off', stdd_progress: 'on' } }, async ($, on) => {
+  mountLowerBand(on)
   mountDisk(on, { tasks: '﻿- [x] `S-01`\n- [ ] `S-02`\n' })
   const ui = await $.ui.mount(BAND)
   expect(await bandText(ui as never, /1\/2 tasks/)).toBe(true)
@@ -562,6 +574,7 @@ test('a BOM on tasks.md still counts its first task in the band', { options: { f
 const stddEdit = { tool: 'Edit', file_path: '/work/STDD/checkout/tasks.md', tool_use_id: 'u1' } as never
 
 test('a throttled STDD edit still gets a trailing rescan when the window ends', { options: { fellowship: 'off', stdd_progress: 'on' } }, async ($, on) => {
+  mountLowerBand(on)
   const disk = { tasks: '- [ ] `S-01`\n- [ ] `S-02`\n' }
   const clock = mountDisk(on, disk)
   on('tool.call', async () => ({ result: {} }) as never)
@@ -577,6 +590,7 @@ test('a throttled STDD edit still gets a trailing rescan when the window ends', 
 })
 
 test('a denied or failed task call leaves the plan unchanged', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  mountLowerBand(on)
   on('tool.call', async (_$, e) => {
     const todos = (e as { todos?: Array<{ content: string }> }).todos ?? []
     if (todos.some(todo => todo.content === 'denied')) return { deny: 'no' } as never
@@ -589,4 +603,23 @@ test('a denied or failed task call leaves the plan unchanged', { options: { fell
 
   const ui = await $.ui.mount(BAND)
   expect(await bandText(ui as never, /▶ Keeping/)).toBe(true)
+})
+
+test('the plan band stacks above a lower AbovePrompt hook instead of hiding it', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  const path = '/work/roadmap.md'
+  const content = '- [x] one\n- [ ] two\n- [ ] three'
+  mountChecklistDisk(on, { files: { [path]: content } }, 'LOWER-BAND-MARKER')
+  await $.tool.call({ tool: 'Write', file_path: path, content })
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan · roadmap\.md · 1\/3 items/)).toBe(true)
+  expect(await bandText(ui as never, /LOWER-BAND-MARKER/)).toBe(true)
+})
+
+test('a lower AbovePrompt hook still draws when the plan band has nothing to show', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  mountChecklistDisk(on, { files: {} }, 'LOWER-BAND-MARKER')
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan ·/)).toBe(false)
+  expect(await bandText(ui as never, /LOWER-BAND-MARKER/)).toBe(true)
 })
