@@ -1,6 +1,6 @@
 import type { StateRead, StateSetResult } from 'claude-code'
 
-import type { PlanChecklist, PlanTask, StddTouched } from '../../../../types'
+import type { PlanChecklist, PlanDeclaration, PlanTask, StddTouched } from '../../../../types'
 import type { Segment } from '../../segment'
 
 export type ProgressFsEntry = {
@@ -13,6 +13,7 @@ export type ProgressReadIo = {
   read: (path: string) => Promise<string>
   list: (path: string) => Promise<readonly ProgressFsEntry[]>
   cwd: () => Promise<string>
+  getPlanDeclaration: () => Promise<StateRead<PlanDeclaration>>
   getPlanTasks: () => Promise<StateRead<PlanTask[]>>
   getPlanChecklist: () => Promise<StateRead<PlanChecklist | null>>
   getStddTouched: () => Promise<StateRead<StddTouched>>
@@ -26,6 +27,7 @@ export type ProgressToolIo = ProgressReadIo & {
   now: NonNullable<ProgressReadIo['now']>
   after: NonNullable<ProgressReadIo['after']>
   invalidate: NonNullable<ProgressReadIo['invalidate']>
+  setPlanDeclaration: (value: PlanDeclaration, version: number) => Promise<StateSetResult>
   setPlanTasks: (value: PlanTask[], version: number) => Promise<StateSetResult>
   setPlanChecklist: (value: PlanChecklist | null, version: number) => Promise<StateSetResult>
   setStddTouched: (value: StddTouched, version: number) => Promise<StateSetResult>
@@ -38,7 +40,7 @@ export const BAND_RETRY = 'retry' as const
 
 export type SourceLines = Segment[][] | null | undefined | typeof BAND_RETRY
 
-export type SourceId = 'stdd' | 'planTasks' | 'planChecklist'
+export type SourceId = 'stdd' | 'planDeclared' | 'planTasks' | 'planChecklist'
 
 export type ProgressSource = {
   // Stable identity, so a caller can tell which source drew a band without reading its text.

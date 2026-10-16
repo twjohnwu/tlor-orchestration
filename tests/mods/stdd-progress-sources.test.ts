@@ -58,6 +58,7 @@ const readIo = (overrides: Partial<ProgressReadIo> = {}): ProgressReadIo => ({
   read: async () => '',
   list: async () => [],
   cwd: async () => '/work',
+  getPlanDeclaration: async () => ({ value: undefined, version: 0 }),
   getPlanTasks: async () => ({ value: [], version: 0 }),
   getPlanChecklist: async () => ({ value: null, version: 0 }),
   getStddTouched: async () => ({ value: undefined, version: 0 }),
@@ -131,6 +132,7 @@ test('writing a tracked checklist file does not read it twice in the same call',
     now: async () => 5,
     after: (_ms, fn) => { scheduled.push(fn) },
     invalidate: () => undefined,
+    setPlanDeclaration: async () => ({ isSet: true }) as never,
     setPlanTasks: async () => ({ isSet: true }) as never,
     setPlanChecklist: async value => {
       tracked = { value, version: tracked.version + 1 }
@@ -185,6 +187,7 @@ const toolIo = (overrides: Partial<ProgressToolIo> = {}): ProgressToolIo => ({
   now: async () => 5,
   after: () => undefined,
   invalidate: () => undefined,
+  setPlanDeclaration: async () => ({ isSet: true }) as never,
   setPlanTasks: async () => ({ isSet: true }) as never,
   setPlanChecklist: async () => ({ isSet: true }) as never,
   setStddTouched: async () => ({ isSet: true }) as never,

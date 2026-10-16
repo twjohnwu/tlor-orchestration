@@ -24,6 +24,10 @@ export type PlanChecklist = {
   path: string
 }
 
+export type PlanDeclaration =
+  | { plan: string; progress: 'checklist'; ledger?: undefined }
+  | { plan?: string; progress: 'ledger'; ledger: string }
+
 export type StddTouched = {
   changes: string[]
   any: boolean
@@ -33,6 +37,7 @@ declare module 'claude-code' {
   interface PluginState {
     tlor: {
       agents: FellowshipAgent[]
+      planDeclaration: PlanDeclaration
       planTasks: PlanTask[]
       planChecklist: PlanChecklist | null
       stddTouched: StddTouched

@@ -176,8 +176,8 @@ test('progress switches register one shared band only when either feature is on'
 
   expect(registered('off', 'off')).toEqual([])
   expect(registered('on', 'off')).toEqual(['tool.call', 'ui.render'])
-  expect(registered('off', 'on')).toEqual(['tool.call', 'ui.render'])
-  expect(registered('on', 'on')).toEqual(['tool.call', 'ui.render'])
+  expect(registered('off', 'on')).toEqual(['session.start', 'tool.call', 'tool.call', 'ui.render'])
+  expect(registered('on', 'on')).toEqual(['session.start', 'tool.call', 'tool.call', 'ui.render'])
 })
 
 test('plan bar segments share sizing, show K/T and one warning cell, and truncate the active label', async () => {
@@ -761,6 +761,120 @@ test('a touched STDD change still draws above a lower Plan row', { options: { fe
   const ui = await $.ui.mount(BAND)
   expect(await bandText(ui as never, /STDD checkout · execute/)).toBe(true)
   expect(await bandText(ui as never, /Plan · x\.md · 1\/2 items/)).toBe(true)
+})
+
+const PLAN_TRACK = 'mcp__tlor__PlanTrack'
+
+test('PlanTrack declared ledger renders completed tasks', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  const plan = '/work/plans/session.md'
+  const ledger = '/work/.superpowers/sdd/session/progress.md'
+  mountChecklistDisk(on, {
+    files: {
+      [plan]: '### Task 1: first\n### Task 2: second\n### Task 3: third',
+      [ledger]: 'Task 1: complete\n',
+    },
+  })
+
+  const answer = await $.tool.call({ tool: PLAN_TRACK, plan, progress: 'ledger', ledger } as never)
+  expect(answer.result).toBe('Tracking session.md from progress.md.')
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan · session\.md · 1\/3 tasks/)).toBe(true)
+})
+
+test('PlanTrack checklist remembers a completed step after the plan is rewritten', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  const plan = '/work/plans/session.md'
+  const disk = { files: { [plan]: '- [x] first\n- [ ] second' } }
+  mountChecklistDisk(on, disk)
+  await $.tool.call({ tool: PLAN_TRACK, plan, progress: 'checklist' } as never)
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan · session\.md · 1\/2 items/)).toBe(true)
+  await $.tool.call({
+    tool: 'Write',
+    file_path: plan,
+    content: '- [ ] first\n- [ ] second\n- [ ] third',
+  })
+  expect(await bandText(ui as never, /Plan · session\.md · 1\/3 items/)).toBe(true)
+})
+
+test('Bash progress ledger detection uses the known plan pointer', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  const plan = '/work/plans/session.md'
+  const ledger = '/work/.superpowers/sdd/session/progress.md'
+  const disk = {
+    files: {
+      [plan]: '### Task 1: first\n### Task 2: second\n### Task 3: third\n\n- [ ] keep plan pointer\n- [ ] second pointer item',
+      [ledger]: 'Task 1: complete\n',
+    },
+  }
+  mountChecklistDisk(on, disk)
+  await $.tool.call({ tool: 'Write', file_path: plan, content: disk.files[plan] })
+  await $.tool.call({
+    tool: 'Bash',
+    command: 'echo "Task 1: complete" >> .superpowers/sdd/session/progress.md',
+  })
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan · session\.md · 1\/3 tasks/)).toBe(true)
+})
+
+test('a touched STDD change wins over a declared plan', { options: { fellowship: 'off', stdd_progress: 'on', plan_progress: 'on' } }, async ($, on) => {
+  const plan = '/work/plans/session.md'
+  const ledger = '/work/.superpowers/sdd/session/progress.md'
+  const files: Record<string, string> = {
+    '/work/STDD/checkout/spec.md': SPEC,
+    '/work/STDD/checkout/tasks.md': '- [ ] `S-01`\n',
+    [plan]: '### Task 1: first\n### Task 2: second',
+    [ledger]: 'Task 1: complete\n',
+  }
+  mock.clock(on)
+  on('session.cwd', async () => ({ value: '/work' }) as never)
+  on('fs.list', async (_$, e) => {
+    const path = (e as { path: string }).path
+    if (path === '/work') return { value: [{ name: 'STDD', kind: 'dir', mtimeMs: 1 }] } as never
+    if (path === '/work/STDD') return { value: [{ name: 'checkout', kind: 'dir', mtimeMs: 1 }] } as never
+    if (path === '/work/STDD/checkout') return { value: [
+      { name: 'spec.md', kind: 'file', mtimeMs: 1 },
+      { name: 'tasks.md', kind: 'file', mtimeMs: 2 },
+    ] } as never
+    return { value: [] } as never
+  })
+  on('fs.read', async (_$, e) => ({ value: files[(e as { path: string }).path] ?? '' }) as never)
+  on('tool.call', async () => ({ result: {} }) as never)
+  mountLowerBand(on)
+  await $.tool.call({ tool: PLAN_TRACK, plan, progress: 'ledger', ledger } as never)
+  await $.tool.call({ tool: 'Edit', file_path: '/work/STDD/checkout/tasks.md' } as never)
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /STDD checkout · execute/)).toBe(true)
+  expect(await bandText(ui as never, /Plan · session\.md/)).toBe(false)
+})
+
+test('a lower Plan row suppresses a declared plan row', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  const plan = '/work/plans/session.md'
+  const ledger = '/work/.superpowers/sdd/session/progress.md'
+  mountChecklistDisk(on, {
+    files: {
+      [plan]: '### Task 1: first\n### Task 2: second',
+      [ledger]: 'Task 1: complete\n',
+    },
+  }, LOWER_PLAN_ROW)
+  await $.tool.call({ tool: PLAN_TRACK, plan, progress: 'ledger', ledger } as never)
+
+  const ui = await $.ui.mount(BAND)
+  expect(await (ui as never as { findAll: (q: { type: string; text: RegExp }) => Promise<unknown[]> }).findAll({ type: 'Text', text: /^Plan · / })).toHaveLength(1)
+  expect(await bandText(ui as never, /Plan · x\.md · 1\/2 items/)).toBe(true)
+})
+
+test('PlanTrack rejects ledger mode without a ledger and does not write state', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  const plan = '/work/plans/session.md'
+  mountChecklistDisk(on, { files: { [plan]: '### Task 1: first\n### Task 2: second', '/work/.superpowers/sdd/session/progress.md': 'Task 1: complete\n' } })
+  const answer = await $.tool.call({ tool: PLAN_TRACK, plan, progress: 'ledger' } as never)
+
+  expect(answer.isError).toBe(true)
+  expect(answer.text).toMatch(/ledger/i)
+  // A saved declaration would draw the plan; nothing drawn means nothing was written.
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /^Plan · /)).toBe(false)
 })
 
 const exitPlan = async ($: { tool: { call: (input: never) => Promise<unknown> } }, on: On) => {
