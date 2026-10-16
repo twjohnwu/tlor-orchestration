@@ -129,6 +129,8 @@ The STDD band appears only in sessions that touched that change through an edit 
 `plan_autoclose_s` keeps a completed plan visible for that many seconds before hiding it (default 60; 0 never hides it).
 `notify` controls completion alerts for agents, plans, and STDD changes: `off` (default), `toast`, or `sound` (sound also shows a toast).
 
+`plan_reminder` (`on` default, `off`) controls the ExitPlanMode plan-file reminder separately from the band; it is skipped when the result already carries a reminder for the same file. `notify: sound` plays the macOS alert sound and falls back to the bundled chime. The `PlanTrack` tool declares a plan's progress source, `checklist` or `ledger` (`### Task N:` headings against `Task N: complete` lines); a write to `.superpowers/sdd/<x>/progress.md` selects ledger mode on its own. When a plugin beneath tlor already draws a `Plan · ` row, tlor does not draw its own.
+
 The STDD band reads files only. It shows `spec.md`'s `status` as written and does not recompute approval fingerprints — run `/stdd` for the authoritative check.
 
 Colours use Claude Code theme keys, so they follow your light/dark theme: role names by model family, status by state, and the bars green for done, yellow for the cell in progress, grey for the rest.
