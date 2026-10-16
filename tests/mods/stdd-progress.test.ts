@@ -738,3 +738,27 @@ test('a lower AbovePrompt hook still draws when the plan band has nothing to sho
   expect(await bandText(ui as never, /Plan ·/)).toBe(false)
   expect(await bandText(ui as never, /LOWER-BAND-MARKER/)).toBe(true)
 })
+
+const LOWER_PLAN_ROW = 'Plan · x.md · 1/2 items'
+
+test('the plan band is skipped when a lower band already draws a Plan row', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  const path = '/work/roadmap.md'
+  const content = '- [x] one\n- [ ] two'
+  mountChecklistDisk(on, { files: { [path]: content } }, LOWER_PLAN_ROW)
+  await $.tool.call({ tool: 'Write', file_path: path, content })
+
+  const ui = await $.ui.mount(BAND)
+  expect(await (ui as never as { findAll: (q: { type: string; text: RegExp }) => Promise<unknown[]> }).findAll({ type: 'Text', text: /^Plan · / })).toHaveLength(1)
+  expect(await bandText(ui as never, /Plan · x\.md · 1\/2 items/)).toBe(true)
+})
+
+test('a touched STDD change still draws above a lower Plan row', { options: { fellowship: 'off', stdd_progress: 'on', plan_progress: 'on' } }, async ($, on) => {
+  mountLowerBand(on, LOWER_PLAN_ROW)
+  mountDisk(on, { tasks: '- [ ] `S-01`\n' })
+  mountTaskTools(on)
+  await $.tool.call({ tool: 'Edit', file_path: '/work/STDD/checkout/tasks.md' } as never)
+
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /STDD checkout · execute/)).toBe(true)
+  expect(await bandText(ui as never, /Plan · x\.md · 1\/2 items/)).toBe(true)
+})

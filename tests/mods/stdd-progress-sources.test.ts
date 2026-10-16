@@ -89,6 +89,7 @@ test('checklist lines distinguishes no tracked file from a completed checklist',
 test('source order is respected and null stops the chain', async () => {
   const visited: string[] = []
   const source = (name: string, value: Awaited<ReturnType<ProgressSource['lines']>>): ProgressSource => ({
+    id: 'stdd',
     onToolCall: async () => undefined,
     lines: async () => {
       visited.push(name)
@@ -166,6 +167,7 @@ test('a failed first STDD scan empties the band, skips later sources, and retrie
     read: async path => path.endsWith('spec.md') ? '---\nstatus: approved\n---\n' : '- [ ] `S-01`\n- [ ] `S-02`\n',
   })
   const later: ProgressSource = {
+    id: 'stdd',
     onToolCall: async () => undefined,
     lines: async () => { throw new Error('plan source must not be consulted') },
   }

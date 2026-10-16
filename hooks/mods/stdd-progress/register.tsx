@@ -4,13 +4,15 @@ import { notify, notifyMode } from '../notify'
 import { parsePlanAutoclose } from './planCompletion'
 import { createChecklistSource } from './sources/checklist'
 import { createPlanTasksSource } from './sources/planTasks'
-import { BAND_RETRY, orderedLines } from './sources/source'
+import { BAND_RETRY, orderedSourceLines } from './sources/source'
 import type { ProgressReadIo, ProgressSource, ProgressToolIo } from './sources/source'
 import { createStddSource } from './sources/stdd'
 import { addPlanReminder } from './planReminder'
+import { renderedTextLines } from './renderText'
 
 const PLAN_TASKS = { plugin: 'tlor', key: 'planTasks' } as const
 const PLAN_CHECKLIST = { plugin: 'tlor', key: 'planChecklist' } as const
+const PLAN_ROW = /^Plan · /
 const STDD_TOUCHED = { plugin: 'tlor', key: 'stddTouched' } as const
 
 export const register = (on: On, options: PluginOptions): void => {
@@ -60,7 +62,7 @@ export const register = (on: On, options: PluginOptions): void => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
 
-    let lines: Awaited<ReturnType<typeof orderedLines>> | undefined
+    let drawn: Awaited<ReturnType<typeof orderedSourceLines>> | undefined
     try {
       const io: ProgressReadIo = {
         read: path => $.fs.read(path),
@@ -74,14 +76,17 @@ export const register = (on: On, options: PluginOptions): void => {
         invalidate: () => $.ui.invalidate('ui.render'),
         notify: text => notify($, notifications, text),
       }
-      lines = await orderedLines(sources, io, e.viewport?.columns)
+      drawn = await orderedSourceLines(sources, io, e.viewport?.columns)
     } catch {
       // Missing or unreadable progress draws nothing; the bands beneath still render.
     }
 
     // The drawing beneath resolves once per render, outside the try so its errors are not swallowed.
     const below = await next(e)
+    const lines = drawn?.lines
     if (lines === undefined || lines === null || lines === BAND_RETRY) return below
+    // A lower plugin that already draws a Plan row would show the plan twice; STDD rows are unrelated.
+    if (drawn?.source !== 'stdd' && renderedTextLines(below).some(line => PLAN_ROW.test(line))) return below
 
     const { Box, Text } = $.ui.resolve(e)
 

@@ -9,6 +9,7 @@ export const createPlanTasksSource = (autocloseSeconds = -1): ProgressSource => 
   const completion = createPlanCompletion(autocloseSeconds)
 
   return {
+    id: 'planTasks',
     onToolCall: async (event, result, io) => {
       if (
         event.agentId !== undefined ||

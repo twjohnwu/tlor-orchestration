@@ -85,6 +85,7 @@ export const createChecklistSource = (autocloseSeconds = -1): ProgressSource => 
   const completion = createPlanCompletion(autocloseSeconds)
 
   return {
+    id: 'planChecklist',
     onToolCall: async (event, result, io) => {
       if (event.agentId !== undefined || !succeeded(result)) return
 
