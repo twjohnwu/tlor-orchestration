@@ -96,7 +96,7 @@ STDD 狀態列只會顯示在曾觸及該變更的工作階段中（編輯 `STDD
 `plan_autoclose_s` 會讓已完成的 plan 保留顯示指定秒數後再隱藏（預設 60；設為 0 則永不隱藏）。
 `notify` 控制 Agent、plan 與 STDD change 的完成通知：`off`（預設）、`toast` 或 `sound`（音效也會同時顯示 toast）。
 
-`plan_reminder`（預設 `on`，可設 `off`）獨立於帶狀列控制 ExitPlanMode 的 plan 檔提醒；結果裡已有同一個檔案的提醒時就不再加。`notify: sound` 播放 macOS 系統提示音，失敗時改播內附的提示音。`PlanTrack` 工具讓模型宣告 plan 的進度來源：`checklist` 或 `ledger`（以 plan 的 `### Task N:` 標題對照 ledger 檔裡的 `Task N: complete` 行）；寫入 `.superpowers/sdd/<x>/progress.md` 時會自動切到 ledger 模式。tlor 下方的 plugin 已畫出 `Plan · ` 列時，tlor 不再畫自己的那一列。
+`plan_reminder`（預設 `on`，可設 `off`）獨立於帶狀列控制 ExitPlanMode 的 plan 檔提醒；結果裡已有同一個檔案的提醒時就不再加。`notify: sound` 播放 macOS 系統提示音，失敗時改播內附的提示音。`PlanTrack` 工具讓模型宣告 plan 的進度來源：`checklist` 或 `ledger`（以 plan 的 `### Task N:` 標題對照 ledger 檔裡的 `Task N: complete` 行）；只要已知 plan 檔，Write/Edit 或任何 Bash 指令提到 `.superpowers/sdd/<x>/progress.md` 時就會自動切到 ledger 模式。`plan_progress` 開啟時才有 PlanTrack。tlor 下方的 plugin 已畫出 `Plan · ` 列時，tlor 不再畫自己的那一列。
 
 STDD 帶狀列只讀檔案，照寫顯示 `spec.md` 的 `status`，不重算核准 fingerprint；權威檢查請跑 `/stdd`。
 

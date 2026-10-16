@@ -97,7 +97,7 @@ export const register = (on: On, options: PluginOptions): void => {
       return { result: declaration.progress === 'ledger'
         ? `Tracking ${basename(plan)} from ${basename(declaration.ledger)}.`
         : `Tracking ${basename(plan)} checklist.` }
-    })
+    }).catch(() => toolError('PlanTrack could not save the declaration.'))
   }
 
   // The matcher is a literal so `claude plugin validate` can print it; it must list every tool

@@ -781,6 +781,21 @@ test('PlanTrack declared ledger renders completed tasks', { options: { fellowshi
   expect(await bandText(ui as never, /Plan · session\.md · 1\/3 tasks/)).toBe(true)
 })
 
+test('PlanTrack ledger ignores completed tasks the plan does not list', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  const plan = '/work/plans/session.md'
+  const ledger = '/work/.superpowers/sdd/session/progress.md'
+  mountChecklistDisk(on, {
+    files: {
+      [plan]: '### Task 1: first\n### Task 2: second\n### Task 3: third',
+      [ledger]: 'Task 1: complete\nTask 4: complete\nTask 5: complete\n',
+    },
+  })
+
+  await $.tool.call({ tool: PLAN_TRACK, plan, progress: 'ledger', ledger } as never)
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan · session\.md · 1\/3 tasks/)).toBe(true)
+})
+
 test('PlanTrack checklist remembers a completed step after the plan is rewritten', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
   const plan = '/work/plans/session.md'
   const disk = { files: { [plan]: '- [x] first\n- [ ] second' } }

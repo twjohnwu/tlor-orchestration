@@ -13,7 +13,7 @@ export const register: Register = (on, options) => {
       if (planTrackEnabled) await setupPlanTrack($)
 
       return next(e)
-    })
+    }).catch(($, e, next) => next(e))
   }
   if (fellowshipEnabled) registerFellowship(on, options)
   if (options.stdd_progress !== 'off' || planTrackEnabled || options.plan_reminder === 'on') registerStddProgress(on, options)

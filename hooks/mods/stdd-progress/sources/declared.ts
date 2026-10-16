@@ -38,7 +38,7 @@ const ledgerProgress = (plan: string, ledger: string): { completed: number; tota
   const completed = new Set(
     [...ledger.matchAll(TASK_COMPLETE)].map(match => match[1]).filter((id): id is string => id !== undefined),
   )
-  return { completed: completed.size, total: planned.length }
+  return { completed: planned.filter(id => completed.has(id)).length, total: planned.length }
 }
 
 const ledgerSegments = (

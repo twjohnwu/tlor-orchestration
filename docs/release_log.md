@@ -12,7 +12,7 @@ Mods:
 - Plan progress band: tlor skips its own Plan row when a plugin drawing beneath it already shows one, so the Plan band appears once when cedars (or another plugin) also draws it. The STDD line is never skipped.
 - Plan reminder: not added again when the ExitPlanMode result already holds a reminder for the same plan file. New option `plan_reminder` (`on` default, `off`) turns the reminder off without turning off the band.
 - `notify: sound` plays the macOS alert sound (`osascript -e beep`) and falls back to the bundled chime when that fails or is unavailable.
-- New `PlanTrack` tool lets the model declare a plan's progress source: `checklist` (the plan's own checkboxes, ticked steps kept across rewrites) or `ledger` (`### Task N:` headings in the plan counted against `Task N: complete` lines in a ledger file). A write to `.superpowers/sdd/<x>/progress.md` switches to ledger mode without the tool. The band shows `Plan · <file> · K/T tasks`.
+- New `PlanTrack` tool lets the model declare a plan's progress source: `checklist` (the plan's own checkboxes, ticked steps kept across rewrites) or `ledger` (`### Task N:` headings in the plan counted against `Task N: complete` lines in a ledger file). A Write/Edit or Bash command naming `.superpowers/sdd/<x>/progress.md` switches to ledger mode without the tool, once a plan file is known; ledger lines for tasks the plan does not list are ignored. The band shows `Plan · <file> · K/T tasks`.
 
 ## v0.20.1 (2026-10-15)
 
