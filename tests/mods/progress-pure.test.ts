@@ -106,3 +106,18 @@ test('renderedTextLines collects one line per Text across strings, arrays, nesti
   expect(renderedTextLines(null)).toEqual([])
   expect(renderedTextLines({ type: 'Text', props: { children: 'via props' } } as never)).toEqual(['via props'])
 })
+
+test('plan reminder is not added again when a context string already tracks the same file', async () => {
+  const lower = 'Update /plans/session.md and tick each step `- [x]` when done.'
+  const result = { result: { filePath: '/plans/session.md' }, context: [lower] }
+
+  expect(addPlanReminder({ tool: 'ExitPlanMode' }, result, true)).toBe(result)
+})
+
+test('plan reminder is still added when the existing context names another file or lacks the tick form', async () => {
+  const otherFile = { result: { filePath: '/plans/session.md' }, context: ['Track /plans/other.md with `- [x]`'] }
+  const noTick = { result: { filePath: '/plans/session.md' }, context: ['See /plans/session.md'] }
+
+  expect(addPlanReminder({ tool: 'ExitPlanMode' }, otherFile, true).context).toEqual([...otherFile.context, PLAN_REMINDER])
+  expect(addPlanReminder({ tool: 'ExitPlanMode' }, noTick, true).context).toEqual([...noTick.context, PLAN_REMINDER])
+})

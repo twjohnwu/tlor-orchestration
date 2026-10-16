@@ -18,6 +18,7 @@ const STDD_TOUCHED = { plugin: 'tlor', key: 'stddTouched' } as const
 export const register = (on: On, options: PluginOptions): void => {
   const stddEnabled = options.stdd_progress !== 'off'
   const planEnabled = options.plan_progress === 'on'
+  const reminderEnabled = options.plan_reminder === 'on'
   const autocloseSeconds = parsePlanAutoclose(options.plan_autoclose_s)
   const notifications = notifyMode(options.notify)
   // A fourth source needs its file, one entry here, its feature switch, and any
@@ -56,7 +57,7 @@ export const register = (on: On, options: PluginOptions): void => {
       }
     }
 
-    return addPlanReminder(e, result, planEnabled)
+    return addPlanReminder(e, result, reminderEnabled)
   }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {

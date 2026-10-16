@@ -36,6 +36,13 @@
       "default": "on",
       "options": ["on", "off"]
     },
+    "plan_reminder": {
+      "type": "string",
+      "title": "Plan reminder",
+      "description": "After a plan is approved, reminds the model to keep a tickable step list in the plan file, unless another plugin already did.",
+      "default": "on",
+      "options": ["on", "off"]
+    },
     "plan_autoclose_s": {
       "type": "number",
       "title": "Plan completion delay",

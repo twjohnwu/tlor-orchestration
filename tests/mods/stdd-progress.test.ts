@@ -762,3 +762,23 @@ test('a touched STDD change still draws above a lower Plan row', { options: { fe
   expect(await bandText(ui as never, /STDD checkout · execute/)).toBe(true)
   expect(await bandText(ui as never, /Plan · x\.md · 1\/2 items/)).toBe(true)
 })
+
+const exitPlan = async ($: { tool: { call: (input: never) => Promise<unknown> } }, on: On) => {
+  on('tool.call', async () => ({ result: { filePath: '/plans/session.md' } }) as never)
+  mountLowerBand(on)
+  return await $.tool.call({ tool: 'ExitPlanMode' } as never) as { context?: string[] }
+}
+
+test('plan_reminder off drops the reminder while the plan band still draws', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on', plan_reminder: 'off' } }, async ($, on) => {
+  const result = await exitPlan($ as never, on)
+  expect(result.context ?? []).toEqual([])
+
+  await $.tool.call({ tool: 'TodoWrite', todos: [{ content: 'main', activeForm: 'Working main', status: 'in_progress' }] })
+  const ui = await $.ui.mount(BAND)
+  expect(await bandText(ui as never, /Plan · 0\/1 tasks/)).toBe(true)
+})
+
+test('plan_reminder on adds the reminder even when the plan band is off', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'off', plan_reminder: 'on' } }, async ($, on) => {
+  const result = await exitPlan($ as never, on)
+  expect(result.context?.some(text => text.includes('/plans/session.md') && text.includes('- [x]'))).toBe(true)
+})
