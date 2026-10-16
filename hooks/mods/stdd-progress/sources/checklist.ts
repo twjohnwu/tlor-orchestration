@@ -24,28 +24,42 @@ type LazyChecklist = {
   hide: () => void
 }
 
+export type RememberedChecklist = {
+  parse: (path: string, text: string) => ChecklistFileView
+}
+
+export const createRememberedChecklist = (): RememberedChecklist => {
+  let rememberedPath: string | undefined
+  let checkedTitles = new Set<string>()
+
+  return {
+    parse: (path, text) => {
+      const pathKey = normalizedPath(path)
+      if (rememberedPath !== pathKey) {
+        rememberedPath = pathKey
+        checkedTitles = new Set()
+      }
+
+      const items = parseMarkdownChecklistItems(text)
+      for (const item of items) if (item.checked) checkedTitles.add(item.title)
+      const remembered = items.map(item => ({
+        ...item,
+        checked: item.checked || checkedTitles.has(item.title),
+      }))
+      return { path, checklist: checklistProgress(remembered) }
+    },
+  }
+}
+
 // Caches the tracked file and its parsed view; every read uses the io of the current call.
 const lazyChecklist = (): LazyChecklist => {
   let trackedChecklist: PlanChecklist | null | undefined
   let trackedChecklistView: ChecklistFileView | null | undefined
-  let rememberedPath: string | undefined
-  let checkedTitles = new Set<string>()
+  const rememberedChecklist = createRememberedChecklist()
 
   const parse = (path: string, text: string): ChecklistFileView | null => {
-    const pathKey = normalizedPath(path)
-    if (rememberedPath !== pathKey) {
-      rememberedPath = pathKey
-      checkedTitles = new Set()
-    }
-
-    const items = parseMarkdownChecklistItems(text)
-    for (const item of items) if (item.checked) checkedTitles.add(item.title)
-    const remembered = items.map(item => ({
-      ...item,
-      checked: item.checked || checkedTitles.has(item.title),
-    }))
-    const checklist = checklistProgress(remembered)
-    return checklist.total >= 2 ? { path, checklist } : null
+    const view = rememberedChecklist.parse(path, text)
+    return view.checklist.total >= 2 ? view : null
   }
 
   const tracked = async (io: ProgressReadIo): Promise<PlanChecklist | null> => {
@@ -85,6 +99,7 @@ export const createChecklistSource = (autocloseSeconds = -1): ProgressSource => 
   const completion = createPlanCompletion(autocloseSeconds)
 
   return {
+    id: 'planChecklist',
     onToolCall: async (event, result, io) => {
       if (event.agentId !== undefined || !succeeded(result)) return
 

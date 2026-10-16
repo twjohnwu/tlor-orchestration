@@ -32,6 +32,7 @@ export const createStddSource = (): ProgressSource => {
   }
 
   return {
+    id: 'stdd',
     onToolCall: async (event, _result, io) => {
       const touched = await touchedBy(event, await io.cwd())
       if (touched.changes.length > 0 || touched.any) {

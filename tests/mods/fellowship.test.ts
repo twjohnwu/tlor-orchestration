@@ -279,6 +279,33 @@ test('each mod switches off on its own', async () => {
   expect(stddOff).toHaveLength(recordRegistrations({ fellowship: 'auto', stdd_progress: 'on' }).length - BAND_REGISTRATION.length)
 })
 
+test('the one session.start hook registers /fellowship, toasts once, and registers PlanTrack when on', async () => {
+  const starts: Array<(...args: unknown[]) => Promise<unknown>> = []
+  const on = ((event: string, handler: (...args: unknown[]) => Promise<unknown>) => {
+    if (event === 'session.start') starts.push(handler)
+    return { catch: () => undefined }
+  }) as never
+  registerMods(on, { fellowship: 'manual', stdd_progress: 'off', plan_progress: 'on' } as never)
+  expect(starts).toHaveLength(1)
+
+  const calls: string[] = []
+  const stored = new Map<string, unknown>()
+  const $ = {
+    command: { register: async (spec: { name: string }) => { calls.push(`command:${spec.name}`) } },
+    tool: { register: async (spec: { name: string }) => { calls.push(`tool:${spec.name}`) } },
+    store: { get: async (key: string) => stored.get(key), set: async (key: string, value: unknown) => { stored.set(key, value) } },
+    ui: { toast: (text: string) => { calls.push(`toast:${text}`) } },
+  }
+  const next = async () => 'next'
+  expect(await starts[0]?.($, {}, next)).toBe('next')
+  expect(await starts[0]?.($, {}, next)).toBe('next')
+
+  expect(calls).toEqual([
+    'command:fellowship', 'toast:Fellowship pane: /fellowship', 'tool:PlanTrack',
+    'command:fellowship', 'tool:PlanTrack',
+  ])
+})
+
 let spawnCount = 0
 const spawnInput = (description: string) => ({
   tool_use_id: `t-${description}`,

@@ -1,7 +1,7 @@
 {
   "name": "tlor",
   "displayName": "TLOR Agents — a Middle-earth fellowship for Claude Code",
-  "version": "0.20.1",
+  "version": "0.21.0",
   "description": "Orchestration framework for Claude Code: fourteen Middle-earth-themed subagent roles plus an Explore backup mirror, dispatch rules, judgment rubrics, risk tiers, and the /tlor-init setup skill. Roles pin model/effort/tools by design; rules enforce delegation discipline and verification.",
   "author": { "name": "twjohnwu", "url": "https://github.com/twjohnwu" },
   "repository": "https://github.com/twjohnwu/tlor-orchestration",
@@ -33,6 +33,13 @@
       "type": "string",
       "title": "Plan progress band",
       "description": "Shows the main conversation's active task-list progress above the prompt when no unfinished STDD change exists.",
+      "default": "on",
+      "options": ["on", "off"]
+    },
+    "plan_reminder": {
+      "type": "string",
+      "title": "Plan reminder",
+      "description": "After a plan is approved, reminds the model to keep a tickable step list in the plan file, unless another plugin already did.",
       "default": "on",
       "options": ["on", "off"]
     },

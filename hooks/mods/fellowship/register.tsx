@@ -30,6 +30,28 @@ const oldestToolStart = (agentId: string): number | undefined => {
   return starts === undefined ? undefined : Math.min(...starts)
 }
 
+type FellowshipSetupContext = {
+  command: { register: (spec: { name: string; description: string }) => Promise<unknown> }
+  store: { get: (key: string) => Promise<unknown>; set: (key: string, value: unknown) => Promise<unknown> }
+  ui: { toast: (text: string) => unknown }
+}
+
+// Run from the plugin's one session.start hook (hooks/mods/register.tsx).
+export async function setupFellowship($: FellowshipSetupContext): Promise<void> {
+  try {
+    await $.command.register({
+      name: 'fellowship',
+      description: 'Show the Fellowship pane and list this session\'s subagents',
+    })
+    if (await $.store.get('fellowshipNoticeShown') === undefined) {
+      $.ui.toast('Fellowship pane: /fellowship')
+      await $.store.set('fellowshipNoticeShown', true)
+    }
+  } catch {
+    // The observer is optional; session startup must continue.
+  }
+}
+
 export const register: Register = (on, options) => {
   const opensAutomatically = options.fellowship === 'auto'
   const maxRows = parseMaxRows(options.fellowship_max_rows)
@@ -40,23 +62,6 @@ export const register: Register = (on, options) => {
   const pinned = new Map<string, { model?: string; effort?: string }>()
   // agents whose effort the first turn.step already settled
   const stepped = new Set<string>()
-
-  on('session.start', async ($, e, next) => {
-    try {
-      await $.command.register({
-        name: 'fellowship',
-        description: 'Show the Fellowship pane and list this session\'s subagents',
-      })
-      if (await $.store.get('fellowshipNoticeShown') === undefined) {
-        $.ui.toast('Fellowship pane: /fellowship')
-        await $.store.set('fellowshipNoticeShown', true)
-      }
-    } catch {
-      // The observer is optional; session startup must continue.
-    }
-
-    return next(e)
-  })
 
   on('command.run', { command: 'fellowship' }, async $ => {
     isOpened = true
