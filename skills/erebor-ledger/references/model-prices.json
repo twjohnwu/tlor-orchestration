@@ -5,6 +5,7 @@
     "fields": "input, output, cache_write_5m, cache_write_1h, cache_read — each priced separately per spec §4",
     "long_prompt_threshold": "Optional prompt-token threshold. Prompt size is input + cache_read + cache_creation tokens for one record; long_prompt applies only when that sum is greater than this value.",
     "long_prompt": "Optional replacement object containing input, output, cache_write_5m, cache_write_1h, and cache_read rates. When the record exceeds long_prompt_threshold, these rates apply to every priced field for the whole request.",
+    "price_changes": "Optional list of price changes sorted ascending by effective_from (YYYY-MM-DD). Each change supplies all five rates and may override long_prompt_threshold and long_prompt; omitted long-prompt fields inherit from the entry. Records use the last change effective on their own date, or the entry's flat rates before the first change.",
     "cache_write_tier_assumption": "Claude Code transcripts carry an explicit usage.cache_creation.{ephemeral_5m_input_tokens,ephemeral_1h_input_tokens} breakdown (verified present on every non-zero cache-write record examined on this machine, 2026-07-27), so erebor_ledger.py prices the two tiers exactly from that breakdown rather than assuming one. A record missing that breakdown (e.g. an older/different transcript schema) falls back to pricing its whole cache-write amount at the 5-minute tier — the prior conservative assumption — and the script warns explicitly when this fallback fires.",
     "counterfactual_assumption": "Counterfactual assumes inline execution would consume the same token volume; this is an estimate, not a measurement.",
     "long_context_note": "Models 4.6 and later include the full 1M-token context window at the standard pricing below, so a model id carrying a '[1m]' / long-context marker needs no separate rate here and SHALL NOT be given a premium entry. (Earlier long-context betas did carry a premium; that is why this is stated rather than assumed.)",
@@ -84,8 +85,21 @@
   },
   "claude-sonnet-5": {
     "input": 2, "output": 10, "cache_write_5m": 2.50, "cache_write_1h": 4, "cache_read": 0.20,
+    "price_changes": [
+      {
+        "effective_from": "2026-09-01",
+        "input": 3, "output": 15, "cache_write_5m": 3.75, "cache_write_1h": 6, "cache_read": 0.30,
+        "note": "standard pricing"
+      },
+      {
+        "effective_from": "2026-10-07",
+        "input": 2, "output": 10, "cache_write_5m": 2.50, "cache_write_1h": 4, "cache_read": 0.20,
+        "note": "price change 2026-10-07"
+      }
+    ],
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "queried_on": "2026-10-09"
+    "queried_on": "2026-10-21",
+    "note": "intro through 2026-08-31, standard from 2026-09-01, repriced from 2026-10-07"
   },
   "claude-sonnet-4-6": {
     "input": 3, "output": 15, "cache_write_5m": 3.75, "cache_write_1h": 6, "cache_read": 0.30,

@@ -437,6 +437,158 @@ def test_claude_5_5_generation_ids_resolve_to_own_entries():
     assert m.resolve_price("claude-fable-5-1", price_table, "2026-10-09") is not price_table["claude-fable-5"]
 
 
+def _price_rates(price):
+    return tuple(
+        price[field]
+        for field in ("input", "output", "cache_write_5m", "cache_write_1h", "cache_read")
+    )
+
+
+def test_sonnet_5_price_changes_resolve_by_record_date():
+    m = _load_erebor_ledger_module()
+    price_table = m.load_price_table()
+
+    expected_by_date = {
+        "2026-08-31": (2, 10, 2.50, 4, 0.20),
+        "2026-09-01": (3, 15, 3.75, 6, 0.30),
+        "2026-10-06": (3, 15, 3.75, 6, 0.30),
+        "2026-10-07": (2, 10, 2.50, 4, 0.20),
+        "2026-10-21": (2, 10, 2.50, 4, 0.20),
+    }
+    for record_date, expected_rates in expected_by_date.items():
+        assert _price_rates(m.resolve_price(SONNET, price_table, record_date)) == expected_rates
+
+
+def test_three_price_changes_resolve_all_four_date_periods():
+    m = _load_erebor_ledger_module()
+    price_table = {
+        "synthetic-model": {
+            "input": 1, "output": 2, "cache_write_5m": 3, "cache_write_1h": 4, "cache_read": 5,
+            "price_changes": [
+                {
+                    "effective_from": "2026-02-01",
+                    "input": 11, "output": 12, "cache_write_5m": 13,
+                    "cache_write_1h": 14, "cache_read": 15,
+                },
+                {
+                    "effective_from": "2026-03-01",
+                    "input": 21, "output": 22, "cache_write_5m": 23,
+                    "cache_write_1h": 24, "cache_read": 25,
+                },
+                {
+                    "effective_from": "2026-04-01",
+                    "input": 31, "output": 32, "cache_write_5m": 33,
+                    "cache_write_1h": 34, "cache_read": 35,
+                },
+            ],
+        }
+    }
+
+    expected_by_date = {
+        "2026-01-31": (1, 2, 3, 4, 5),
+        "2026-02-15": (11, 12, 13, 14, 15),
+        "2026-03-15": (21, 22, 23, 24, 25),
+        "2026-04-15": (31, 32, 33, 34, 35),
+    }
+    for record_date, expected_rates in expected_by_date.items():
+        assert _price_rates(
+            m.resolve_price("synthetic-model-20260415", price_table, record_date)
+        ) == expected_rates
+
+
+def test_price_changes_inherit_or_override_long_prompt_rates():
+    m = _load_erebor_ledger_module()
+    entry_long_prompt = {
+        "input": 101, "output": 102, "cache_write_5m": 103,
+        "cache_write_1h": 104, "cache_read": 105,
+    }
+    change_long_prompt = {
+        "input": 201, "output": 202, "cache_write_5m": 203,
+        "cache_write_1h": 204, "cache_read": 205,
+    }
+    price_table = {
+        "synthetic-model": {
+            "input": 1, "output": 2, "cache_write_5m": 3, "cache_write_1h": 4, "cache_read": 5,
+            "long_prompt_threshold": 100_000,
+            "long_prompt": entry_long_prompt,
+            "price_changes": [
+                {
+                    "effective_from": "2026-02-01",
+                    "input": 11, "output": 12, "cache_write_5m": 13,
+                    "cache_write_1h": 14, "cache_read": 15,
+                },
+                {
+                    "effective_from": "2026-03-01",
+                    "input": 21, "output": 22, "cache_write_5m": 23,
+                    "cache_write_1h": 24, "cache_read": 25,
+                    "long_prompt_threshold": 200_000,
+                    "long_prompt": change_long_prompt,
+                },
+            ],
+        }
+    }
+
+    inherited = m.resolve_price("synthetic-model", price_table, "2026-02-15")
+    assert inherited["long_prompt_threshold"] == 100_000
+    assert inherited["long_prompt"] == entry_long_prompt
+
+    overridden = m.resolve_price("synthetic-model", price_table, "2026-03-15")
+    assert overridden["long_prompt_threshold"] == 200_000
+    assert overridden["long_prompt"] == change_long_prompt
+
+
+def _write_price_table(tmp_path, model_key, entry):
+    path = tmp_path / "model-prices.json"
+    path.write_text(json.dumps({"_meta": {}, model_key: entry}), encoding="utf-8")
+    return path
+
+
+def _flat_price_entry():
+    return {
+        "input": 1, "output": 2, "cache_write_5m": 3,
+        "cache_write_1h": 4, "cache_read": 5,
+    }
+
+
+def test_price_table_rejects_unsorted_price_changes(tmp_path):
+    m = _load_erebor_ledger_module()
+    entry = _flat_price_entry()
+    entry["price_changes"] = [
+        {"effective_from": "2026-03-01", **_flat_price_entry()},
+        {"effective_from": "2026-02-01", **_flat_price_entry()},
+    ]
+
+    with pytest.raises(ValueError) as excinfo:
+        m.load_price_table(_write_price_table(tmp_path, "broken-model", entry))
+    assert "broken-model" in str(excinfo.value)
+
+
+def test_price_table_rejects_price_change_missing_rate(tmp_path):
+    m = _load_erebor_ledger_module()
+    entry = _flat_price_entry()
+    change = {"effective_from": "2026-02-01", **_flat_price_entry()}
+    del change["cache_read"]
+    entry["price_changes"] = [change]
+
+    with pytest.raises(ValueError) as excinfo:
+        m.load_price_table(_write_price_table(tmp_path, "broken-model", entry))
+    message = str(excinfo.value)
+    assert "broken-model" in message
+    assert "cache_read" in message
+
+
+def test_price_table_rejects_leftover_next_tier(tmp_path):
+    m = _load_erebor_ledger_module()
+    entry = _flat_price_entry()
+    entry["next_tier"] = {"effective_from": "2026-02-01", **_flat_price_entry()}
+
+    with pytest.raises(ValueError) as excinfo:
+        m.load_price_table(_write_price_table(tmp_path, "broken-model", entry))
+    message = str(excinfo.value)
+    assert "broken-model" in message
+    assert "next_tier was replaced by price_changes" in message
+
+
 def _haiku_5_5_prompt_price_report(tmp_path, input_tokens):
     make_session(
         tmp_path,
@@ -572,9 +724,7 @@ def test_absolute_dollar_amounts_pinned(tmp_path):
 # --------------------------------------------------------------------------
 
 def test_sonnet_5_official_rate_applies_across_record_dates(tmp_path):
-    """The corrected sonnet-5 entry stays at the official $10/MTok output
-    rate across both records instead of applying the removed 3/15 override
-    to the post-2026-09-01 record."""
+    """Sonnet-5 records use the output rate effective on their own date."""
     make_session(
         tmp_path,
         "proj-a",
@@ -596,7 +746,7 @@ def test_sonnet_5_official_rate_applies_across_record_dates(tmp_path):
         ],
     )
     report = run_report(tmp_path)
-    assert cell(report, "gondor-builder", "actual_cost") == "$20.00"
+    assert cell(report, "gondor-builder", "actual_cost") == "$25.00"
 
 
 # --------------------------------------------------------------------------
