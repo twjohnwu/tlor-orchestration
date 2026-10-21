@@ -124,6 +124,7 @@ CYCLE_RESET_WEEKDAY = 3  # Monday=0 ... Thursday=3 (datetime.weekday())
 CYCLE_RESET_HOUR_UTC = 5
 
 TOKEN_FIELDS = ("input", "output", "cache_write", "cache_read", "cache_write_5m", "cache_write_1h")
+PRICE_RATE_FIELDS = ("input", "output", "cache_write_5m", "cache_write_1h", "cache_read")
 
 # The subset of TOKEN_FIELDS that are RAW cumulative counters as the API
 # reports them — the only fields the monotonicity detector (FIX 3
@@ -192,6 +193,48 @@ def load_price_table(path: str = PRICE_TABLE_PATH) -> dict:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
     data.pop("_meta", None)
+    for model_key, entry in data.items():
+        if not isinstance(entry, dict):
+            raise ValueError(f"price table entry '{model_key}' must be an object")
+        if "next_tier" in entry:
+            raise ValueError(
+                f"price table entry '{model_key}': next_tier was replaced by price_changes"
+            )
+        if "price_changes" not in entry:
+            continue
+        price_changes = entry["price_changes"]
+        if not isinstance(price_changes, list):
+            raise ValueError(f"price table entry '{model_key}': price_changes must be a list")
+
+        previous_date = None
+        for index, change in enumerate(price_changes):
+            if not isinstance(change, dict):
+                raise ValueError(
+                    f"price table entry '{model_key}': price_changes[{index}] must be an object"
+                )
+            effective_from = change.get("effective_from")
+            try:
+                parsed_date = datetime.strptime(effective_from, "%Y-%m-%d")
+            except (TypeError, ValueError):
+                parsed_date = None
+            if parsed_date is None or parsed_date.strftime("%Y-%m-%d") != effective_from:
+                raise ValueError(
+                    f"price table entry '{model_key}': price_changes[{index}].effective_from"
+                    " must be a valid YYYY-MM-DD date"
+                )
+            if previous_date is not None and effective_from <= previous_date:
+                raise ValueError(
+                    f"price table entry '{model_key}': price_changes dates must be strictly"
+                    " ascending and unique"
+                )
+            previous_date = effective_from
+            for field_name in PRICE_RATE_FIELDS:
+                value = change.get(field_name)
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    raise ValueError(
+                        f"price table entry '{model_key}': price_changes[{index}].{field_name}"
+                        " must be a number"
+                    )
     return data
 
 
@@ -301,8 +344,11 @@ def period_length_multi(windows: list[tuple[datetime, datetime]]) -> tuple[float
 def resolve_price(model: str | None, price_table: dict, today: str) -> dict | None:
     """Longest-prefix match of `model` against price_table keys.
 
-    Returns the price entry dict, or None if no key is a prefix of `model`
-    (per spec §6: unknown model SHALL NOT be priced by guessing).
+    Returns rates from the last price change effective on `today`, or the
+    flat entry before the first change. Long-prompt fields inherit from the
+    entry when the selected change does not override them. Returns None if no
+    key is a prefix of `model` (per spec §6: unknown model SHALL NOT be priced
+    by guessing).
     """
     if not model:
         return None
@@ -314,10 +360,25 @@ def resolve_price(model: str | None, price_table: dict, today: str) -> dict | No
     if best_key is None:
         return None
     entry = price_table[best_key]
-    next_tier = entry.get("next_tier")
-    if next_tier and next_tier.get("effective_from") and today >= next_tier["effective_from"]:
-        return next_tier
-    return entry
+    price_changes = entry.get("price_changes", [])
+
+    # Upper-bound search: validated price-change dates are strictly ascending,
+    # so the last item not after `today` is immediately before the insertion point.
+    lo, hi = 0, len(price_changes)
+    while lo < hi:
+        mid = lo + (hi - lo) // 2
+        if price_changes[mid]["effective_from"] <= today:
+            lo = mid + 1
+        else:
+            hi = mid
+    if lo == 0:
+        return entry
+
+    resolved = dict(price_changes[lo - 1])
+    for field_name in ("long_prompt_threshold", "long_prompt"):
+        if field_name not in resolved and field_name in entry:
+            resolved[field_name] = entry[field_name]
+    return resolved
 
 
 def zero_tokens() -> dict:
@@ -498,7 +559,7 @@ def iter_assistant_records(
     (2026-07-28): a caller MUST price a record against ITS OWN
     `record_date` (falling back to a caller-chosen date only when it is
     `None`), never against the execution date (`datetime.now()`) — a price
-    table `next_tier.effective_from` boundary would otherwise silently
+    table `price_changes[*].effective_from` boundary would otherwise silently
     re-price every already-recorded record once that date passes. A caller
     MUST also resolve `dedup_key`/`line_no` against the machine-wide winner
     map from `collect_dedup_winners` (via `dedup_against_winners`, CHANGE 1
@@ -1229,7 +1290,7 @@ def build_report(
     own `timestamp` is missing/unparseable (see `iter_assistant_records`'
     `record_date`) — it is no longer the date every record is priced
     against (that was H1, 2026-07-28: pricing must track the RECORD's own
-    date so a price table `next_tier.effective_from` boundary does not
+    date so a price table `price_changes[*].effective_from` boundary does not
     silently re-price already-recorded history once the boundary passes).
     `price_as_of`, when given (from `--price-as-of`), is an EXPLICIT
     override that replaces every record's own date outright — the default
@@ -1309,7 +1370,7 @@ def build_report(
             # H1 (2026-07-28): orchestrator cost is summed PER RECORD, each
             # priced against its OWN date (never the session-wide execution
             # date) — a session whose records straddle a price-table tier
-            # boundary (e.g. `next_tier.effective_from`) must not have its
+            # boundary (e.g. `price_changes[*].effective_from`) must not have its
             # whole aggregated token volume priced at whichever tier happens
             # to be active when the report is RUN.
             orch_tokens = zero_tokens()
@@ -2449,7 +2510,7 @@ def main(argv=None):
             "EXPLICIT override (YYYY-MM-DD): price every record as if 'today' were this date,"
             " instead of the record's own date. Default behavior (no flag) prices each record"
             " against its OWN date (per H1: never the report's execution date), so a price-table"
-            " tier change (e.g. next_tier.effective_from) does not silently re-price already-"
+            " tier change (e.g. price_changes[*].effective_from) does not silently re-price already-"
             "recorded history — use this flag only to deliberately ask 'what would this period"
             " have cost under the pricing in effect on a specific date'."
         ),

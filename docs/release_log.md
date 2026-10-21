@@ -6,6 +6,11 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.21.1 (2026-10-21)
+
+erebor-ledger:
+- Model prices can change any number of times: each price-table entry takes a `price_changes` list of dated rates in place of the single `next_tier`, and each record is priced at the rates in force on its own date. `claude-sonnet-5` records from 2026-09-01 to 2026-10-06 are priced at the standard rate again (the 2026-10-09 table update had re-priced them at the 2026-10-07 rate).
+
 ## v0.21.0 (2026-10-16)
 
 Mods:
