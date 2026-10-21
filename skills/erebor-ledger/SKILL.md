@@ -655,6 +655,15 @@ match a `claude-opus-4` price-table entry, not require an exact match).
   disclosure above); the resolver prices each tier's tokens at its own rate
   — if Anthropic's pricing model changes either multiplier, update
   `model-prices.json`, not the script.
+- **Price changes are dated, per record.** An entry's flat rate fields are
+  the rates in force before its first price change. Later rates go in the
+  entry's `price_changes` list, sorted by `effective_from` (`YYYY-MM-DD`);
+  each item carries all five rates, plus optional `long_prompt_threshold` /
+  `long_prompt` (absent → the entry's own values apply). Each record is
+  priced by its own transcript date, so a new price never re-prices older
+  records. To record a price change, append an item — never edit the rates
+  of an earlier period. The loader rejects an unsorted or incomplete list,
+  and the retired single `next_tier` object.
 - To add/repair a price, edit `references/model-prices.json` directly; do
   not hardcode prices in `erebor_ledger.py`.
 
