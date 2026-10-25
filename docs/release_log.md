@@ -6,6 +6,20 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.21.2 (2026-10-26)
+
+Mods (Plan band, ledger mode):
+- A Bash call declares an SDD ledger only when it writes the ledger (`>`, `>>`, `>|`, `tee [-a]`, also after `sudo`); reading a ledger with `cat` or `grep` only refreshes the band, and heredoc bodies are not read as commands.
+- The plan comes from the ledger's first line, `# SDD ledger — plan: <path>`, resolved against the ledger root; the current checklist plan is the fallback.
+- Only main-session calls declare a ledger; subagent calls only refresh the band.
+- A ledger created through a shell variable is found by scanning `.superpowers/sdd/*/progress.md` for files written during the call.
+- A finished ledger whose workspace was deleted still reads N/N.
+- `Task N: in progress` (or `in-progress`, `started`) lines show `▶ <task>` and `+k in progress`; the last status line for a task wins, so a restarted task is not counted done. PlanTrack's description asks for that line before each dispatch.
+
+erebor-ledger:
+- Workflow agent transcripts (`subagents/workflows/<run>/agent-*.jsonl`) are counted and go through the same cross-file dedupe.
+- Prices match the official pricing page: `claude-sonnet-5` is $2/$10 on every date (the scheduled 2026-09-01 rise to $3/$15 was cancelled, so v0.21.1's September re-pricing is reverted), and `claude-sonnet-5-5` cache reads drop from $0.20 to $0.10 on 2026-10-07.
+
 ## v0.21.1 (2026-10-21)
 
 erebor-ledger:
