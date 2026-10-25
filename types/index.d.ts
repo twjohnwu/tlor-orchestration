@@ -28,6 +28,11 @@ export type PlanDeclaration =
   | { plan: string; progress: 'checklist'; ledger?: undefined }
   | { plan?: string; progress: 'ledger'; ledger: string }
 
+export type PlanFinishedLedger = {
+  path: string
+  total: number
+}
+
 export type StddTouched = {
   changes: string[]
   any: boolean
@@ -38,6 +43,7 @@ declare module 'claude-code' {
     tlor: {
       agents: FellowshipAgent[]
       planDeclaration: PlanDeclaration
+      planFinishedLedgers: PlanFinishedLedger[]
       planTasks: PlanTask[]
       planChecklist: PlanChecklist | null
       stddTouched: StddTouched

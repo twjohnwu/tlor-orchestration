@@ -5,7 +5,7 @@ import { notify, notifyMode } from '../notify'
 import { casUpdate } from '../state'
 import { parsePlanAutoclose } from './planCompletion'
 import { createChecklistSource } from './sources/checklist'
-import { createDeclaredSource } from './sources/declared'
+import { createDeclaredSource, needsRecentLedgerDiscovery } from './sources/declared'
 import { createPlanTasksSource } from './sources/planTasks'
 import { normalizedPath } from './progress'
 import { BAND_RETRY, orderedSourceLines } from './sources/source'
@@ -15,6 +15,7 @@ import { addPlanReminder } from './planReminder'
 import { renderedTextLines } from './renderText'
 
 const PLAN_DECLARATION = { plugin: 'tlor', key: 'planDeclaration' } as const
+const PLAN_FINISHED_LEDGERS = { plugin: 'tlor', key: 'planFinishedLedgers' } as const
 const PLAN_TASKS = { plugin: 'tlor', key: 'planTasks' } as const
 const PLAN_CHECKLIST = { plugin: 'tlor', key: 'planChecklist' } as const
 const PLAN_ROW = /^Plan · /
@@ -22,7 +23,7 @@ const STDD_TOUCHED = { plugin: 'tlor', key: 'stddTouched' } as const
 const PLAN_TRACK_TOOL = 'mcp__tlor__PlanTrack'
 const PLAN_TRACK_SPEC = {
   name: 'PlanTrack',
-  description: 'Declare a plan file and track its checklist or completion ledger.',
+  description: 'Declare a plan file and track its checklist or completion ledger. In ledger mode, append `Task N: in progress` to the ledger before each dispatch.',
   inputSchema: {
     type: 'object',
     additionalProperties: false,
@@ -103,6 +104,7 @@ export const register = (on: On, options: PluginOptions): void => {
   // The matcher is a literal so `claude plugin validate` can print it; it must list every tool
   // any source reacts to (a test pins it to the union of the tool lists in progress.ts).
   on('tool.call', { tool: /^(?:Bash|Edit|Write|MultiEdit|NotebookEdit|Skill|TodoWrite|TaskCreate|TaskUpdate|ExitPlanMode)$/ }, async ($, e, next) => {
+    const callStartedAt = needsRecentLedgerDiscovery(e) ? await $.clock.now() : undefined
     const result = await next(e)
     const io: ProgressToolIo = {
       now: () => $.clock.now(),
@@ -113,6 +115,8 @@ export const register = (on: On, options: PluginOptions): void => {
       invalidate: () => $.ui.invalidate('ui.render'),
       getPlanDeclaration: () => $.state.get(PLAN_DECLARATION),
       setPlanDeclaration: (value, version) => $.state.set(PLAN_DECLARATION, value, { ifVersion: version }),
+      getPlanFinishedLedgers: () => $.state.get(PLAN_FINISHED_LEDGERS),
+      setPlanFinishedLedgers: (value, version) => $.state.set(PLAN_FINISHED_LEDGERS, value, { ifVersion: version }),
       getPlanTasks: () => $.state.get(PLAN_TASKS),
       setPlanTasks: (value, version) => $.state.set(PLAN_TASKS, value, { ifVersion: version }),
       getPlanChecklist: () => $.state.get(PLAN_CHECKLIST),
@@ -121,7 +125,9 @@ export const register = (on: On, options: PluginOptions): void => {
       setStddTouched: (value, version) => $.state.set(STDD_TOUCHED, value, { ifVersion: version }),
       notify: text => notify($, notifications, text),
     }
-    const event = e as unknown as Readonly<Record<string, unknown>>
+    const event = callStartedAt === undefined
+      ? e as unknown as Readonly<Record<string, unknown>>
+      : { ...e, callStartedAt } as unknown as Readonly<Record<string, unknown>>
     for (const source of sources) {
       try {
         await source.onToolCall(event, result, io)
@@ -143,6 +149,8 @@ export const register = (on: On, options: PluginOptions): void => {
         list: path => $.fs.list(path),
         cwd: () => $.session.cwd(),
         getPlanDeclaration: () => $.state.get(PLAN_DECLARATION),
+        getPlanFinishedLedgers: () => $.state.get(PLAN_FINISHED_LEDGERS),
+        setPlanFinishedLedgers: (value, version) => $.state.set(PLAN_FINISHED_LEDGERS, value, { ifVersion: version }),
         getPlanTasks: () => $.state.get(PLAN_TASKS),
         getPlanChecklist: () => $.state.get(PLAN_CHECKLIST),
         getStddTouched: () => $.state.get(STDD_TOUCHED),
