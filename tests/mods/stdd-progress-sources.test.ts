@@ -3,7 +3,7 @@ import { test, expect } from 'claude-code/testing'
 
 import type { PlanDeclaration } from '../../types'
 import { CHECKLIST_TOOLS, PLAN_TOOLS, STDD_TOOLS } from '../../hooks/mods/stdd-progress/progress'
-import { register } from '../../hooks/mods/stdd-progress/register'
+import { register, setupPlanTrack } from '../../hooks/mods/stdd-progress/register'
 import { createChecklistSource } from '../../hooks/mods/stdd-progress/sources/checklist'
 import { createDeclaredSource } from '../../hooks/mods/stdd-progress/sources/declared'
 import { createPlanTasksSource } from '../../hooks/mods/stdd-progress/sources/planTasks'
@@ -259,6 +259,48 @@ test('Bash declares only real redirect and tee ledger targets, ignoring quoted t
     command: `printf status | tee -a '.superpowers/sdd/teed/progress.md'`,
   }, {}, io)
   expect(declaration?.ledger).toBe('/work/.superpowers/sdd/teed/progress.md')
+})
+
+test('Bash write detection treats heredoc bodies as data and covers tee, >| and sudo forms', async () => {
+  const declare = async (command: string): Promise<string | undefined> => {
+    let declaration: PlanDeclaration | undefined
+    let version = 0
+    const io = toolIo({
+      getPlanDeclaration: async () => ({ value: declaration, version }),
+      setPlanDeclaration: async value => {
+        declaration = value
+        version += 1
+        return { isSet: true } as never
+      },
+      getPlanChecklist: async () => ({ value: { path: '/work/plans/current.md' }, version: 1 }),
+    })
+    await createDeclaredSource().onToolCall({ tool: 'Bash', command }, {}, io)
+    return declaration?.ledger
+  }
+  const ledger = '.superpowers/sdd/x/progress.md'
+  const absolute = '/work/.superpowers/sdd/x/progress.md'
+
+  for (const opener of ['<<EOF', `<<'EOF'`, '<<"EOF"', '<<-EOF']) {
+    expect(await declare(`cat > notes.md ${opener}\nrun: echo done >> ${ledger}\ntee ${ledger}\nEOF`)).toBeUndefined()
+    expect(await declare(`cat ${opener} > ${ledger}\nbody text\nEOF`)).toBe(absolute)
+  }
+  expect(await declare(`cat > notes.md <<EOF\nx\nEOF\necho y >> ${ledger}`)).toBe(absolute)
+
+  expect(await declare(`tee -a log.txt ${ledger}`)).toBe(absolute)
+  expect(await declare(`echo hi >| ${ledger}`)).toBe(absolute)
+  expect(await declare(`echo hi | sudo tee ${ledger}`)).toBe(absolute)
+  expect(await declare(`echo hi | sudo -E tee -a ${ledger}`)).toBe(absolute)
+
+  expect(await declare(`cat ${ledger}`)).toBeUndefined()
+  expect(await declare(`grep done ${ledger}`)).toBeUndefined()
+  expect(await declare(`wc -l < ${ledger}`)).toBeUndefined()
+  expect(await declare(`diff ${ledger} other.md`)).toBeUndefined()
+})
+
+test('the PlanTrack tool description tells the model to log "Task N: in progress"', async () => {
+  const specs: Array<{ description?: string }> = []
+  await setupPlanTrack({ tool: { register: async spec => { specs.push(spec) } } })
+  expect(specs[0]?.description).toContain('Task N: in progress')
 })
 
 test('a ledger identity line binds its relative plan path to the ledger root', async () => {

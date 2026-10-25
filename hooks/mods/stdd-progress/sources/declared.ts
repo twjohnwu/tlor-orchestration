@@ -36,11 +36,57 @@ type ShellToken = {
   value: string
 }
 
+type HeredocSpec = { delimiter: string; stripTabs: boolean }
+
+// Reads the delimiter word after `<<`; returns the index just past it.
+const heredocDelimiter = (command: string, from: number): { spec: HeredocSpec; end: number } => {
+  let index = from
+  const stripTabs = command[index] === '-'
+  if (stripTabs) index += 1
+  while (command[index] === ' ' || command[index] === '\t') index += 1
+  let delimiter = ''
+  let quote: "'" | '"' | undefined
+  for (; index < command.length; index += 1) {
+    const character = command[index]
+    if (character === undefined) break
+    if (quote !== undefined) {
+      if (character === quote) quote = undefined
+      else delimiter += character
+    } else if (character === "'" || character === '"') {
+      quote = character
+    } else if (character === '\\' && command[index + 1] !== undefined) {
+      index += 1
+      delimiter += command[index] ?? ''
+    } else if (/\s/.test(character) || '<>|&;()'.includes(character)) {
+      break
+    } else {
+      delimiter += character
+    }
+  }
+  return { spec: { delimiter, stripTabs }, end: index }
+}
+
+// Consumes pending heredoc bodies after the newline at `newline`; returns the index to resume from.
+const skipHeredocBodies = (command: string, newline: number, pending: HeredocSpec[]): number => {
+  let position = newline + 1
+  for (const spec of pending.splice(0)) {
+    while (position < command.length) {
+      const lineEnd = command.indexOf('\n', position)
+      const end = lineEnd < 0 ? command.length : lineEnd
+      const line = command.slice(position, end)
+      position = lineEnd < 0 ? command.length : lineEnd + 1
+      if ((spec.stripTabs ? line.replace(/^\t+/, '') : line) === spec.delimiter) break
+    }
+  }
+  return position - 1
+}
+
 const shellTokens = (command: string): ShellToken[] => {
   const tokens: ShellToken[] = []
   let word = ''
   let hasWord = false
   let quote: "'" | '"' | undefined
+  const heredocs: Array<{ delimiter: string; stripTabs: boolean }> = []
 
   const flushWord = (): void => {
     if (!hasWord) return
@@ -82,11 +128,26 @@ const shellTokens = (command: string): ShellToken[] => {
     }
     if (/\s/.test(character)) {
       flushWord()
-      if (character === '\n') tokens.push({ kind: 'operator', value: ';' })
+      if (character === '\n') {
+        tokens.push({ kind: 'operator', value: ';' })
+        index = skipHeredocBodies(command, index, heredocs)
+      }
       continue
     }
     if ('<>|&;'.includes(character)) {
       flushWord()
+      if (character === '>' && command[index + 1] === '|') {
+        tokens.push({ kind: 'operator', value: '>' })
+        index += 1
+        continue
+      }
+      if (character === '<' && command[index + 1] === '<' && command[index + 2] !== '<') {
+        const heredoc = heredocDelimiter(command, index + 2)
+        tokens.push({ kind: 'operator', value: '<<' })
+        heredocs.push(heredoc.spec)
+        index = heredoc.end - 1
+        continue
+      }
       const doubled = command[index + 1] === character && character !== ';'
       tokens.push({ kind: 'operator', value: doubled ? character.repeat(2) : character })
       if (doubled) index += 1
@@ -105,6 +166,24 @@ type BashWrite = {
 }
 
 const isLedgerPath = (path: string): boolean => LEDGER_PATH.test(`/${normalizedPath(path)}`)
+
+const SUDO_ARG_FLAGS = new Set(['-u', '-g', '-h', '-p', '-r', '-t', '-C', '-U', '-D', '-R'])
+
+// Returns the index of the last sudo-prefix token, so the next token is read as the command.
+const skipSudoPrefix = (tokens: ShellToken[], sudoIndex: number): number => {
+  let index = sudoIndex
+  for (;;) {
+    const next = tokens[index + 1]
+    if (next === undefined || next.kind !== 'word') return index
+    if (next.value.startsWith('-') && next.value !== '--') {
+      index += SUDO_ARG_FLAGS.has(next.value) ? 2 : 1
+    } else if (next.value === '--' || /^[A-Za-z_][A-Za-z0-9_]*=/.test(next.value)) {
+      index += 1
+    } else {
+      return index
+    }
+  }
+}
 
 const bashWriteFrom = (command: string): BashWrite => {
   const tokens = shellTokens(command)
@@ -130,6 +209,10 @@ const bashWriteFrom = (command: string): BashWrite => {
 
     if (!expectingCommand) continue
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token.value)) continue
+    if (basename(token.value) === 'sudo') {
+      index = skipSudoPrefix(tokens, index)
+      continue
+    }
     expectingCommand = false
     if (basename(token.value) !== 'tee') continue
     mayWrite = true
@@ -139,7 +222,6 @@ const bashWriteFrom = (command: string): BashWrite => {
       if (operand === undefined || operand.kind === 'operator') break
       if (operand.value === '--' || operand.value.startsWith('-')) continue
       if (isLedgerPath(operand.value)) return { ledger: operand.value, mayWrite }
-      break
     }
   }
 
