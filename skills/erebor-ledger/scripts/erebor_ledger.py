@@ -916,14 +916,27 @@ def find_main_sessions(project_dir: str):
 
 
 def find_subagent_files(project_dir: str, session_id: str):
+    """Yield (agent_file, meta_file) for every subagent transcript of a
+    session: `subagents/agent-*.jsonl`, then Workflow-run agents at
+    `subagents/workflows/<run>/agent-*.jsonl` (runs sorted by name). The
+    meta file may be absent; load_agent_meta handles that."""
     subdir = os.path.join(project_dir, session_id, "subagents")
     if not os.path.isdir(subdir):
         return
-    for name in sorted(os.listdir(subdir)):
-        if name.endswith(".jsonl"):
-            agent_file = os.path.join(subdir, name)
-            meta_file = os.path.join(subdir, name[: -len(".jsonl")] + ".meta.json")
-            yield agent_file, meta_file
+    dirs = [subdir]
+    wf_root = os.path.join(subdir, "workflows")
+    if os.path.isdir(wf_root):
+        dirs.extend(
+            os.path.join(wf_root, run)
+            for run in sorted(os.listdir(wf_root))
+            if os.path.isdir(os.path.join(wf_root, run))
+        )
+    for d in dirs:
+        for name in sorted(os.listdir(d)):
+            if name.endswith(".jsonl"):
+                agent_file = os.path.join(d, name)
+                meta_file = os.path.join(d, name[: -len(".jsonl")] + ".meta.json")
+                yield agent_file, meta_file
 
 
 def _content_has_retry_marker(content) -> bool:

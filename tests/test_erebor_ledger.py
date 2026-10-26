@@ -433,7 +433,13 @@ def test_claude_5_5_generation_ids_resolve_to_own_entries():
         "claude-haiku-5-5",
         "claude-fable-5-1",
     ):
-        assert m.resolve_price(model_id, price_table, "2026-10-09") is price_table[model_id]
+        resolved = m.resolve_price(model_id, price_table, "2026-10-09")
+        if "price_changes" in price_table[model_id]:
+            # a dated change resolves to a merged copy, not the table entry
+            assert resolved is not price_table["claude-sonnet-5"]
+            assert resolved["input"] == price_table[model_id]["input"]
+        else:
+            assert resolved is price_table[model_id]
     assert m.resolve_price("claude-fable-5-1", price_table, "2026-10-09") is not price_table["claude-fable-5"]
 
 
@@ -444,19 +450,27 @@ def _price_rates(price):
     )
 
 
-def test_sonnet_5_price_changes_resolve_by_record_date():
+def test_sonnet_5_flat_official_price_on_all_dates():
+    """The scheduled 2026-09-01 rise to $3/$15 was cancelled: sonnet-5 is a
+    flat $2/$10 entry with no price_changes."""
     m = _load_erebor_ledger_module()
     price_table = m.load_price_table()
+    assert "price_changes" not in price_table[SONNET]
+    for record_date in ("2026-08-31", "2026-09-15", "2026-10-07"):
+        assert _price_rates(m.resolve_price(SONNET, price_table, record_date)) == (
+            2, 10, 2.50, 4, 0.20
+        )
 
-    expected_by_date = {
-        "2026-08-31": (2, 10, 2.50, 4, 0.20),
-        "2026-09-01": (3, 15, 3.75, 6, 0.30),
-        "2026-10-06": (3, 15, 3.75, 6, 0.30),
-        "2026-10-07": (2, 10, 2.50, 4, 0.20),
-        "2026-10-21": (2, 10, 2.50, 4, 0.20),
-    }
-    for record_date, expected_rates in expected_by_date.items():
-        assert _price_rates(m.resolve_price(SONNET, price_table, record_date)) == expected_rates
+
+def test_sonnet_5_5_cache_read_drops_on_2026_10_07():
+    m = _load_erebor_ledger_module()
+    price_table = m.load_price_table()
+    assert _price_rates(m.resolve_price("claude-sonnet-5-5", price_table, "2026-10-06")) == (
+        2, 10, 2.50, 4, 0.20
+    )
+    assert _price_rates(m.resolve_price("claude-sonnet-5-5", price_table, "2026-10-07")) == (
+        2, 10, 2.50, 4, 0.10
+    )
 
 
 def test_three_price_changes_resolve_all_four_date_periods():
@@ -724,7 +738,7 @@ def test_absolute_dollar_amounts_pinned(tmp_path):
 # --------------------------------------------------------------------------
 
 def test_sonnet_5_official_rate_applies_across_record_dates(tmp_path):
-    """Sonnet-5 records use the output rate effective on their own date."""
+    """Sonnet-5 is flat $2/$10: a July and a September record cost the same."""
     make_session(
         tmp_path,
         "proj-a",
@@ -746,7 +760,7 @@ def test_sonnet_5_official_rate_applies_across_record_dates(tmp_path):
         ],
     )
     report = run_report(tmp_path)
-    assert cell(report, "gondor-builder", "actual_cost") == "$25.00"
+    assert cell(report, "gondor-builder", "actual_cost") == "$20.00"
 
 
 # --------------------------------------------------------------------------
@@ -986,3 +1000,72 @@ def test_codex_missing_home_has_only_skip_line_and_keeps_report(tmp_path):
     report = run_report_codex(tmp_path, missing)
     assert delegation_section(report) == f"\n\nCodex home {missing} has no sessions directory — Codex delegation reporting skipped.\n\n"
     assert cell(report, "gondor-builder", "output") == "9"
+
+
+# --------------------------------------------------------------------------
+# 14. Workflow-agent transcripts (`subagents/workflows/<run>/agent-*.jsonl`)
+# --------------------------------------------------------------------------
+
+def _write_workflow_agent(root, project, session_id, run, name, agent_type, records):
+    base = root / project / session_id / "subagents" / "workflows" / run / f"agent-{name}"
+    write_jsonl(base.with_suffix(".jsonl"), records)
+    base.with_suffix(".meta.json").write_text(
+        json.dumps({"agentType": agent_type, "toolUseId": f"tu-{name}"}), encoding="utf-8"
+    )
+    return base.with_suffix(".jsonl")
+
+
+def test_find_subagent_files_yields_workflow_files_sorted(tmp_path):
+    m = _load_erebor_ledger_module()
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s1",
+        [orchestrator_line("2026-07-20T10:00:00.000Z", 1)],
+        dispatches=[("plain", "dwarf-smith", [assistant("2026-07-20T10:00:01.000Z", "m1", "r1", SONNET, usage(out=1))])],
+    )
+    wf_b = _write_workflow_agent(tmp_path, "proj-a", "s1", "run2", "b", "dwarf-smith", [])
+    wf_a = _write_workflow_agent(tmp_path, "proj-a", "s1", "run1", "x", "dwarf-smith", [])
+    found = [str(f) for f, _meta in m.find_subagent_files(str(tmp_path / "proj-a"), "s1")]
+    assert str(wf_a) in found and str(wf_b) in found
+    assert len(found) == 3
+    assert found[1:] == [str(wf_a), str(wf_b)]
+
+
+def test_workflow_agent_tokens_appear_in_report(tmp_path):
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s1",
+        [orchestrator_line("2026-07-20T10:00:00.000Z", 1)],
+    )
+    _write_workflow_agent(
+        tmp_path, "proj-a", "s1", "run1", "x", "dwarf-smith",
+        [assistant("2026-07-20T10:00:01.000Z", "msg-wf", "req-wf", SONNET, usage(out=777))],
+    )
+    report = run_report(tmp_path)
+    assert cell(report, "dwarf-smith", "output") == "777"
+
+
+def test_workflow_file_maximum_wins_over_partial_snapshot_elsewhere(tmp_path):
+    """The same key partial (3) in a normal subagent file and complete (3305)
+    in a workflow file is counted once, as 3305."""
+    make_session(
+        tmp_path,
+        "proj-a",
+        "s1",
+        [orchestrator_line("2026-07-20T10:00:00.000Z", 1, ["dwarf-smith"])],
+        dispatches=[
+            (
+                "dwarf-smith",
+                "dwarf-smith",
+                [assistant("2026-07-20T10:00:01.000Z", "msg-k", "req-k", SONNET, usage(out=3))],
+            )
+        ],
+    )
+    _write_workflow_agent(
+        tmp_path, "proj-a", "s1", "run1", "x", "dwarf-smith",
+        [assistant("2026-07-20T10:00:35.000Z", "msg-k", "req-k", SONNET, usage(out=3305))],
+    )
+    report = run_report(tmp_path)
+    assert cell(report, "dwarf-smith", "output") == "3,305"

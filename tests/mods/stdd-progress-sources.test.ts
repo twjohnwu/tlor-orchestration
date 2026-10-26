@@ -1,9 +1,11 @@
 import type { On, PluginOptions } from 'claude-code'
 import { test, expect } from 'claude-code/testing'
 
+import type { PlanDeclaration } from '../../types'
 import { CHECKLIST_TOOLS, PLAN_TOOLS, STDD_TOOLS } from '../../hooks/mods/stdd-progress/progress'
-import { register } from '../../hooks/mods/stdd-progress/register'
+import { register, setupPlanTrack } from '../../hooks/mods/stdd-progress/register'
 import { createChecklistSource } from '../../hooks/mods/stdd-progress/sources/checklist'
+import { createDeclaredSource } from '../../hooks/mods/stdd-progress/sources/declared'
 import { createPlanTasksSource } from '../../hooks/mods/stdd-progress/sources/planTasks'
 import { BAND_RETRY, orderedLines } from '../../hooks/mods/stdd-progress/sources/source'
 import type { ProgressReadIo, ProgressSource, ProgressToolIo } from '../../hooks/mods/stdd-progress/sources/source'
@@ -192,6 +194,270 @@ const toolIo = (overrides: Partial<ProgressToolIo> = {}): ProgressToolIo => ({
   setPlanChecklist: async () => ({ isSet: true }) as never,
   setStddTouched: async () => ({ isSet: true }) as never,
   ...overrides,
+})
+
+const segmentText = (lines: Awaited<ReturnType<ProgressSource['lines']>>): string =>
+  Array.isArray(lines) ? lines.map(line => line.map(segment => segment.text).join('')).join('\n') : ''
+
+test('Bash declares only real redirect and tee ledger targets, ignoring quoted text and comments', async () => {
+  let declaration: PlanDeclaration | undefined = {
+    plan: '/work/plans/current.md',
+    progress: 'ledger',
+    ledger: '/work/.superpowers/sdd/current/progress.md',
+  }
+  let version = 1
+  let invalidations = 0
+  const io = toolIo({
+    getPlanDeclaration: async () => ({ value: declaration, version }),
+    setPlanDeclaration: async value => {
+      declaration = value
+      version += 1
+      return { isSet: true } as never
+    },
+    getPlanChecklist: async () => ({ value: { path: '/work/plans/current.md' }, version: 1 }),
+    invalidate: () => { invalidations += 1 },
+  })
+
+  await createDeclaredSource().onToolCall({
+    tool: 'Bash',
+    command: 'cat .superpowers/sdd/other/progress.md',
+  }, {}, io)
+  await createDeclaredSource().onToolCall({
+    tool: 'Bash',
+    command: `printf '%s\\n' 'example > .superpowers/sdd/quoted-redirect/progress.md'`,
+  }, {}, io)
+  await createDeclaredSource().onToolCall({
+    tool: 'Bash',
+    command: `printf '%s\\n' "tee -a .superpowers/sdd/quoted-tee/progress.md"`,
+  }, {}, io)
+  await createDeclaredSource().onToolCall({
+    tool: 'Bash',
+    command: 'echo hi;# > .superpowers/sdd/comment/progress.md',
+  }, {}, io)
+
+  expect(declaration).toEqual({
+    plan: '/work/plans/current.md',
+    progress: 'ledger',
+    ledger: '/work/.superpowers/sdd/current/progress.md',
+  })
+  expect(invalidations).toBe(4)
+
+  await createDeclaredSource().onToolCall({
+    tool: 'Bash',
+    command: `printf '%s' '# literal'; printf foo#bar >> ".superpowers/sdd/redirected/progress.md"`,
+  }, {}, io)
+  expect(declaration?.ledger).toBe('/work/.superpowers/sdd/redirected/progress.md')
+
+  await createDeclaredSource().onToolCall({
+    tool: 'Bash',
+    command: `echo hi # > .superpowers/sdd/commented/progress.md\nprintf status > .superpowers/sdd/newline/progress.md`,
+  }, {}, io)
+  expect(declaration?.ledger).toBe('/work/.superpowers/sdd/newline/progress.md')
+
+  await createDeclaredSource().onToolCall({
+    tool: 'Bash',
+    command: `printf status | tee -a '.superpowers/sdd/teed/progress.md'`,
+  }, {}, io)
+  expect(declaration?.ledger).toBe('/work/.superpowers/sdd/teed/progress.md')
+})
+
+test('Bash write detection treats heredoc bodies as data and covers tee, >| and sudo forms', async () => {
+  const declare = async (command: string): Promise<string | undefined> => {
+    let declaration: PlanDeclaration | undefined
+    let version = 0
+    const io = toolIo({
+      getPlanDeclaration: async () => ({ value: declaration, version }),
+      setPlanDeclaration: async value => {
+        declaration = value
+        version += 1
+        return { isSet: true } as never
+      },
+      getPlanChecklist: async () => ({ value: { path: '/work/plans/current.md' }, version: 1 }),
+    })
+    await createDeclaredSource().onToolCall({ tool: 'Bash', command }, {}, io)
+    return declaration?.ledger
+  }
+  const ledger = '.superpowers/sdd/x/progress.md'
+  const absolute = '/work/.superpowers/sdd/x/progress.md'
+
+  for (const opener of ['<<EOF', `<<'EOF'`, '<<"EOF"', '<<-EOF']) {
+    expect(await declare(`cat > notes.md ${opener}\nrun: echo done >> ${ledger}\ntee ${ledger}\nEOF`)).toBeUndefined()
+    expect(await declare(`cat ${opener} > ${ledger}\nbody text\nEOF`)).toBe(absolute)
+  }
+  expect(await declare(`cat > notes.md <<EOF\nx\nEOF\necho y >> ${ledger}`)).toBe(absolute)
+
+  expect(await declare(`tee -a log.txt ${ledger}`)).toBe(absolute)
+  expect(await declare(`echo hi >| ${ledger}`)).toBe(absolute)
+  expect(await declare(`echo hi | sudo tee ${ledger}`)).toBe(absolute)
+  expect(await declare(`echo hi | sudo -E tee -a ${ledger}`)).toBe(absolute)
+
+  expect(await declare(`cat ${ledger}`)).toBeUndefined()
+  expect(await declare(`grep done ${ledger}`)).toBeUndefined()
+  expect(await declare(`wc -l < ${ledger}`)).toBeUndefined()
+  expect(await declare(`diff ${ledger} other.md`)).toBeUndefined()
+})
+
+test('the PlanTrack tool description tells the model to log "Task N: in progress"', async () => {
+  const specs: Array<{ description?: string }> = []
+  await setupPlanTrack({ tool: { register: async spec => { specs.push(spec) } } })
+  expect(specs[0]?.description).toContain('Task N: in progress')
+})
+
+test('a ledger identity line binds its relative plan path to the ledger root', async () => {
+  for (const [change, separator] of [['emdash', '—'], ['hyphen', '-']] as const) {
+    const ledger = `/repo/.superpowers/sdd/${change}/progress.md`
+    let declaration: PlanDeclaration | undefined
+    let version = 0
+    const io = toolIo({
+      cwd: async () => '/repo',
+      read: async path => path === ledger
+        ? `# SDD ledger ${separator} plan: plans/${change}.md\n`
+        : '',
+      getPlanDeclaration: async () => ({ value: declaration, version }),
+      setPlanDeclaration: async value => {
+        declaration = value
+        version += 1
+        return { isSet: true } as never
+      },
+      getPlanChecklist: async () => ({ value: { path: '/repo/plans/current.md' }, version: 1 }),
+    })
+
+    await createDeclaredSource().onToolCall({
+      tool: 'Bash',
+      command: `printf status >> .superpowers/sdd/${change}/progress.md`,
+    }, {}, io)
+
+    expect(declaration).toEqual({
+      plan: `/repo/plans/${change}.md`,
+      progress: 'ledger',
+      ledger,
+    })
+  }
+})
+
+test('a subagent ledger write invalidates without replacing the declaration', async () => {
+  let declaration: PlanDeclaration | undefined = {
+    plan: '/work/plans/current.md',
+    progress: 'ledger',
+    ledger: '/work/.superpowers/sdd/current/progress.md',
+  }
+  let version = 1
+  let invalidations = 0
+  const io = toolIo({
+    getPlanDeclaration: async () => ({ value: declaration, version }),
+    setPlanDeclaration: async value => {
+      declaration = value
+      version += 1
+      return { isSet: true } as never
+    },
+    getPlanChecklist: async () => ({ value: { path: '/work/plans/current.md' }, version: 1 }),
+    invalidate: () => { invalidations += 1 },
+  })
+
+  await createDeclaredSource().onToolCall({
+    tool: 'Write',
+    file_path: '/work/.superpowers/sdd/other/progress.md',
+    agentId: 'subagent-1',
+  }, {}, io)
+
+  expect(declaration).toEqual({
+    plan: '/work/plans/current.md',
+    progress: 'ledger',
+    ledger: '/work/.superpowers/sdd/current/progress.md',
+  })
+  expect(invalidations).toBe(1)
+})
+
+test('a successful variable-only Bash write discovers the newest recent ledger', async () => {
+  let declaration: PlanDeclaration | undefined
+  let version = 0
+  const io = toolIo({
+    now: async () => 5_000,
+    getPlanDeclaration: async () => ({ value: declaration, version }),
+    setPlanDeclaration: async value => {
+      declaration = value
+      version += 1
+      return { isSet: true } as never
+    },
+    getPlanChecklist: async () => ({ value: { path: '/work/plans/current.md' }, version: 1 }),
+    list: async path => {
+      if (path === '/work/.superpowers/sdd') {
+        return [
+          { name: 'older', kind: 'dir', mtimeMs: 1 },
+          { name: 'newest', kind: 'dir', mtimeMs: 2 },
+        ]
+      }
+      if (path === '/work/.superpowers/sdd/older') {
+        return [{ name: 'progress.md', kind: 'file', mtimeMs: 4_100 }]
+      }
+      if (path === '/work/.superpowers/sdd/newest') {
+        return [{ name: 'progress.md', kind: 'file', mtimeMs: 4_900 }]
+      }
+      return []
+    },
+    read: async path => path.endsWith('/newest/progress.md')
+      ? '# SDD ledger — plan: plans/newest.md\n'
+      : '# SDD ledger — plan: plans/older.md\n',
+  })
+
+  await createDeclaredSource().onToolCall({
+    tool: 'Bash',
+    command: 'L="$PROGRESS_LEDGER"; printf status > "$L"',
+  }, {}, io)
+
+  expect(declaration).toEqual({
+    plan: '/work/plans/newest.md',
+    progress: 'ledger',
+    ledger: '/work/.superpowers/sdd/newest/progress.md',
+  })
+})
+
+test('a deleted finished ledger keeps rendering its remembered completed total', async () => {
+  const plan = '/work/plans/session.md'
+  const ledger = '/work/.superpowers/sdd/session/progress.md'
+  let ledgerReadable = true
+  const io = readIo({
+    now: async () => 10,
+    getPlanDeclaration: async () => ({
+      value: { plan, progress: 'ledger', ledger },
+      version: 1,
+    }),
+    read: async path => {
+      if (path === plan) return '### Task 1: first\n### Task 2: second\n'
+      if (path === ledger && ledgerReadable) return 'Task 1: complete\nTask 2: complete\n'
+      throw new Error('missing ledger')
+    },
+  })
+  const source = createDeclaredSource(60)
+
+  expect(segmentText(await source.lines(io, 80))).toContain('2/2')
+  ledgerReadable = false
+  expect(segmentText(await source.lines(io, 80))).toContain('2/2')
+})
+
+test('a started ledger task renders an in-progress marker without counting it complete', async () => {
+  const plan = '/work/plans/session.md'
+  const ledger = '/work/.superpowers/sdd/session/progress.md'
+  const lines = await createDeclaredSource().lines(readIo({
+    getPlanDeclaration: async () => ({
+      value: { plan, progress: 'ledger', ledger },
+      version: 1,
+    }),
+    read: async path => path === plan
+      ? '### Task 1: First task\n### Task 2: Second task\n### Task 3: Third task\n'
+      : [
+          'Task 2: in-progress',
+          'Task 1: complete',
+          'Task 1: in progress',
+          'Task 3: started',
+          'Task 3: complete',
+        ].join('\n'),
+  }), 80)
+
+  expect(segmentText(lines)).toContain('1/3')
+  expect(segmentText(lines)).toContain('▶ First task +1 in progress')
+  expect(Array.isArray(lines) && lines[1]?.slice(0, 3).some(segment =>
+    segment.color === 'warning' && segment.text === '▓')).toBe(true)
 })
 
 test('a state failure during a tool call leaves the checklist view unset so the next render reloads', async () => {

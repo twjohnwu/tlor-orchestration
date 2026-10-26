@@ -1,6 +1,6 @@
 import type { StateRead, StateSetResult } from 'claude-code'
 
-import type { PlanChecklist, PlanDeclaration, PlanTask, StddTouched } from '../../../../types'
+import type { PlanChecklist, PlanDeclaration, PlanFinishedLedger, PlanTask, StddTouched } from '../../../../types'
 import type { Segment } from '../../segment'
 
 export type ProgressFsEntry = {
@@ -14,6 +14,8 @@ export type ProgressReadIo = {
   list: (path: string) => Promise<readonly ProgressFsEntry[]>
   cwd: () => Promise<string>
   getPlanDeclaration: () => Promise<StateRead<PlanDeclaration>>
+  getPlanFinishedLedgers?: () => Promise<StateRead<PlanFinishedLedger[]>>
+  setPlanFinishedLedgers?: (value: PlanFinishedLedger[], version: number) => Promise<StateSetResult>
   getPlanTasks: () => Promise<StateRead<PlanTask[]>>
   getPlanChecklist: () => Promise<StateRead<PlanChecklist | null>>
   getStddTouched: () => Promise<StateRead<StddTouched>>
