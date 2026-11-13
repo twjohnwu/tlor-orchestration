@@ -349,7 +349,12 @@ const mountPane = async ($: Engine, rows: number) => {
 }
 
 const fellowshipRows = async ($: Engine): Promise<string> =>
-  ((await $.command.run({ command: 'fellowship' })) as { text: string }).text
+  ((await $.command.run({
+      command: 'fellowship',
+      args: '',
+      origin: { kind: 'composer' },
+      presentation: { isFullscreen: false, columns: 80 },
+    })) as { text: string }).text
 
 const deferred = () => {
   let resolve!: () => void
@@ -384,7 +389,8 @@ test('slow tool follows the oldest of two parallel calls until both finish', { o
   on('tool.call', async (_$, e) => {
     started += 1
     if (started === 2) bothStarted.resolve()
-    await (e.tool === 'First' ? first.promise : second.promise)
+    const name: string = e.tool
+    await (name === 'First' ? first.promise : second.promise)
     return { result: {} } as never
   })
 

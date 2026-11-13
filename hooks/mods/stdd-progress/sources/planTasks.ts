@@ -17,7 +17,7 @@ export const createPlanTasksSource = (autocloseSeconds = -1): ProgressSource => 
         !succeeded(result)
       ) return
 
-      let updated: ReturnType<typeof updatedPlanTasks> = null
+      let updated = null as ReturnType<typeof updatedPlanTasks>
       const didUpdate = await casUpdate(
         io.getPlanTasks,
         io.setPlanTasks,
