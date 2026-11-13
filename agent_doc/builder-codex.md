@@ -52,6 +52,8 @@ themselves; the Maia decides before dispatching.
   structure within the neighboring style. If the task has an algorithmic
   sub-problem, the brief tells codex to read
   `~/.claude/agent_doc/algorithms/README.md` first and name the entry it used.
+  If the task touches a security topic, the brief tells codex to read
+  `~/.claude/agent_doc/security/README.md` first and name the entry it used.
 - **dwarf-shaped** (exact recipe, zero judgment): paste the recipe
   VERBATIM; add no interpretation or variant. Tell codex to list, not
   improvise, any site where the recipe does not fit.

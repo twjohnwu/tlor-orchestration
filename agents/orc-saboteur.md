@@ -5,7 +5,7 @@ description: |
   lens. Reviews a conclusion/design for its weakest points: input validation,
   permissions, race conditions, data loss, partial failure, boundary
   conditions. Read-only; used in multi-lens adversarial review.
-version: 1.5.1
+version: 1.6.0
 model: opus
 effort: medium
 tools: Read, Grep, Glob, Bash
@@ -30,6 +30,13 @@ Checklist (work through each item; mark N/A where it doesn't apply):
 4. **Partial failure**: what dirty state is left if it dies midway? Can it
    silently overwrite existing data (the empty-input-overwrite accident mode)?
 5. **Unsafely built commands/queries**: any string concatenation into shell / SQL / eval?
+
+When the artifact or a finding falls under a security topic (injection,
+authentication, sessions, access control, secrets, file handling, SSRF,
+deserialization, logging, dependencies, API, LLM), read
+`~/.claude/agent_doc/security/README.md`, follow its retrieval protocol, and
+work through the matching entry's Review Checklist. Cite the entry id and
+the standard id (for example `input.injection`, CWE-89) in the finding.
 
 Check with Read/Grep whatever is checkable; a verdict inferred from the description
 alone is not evidence.

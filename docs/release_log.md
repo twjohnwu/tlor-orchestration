@@ -6,6 +6,13 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.22.0 (2026-11-13)
+
+- agent_doc/security/ (new, installed): a secure-coding reference for implement and review roles — `README.md` (retrieval protocol: signals → Grep `INDEX.md` → Read at most three entries → check Applies When / Does Not Apply When), a hand-written `INDEX.md`, 12 entries (`input.injection`, `authn.authentication`, `authn.session`, `authz.access_control`, `crypto.secrets`, `files.upload_and_paths`, `network.ssrf_outbound`, `data.deserialization`, `ops.logging_errors`, `supply.dependencies`, `api.web_api`, `llm.applications`), each with requirements, a Grep/Read review checklist, failure modes and test ideas, and `standards-map.md` (ISO/IEC 27002:2022 controls 8.25–8.34, NIST SSDF v1.1 practices and OWASP Top 10:2025 items mapped to entry ids). Entries are original paraphrases citing OWASP ASVS 5.0.0 (chapter or section level), the OWASP Cheat Sheet Series, OWASP Top 10:2025, API Security Top 10 2023, LLM Top 10 2025, CWE and the 2025 CWE Top 25; no standard text is copied, and each entry records the cited works' licences.
+- Roles: `gondor-builder` (1.7.0) reads the playbook before writing code that touches a security surface; `orc-saboteur` (1.6.0) works through the matching entry's review checklist and cites the entry id and standard id in findings; `eagle-sentinel` (1.7.0) uses the matching checklist when an acceptance criterion names a security property.
+- tests/test_security_playbook.py (new): INDEX rows and entry files pair up; every entry has the required frontmatter keys and sections in order, a source URL and licence provenance; the three roles reference the playbook README.
+- Known limits: ASVS is cited at chapter or section level, not by requirement number; ISO control titles rest on agreeing secondary sources.
+
 ## v0.21.3 (2026-11-13)
 
 Mods (Plan band):
