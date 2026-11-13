@@ -59,6 +59,7 @@ agent_doc/ holds what one role needs sometimes.
 | `codex-cli.md` | any role calling the Codex CLI | before composing a codex invocation |
 | `builder-codex.md` | the Maia (dispatch.md §3d) | codex present, brief not marked `no-codex`, implement-shaped task |
 | `algorithms/README.md` (+ `INDEX.md`, entries) | gondor-builder; the Maia's codex brief | an algorithmic sub-problem the spec leaves open |
+| `security/README.md` (+ `INDEX.md`, entries, `standards-map.md`) | gondor-builder; orc-saboteur; eagle-sentinel; the Maia's codex brief | a task or review that touches a security topic (authentication, input handling, secrets, files, outbound requests, dependencies, LLM) |
 | `eagle-codex-prescreen.md` | eagle-sentinel | HIGH-RISK verdict + codex present + no `no-codex` |
 | `noldor-browser.md` | noldor-loremaster | WebFetch returns a JS-only shell; also holds the bot-verifier (CAPTCHA) leave-the-browser-open protocol |
 | `bilbo-scribe.md` | bilbo-scribe | FIRST step of every dispatch — routing table + shared writing core (six-step workflow, five-dimension self-score, fact preservation) |
