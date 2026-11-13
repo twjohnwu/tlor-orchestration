@@ -10,6 +10,7 @@ import {
   iconFor,
   isKnown,
   isRoleName,
+  parseFields,
   parseMaxRows,
   parseFrontmatter,
   register as registerAgent,
@@ -55,6 +56,7 @@ export async function setupFellowship($: FellowshipSetupContext): Promise<void> 
 export const register: Register = (on, options) => {
   const opensAutomatically = options.fellowship === 'auto'
   const maxRows = parseMaxRows(options.fellowship_max_rows)
+  const fields = parseFields(options.fellowship_fields)
   const notifications = notifyMode(options.notify)
   let isOpened = false
   let ticker: { cancel: () => void } | undefined
@@ -70,7 +72,7 @@ export const register: Register = (on, options) => {
     if (list.length === 0) return { text: 'No agents yet.' }
     const now = await $.clock.now()
 
-    return { text: list.map(agent => rowSegments(agent, now).map(segment => segment.text).join('')).join('\n') }
+    return { text: list.map(agent => rowSegments(agent, now, fields).map(segment => segment.text).join('')).join('\n') }
   })
 
   on('agent.spawn', async ($, e, next) => {
@@ -304,7 +306,7 @@ export const register: Register = (on, options) => {
           selection.hiddenRunning === 0 && selection.hiddenCompleted === 0 && <Text dimColor>No subagents yet.</Text>}
         {selection.running.map(agent => (
           <Box flexDirection="row">
-            {rowSegments(agent, now).map(segment => (
+            {rowSegments(agent, now, fields).map(segment => (
               <Text color={segment.color} bold={segment.bold} dimColor={segment.dim}>{segment.text}</Text>
             ))}
           </Box>
@@ -312,7 +314,7 @@ export const register: Register = (on, options) => {
         {selection.hiddenRunning > 0 && <Text color="warning" dimColor>+{selection.hiddenRunning} running</Text>}
         {selection.completed.map(agent => (
           <Box flexDirection="row">
-            {rowSegments(agent, now).map(segment => (
+            {rowSegments(agent, now, fields).map(segment => (
               <Text color={segment.color} bold={segment.bold} dimColor={segment.dim}>{segment.text}</Text>
             ))}
           </Box>

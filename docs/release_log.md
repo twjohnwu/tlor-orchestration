@@ -6,6 +6,14 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.23.0 (2026-11-14)
+
+- Fellowship rows are configurable: the new option `fellowship_fields` lists the per-subagent fields in display order, separated by commas or spaces. Field names: `name`, `desc`, `model`, `effort`, `status`, `ctx`, `activity`, `elapsed`, `ended`, `tokens`, `tools`. Unknown names are ignored and an empty value uses the default. The Pane and the `/fellowship` text use the same setting; the `[slow tool]` and `[idle]` tags stay at the end of every row.
+- Two new fields. `ctx` shows `⬡`, a five-cell gauge and a percent of the model's context window (warning colour from 80%); the window comes from a built-in table of model ids (official models overview and Claude Code model-config pages, read 2026-11-14), and a model that is not in the table, including a bare alias such as `sonnet`, shows the token count only. `activity` is a sparkline of the last 16 token samples, one sample per model step.
+- The default row changed: `name,desc,model,effort,status,ctx,activity,elapsed,ended,tokens,tools`. `model` and `effort` are now two fields after the description, shown as `Sonnet 5.5` and `med` instead of `sonnet/medium`. For the seven-field row set `fellowship_fields` to `name,desc,model,effort,ctx,activity,elapsed`.
+- State: each agent keeps `samples`, at most 16 values; agents stored before this version render without it.
+- Known limits: the window table needs an update when a new model ships; the fields were checked in the plugin test harness, not in a live session.
+
 ## v0.22.0 (2026-11-13)
 
 - agent_doc/security/ (new, installed): a secure-coding reference for implement and review roles — `README.md` (retrieval protocol: signals → Grep `INDEX.md` → Read at most three entries → check Applies When / Does Not Apply When), a hand-written `INDEX.md`, 12 entries (`input.injection`, `authn.authentication`, `authn.session`, `authz.access_control`, `crypto.secrets`, `files.upload_and_paths`, `network.ssrf_outbound`, `data.deserialization`, `ops.logging_errors`, `supply.dependencies`, `api.web_api`, `llm.applications`), each with requirements, a Grep/Read review checklist, failure modes and test ideas, and `standards-map.md` (ISO/IEC 27002:2022 controls 8.25–8.34, NIST SSDF v1.1 practices and OWASP Top 10:2025 items mapped to entry ids). Entries are original paraphrases citing OWASP ASVS 5.0.0 (chapter or section level), the OWASP Cheat Sheet Series, OWASP Top 10:2025, API Security Top 10 2023, LLM Top 10 2025, CWE and the 2025 CWE Top 25; no standard text is copied, and each entry records the cited works' licences.

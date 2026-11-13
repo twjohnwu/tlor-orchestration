@@ -6,6 +6,7 @@ export type FellowshipAgent = {
   startedAt: number
   endedAt: number | null
   tokens: number
+  samples?: number[]
   tools: number
   model?: string
   effort?: string
