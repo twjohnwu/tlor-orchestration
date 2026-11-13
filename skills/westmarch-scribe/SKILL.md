@@ -10,11 +10,10 @@ description: 'Archives a DECIDED compact-MADR record (Decision / Decision Driver
 > comparison once its Decision Outcome is filled in; an argument still in
 > progress has nothing yet for the scribe to record.
 
-This skill now retriggers proactively on the keywords in its description
-above, rather than waiting solely for explicit invocation — the
-`AskUserQuestion` forks throughout (Steps 1, 3, and 4) are what keep that
-proactivity safe, since every ambiguous or irreversible branch still stops
-for an explicit, closed-option confirmation before anything is written.
+This skill triggers proactively on its description's keywords; the
+`AskUserQuestion` forks (Steps 1, 3, 4) keep that safe, because every
+ambiguous or irreversible branch stops for a closed-option confirmation
+before anything is written.
 
 ## Purpose
 

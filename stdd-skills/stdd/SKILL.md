@@ -57,8 +57,8 @@ step is read-only — it SHALL NOT write to any file.
    merely set to `null`), do not attempt any fingerprint comparison. Instead
    report that this `spec.md` looks like a pre-v3 artifact missing the
    two-file-fingerprint field, and that it needs a one-time re-approval
-   before gates will accept it (per the STDD integration spec's v2→v3
-   migration clause). Skip the rest of this step for this run.
+   before gates will accept it.
+   Skip the rest of this step for this run.
 2. Otherwise, using `shasum -a 256`, recompute the body-only fingerprint of
    `spec.md` — the body is everything after the file's **second** `---` line
    (frontmatter terminator); if there is no frontmatter, the body is the

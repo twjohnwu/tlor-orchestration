@@ -7,11 +7,11 @@ description: 'Generate condition-based design artifacts (design-be.md / design-f
 
 Third phase of the STDD pipeline (`stdd-explore → stdd-uiux (conditional) →
 stdd-spec → stdd-plan → stdd-execute`). Turns an approved `spec.md` into
-condition-based design artifacts and a scenario-covered `tasks.md`. Canonical
-spec: REQ-03 (this SKILL.md is the single source — no separate spec file exists in this repo); the cross-cutting mechanical checks
-(frontmatter status fields, dual-fingerprint rule, Lint-STOP rule) are canonical
-in `stdd-lint`'s `references/checklist.md` — this skill references them, it does
-not restate them; the `wiki/` taxonomy is described at step 9 below. Worked
+condition-based design artifacts and a scenario-covered `tasks.md`. The
+cross-cutting rules are canonical as follows — status fields and
+dual-fingerprint rule: `stdd-spec/SKILL.md` Step 6; Lint-STOP: `stdd-lint`
+Check 8; banned Mermaid constructs: `stdd-lint`'s `references/checklist.md`;
+the `wiki/` taxonomy is described at step 9 below. Worked
 examples: `templates/design-be.md`, `templates/tasks.md`.
 Distilled references: `references/openapi-skeleton.md`,
 `references/23-design-patterns.md`.
@@ -42,7 +42,7 @@ Before doing anything else, read `STDD/<name>/spec.md` frontmatter (and
   `draft`, refuse, and report "spec (or design-ux) changed after approval,
   needs re-approval."
 - Design-ux consistency check (single source of truth in
-  `stdd-skills/stdd-spec/SKILL.md` Step 6 "design-ux consistency check"):
+  `stdd-spec/SKILL.md` Step 6 "design-ux consistency check"):
   `design_ux_fingerprint` non-null but
   `design-ux.md` missing → FAIL "design-ux.md missing"; fingerprint null but
   `design-ux.md` exists → FAIL "design-ux.md not covered by approval" and
@@ -94,7 +94,7 @@ language (soft default `en`, any language code is acceptable). Write the
 resolved value into the `language:` frontmatter field of the design
 artifacts this skill produces (`design-be.md`, `design-fe.md`, `tasks.md`)
 for later artifacts in the same change to reuse (single source of truth:
-`stdd-spec` SKILL.md Step 3's artifact-language rule — referenced here,
+`stdd-spec/SKILL.md` Step 3's artifact-language rule — referenced here,
 not restated). Regardless of the chosen language, GIVEN/WHEN/THEN,
 `REQ-XX`/`S-XX`, commands, and filenames always stay in English.
 
@@ -312,7 +312,7 @@ Once `design-be.md` / `design-fe.md` exist:
   template (a name catalogue with a one-line "when to apply" note each).
 - **First run in a target project**: land that template into
   `wiki/coding_standard/`, following the classification and
-  `wiki/README.md` routing-table rules in `stdd-spec` SKILL.md Step 1
+  `wiki/README.md` routing-table rules in `stdd-spec/SKILL.md` Step 1
   (canonical — do not restate the taxonomy here):
   - if `wiki/README.md` does not exist, create it
   - register the new file into its routing table (relative path + one-line
@@ -336,7 +336,7 @@ This skill directory ships:
   schema, services relationship diagram, a Mermaid **sequence diagram**
   example, and a conditional **C3 (Component)** Mermaid `graph` example
   (banned constructs live only in `stdd-lint`'s `references/checklist.md`,
-  not restated here — R7-1).
+  not restated here).
 - `templates/design-fe.md` — a complete English worked example: component
   structure, state/data flow, a reference back to `design-ux.md` decisions,
   and a Mermaid `flowchart` example.
@@ -346,8 +346,7 @@ This skill directory ships:
   task-dependency Mermaid `flowchart` example.
 - `references/openapi-skeleton.md` — an OpenAPI 3.1 skeleton fragment.
 - `references/23-design-patterns.md` — the S-43/S-52 distilled 23-patterns
-  catalogue (unchanged from prior versions — see step 9/step 3 above for how
-  it's consumed).
+  catalogue (see steps 3 and 9 for how it is consumed).
 - `references/design-review-checklist.md` — the S-08/S-43 mechanical vs.
   judgment design-review checklist consumed by step 7's fresh-context
   verifier and step 9's SOLID/DRY + pattern review.
@@ -357,7 +356,7 @@ This skill directory ships:
 - This skill enforces the plan-stage gates it can check mechanically
   (fingerprint, coverage, placeholders) via `/stdd-lint`; it has no
   mechanical hook protection of its own — the approval-gate honesty
-  disclosure lives in `stdd-spec` SKILL.md Step 6 and is not repeated here.
+  disclosure lives in `stdd-spec/SKILL.md` Step 6 and is not repeated here.
 - If aspect detection, api.yml lint availability, or scenario
   manual/automatable classification is genuinely ambiguous, ask the user —
   do not guess a shape that later has to be unwound.

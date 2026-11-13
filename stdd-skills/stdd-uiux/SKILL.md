@@ -85,7 +85,7 @@ first match:
      diverges from spec vN — needs designer update") instead of attempting
      an edit.
 3. **Class 3 — none**: no design-as-code repo/MCP and no SaaS design
-   reference → the existing text-only fallback below, unchanged.
+   reference → the existing text-only fallback below.
 
 Regardless of class, gather remaining design references in batches, soft
 target **at most 6 questions**, asking about: design tool links (pencil.dev

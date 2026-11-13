@@ -7,10 +7,10 @@ description: 'STDD execute phase. Runs the per-task RED → GREEN → REFACTOR T
 
 Fourth phase of the STDD pipeline. Implements each `tasks.md` task with a
 strict RED → GREEN → REFACTOR loop and a task-boundary spec re-check.
-Canonical spec: REQ-04 (this SKILL.md is the single source — no separate spec file exists in this repo); cross-cutting
-mechanisms (frontmatter status, dual-fingerprint rule, `[wip]`/`[x]`
-semantics, Lint-STOP, design-ux consistency check) are canonical in
-`stdd-skills/stdd-spec/SKILL.md` Step 6 — referenced here, not restated.
+Cross-cutting mechanisms are canonical as follows — frontmatter status,
+dual-fingerprint rule and design-ux consistency check: `stdd-spec/SKILL.md`
+Step 6; Lint-STOP: `stdd-lint` Check 8; `[wip]`/`[x]` semantics: step 2
+(`[wip]`) and step 5 (`[x]`) of this file.
 
 ## 0. Precondition
 
@@ -170,10 +170,10 @@ Any interruption during Dispatch A/B recovers via `[wip]` detection
     `design_ux_fingerprint` frontmatter fields have **zero** mechanical
     protection under any circumstance — only user approval in conversation
     plus `stdd-lint`'s post-hoc comparison guard them (see
-    S-05, REQ-09). Do not imply
+    S-05). Do not imply
     this skill closes that gap; it doesn't, by design.
   - This is not in tension with 4a's spec/design-ux body-hash comparison
-    (check 4, below): that check catches a body edited **after** approval
+    (section 4a's body-hash comparison): that check catches a body edited **after** approval
     without re-baselining the frontmatter fingerprint that recorded it — a
     real, mechanical trip-wire. It cannot catch body and frontmatter
     **forged together in the same edit**, which is exactly the "zero
@@ -211,8 +211,8 @@ correct, and whether regressions or design concerns require action. This is the
 point at which the token saving is realized: the verifier no longer repeats
 deterministic parsing and comparison inside its prompt.
 
-This script is a new deterministic layer **on top of**, not a replacement for,
-the S-14 fingerprint firewall and its `stdd-lint` fallback. Under step 6's
+This script is a deterministic layer in addition to the S-14 fingerprint
+firewall and its `stdd-lint` fallback; it replaces neither. Under step 6's
 plan-drift protocol, or whenever a legitimate RED redo changes the baseline,
 dispatch another agent to re-baseline the ledger; never rewrite the ledger
 inline from the orchestrator.
@@ -239,7 +239,7 @@ Once a task's RED → GREEN → REFACTOR is done:
    `spec.md`'s `design_ux_fingerprint`. This makes sure execution itself
    hasn't drifted spec/design-ux out from under their recorded
    fingerprints. Apply the design-ux consistency check exactly as defined
-   in `stdd-skills/stdd-spec/SKILL.md` Step 6's design-ux consistency check
+   in `stdd-spec/SKILL.md` Step 6's design-ux consistency check
    section (single source of truth, (a)/(b) branches) — never skip branch (b) just because
    `design-ux.md` happens not to exist.
 4. Mark the task `[x]` in `tasks.md`.
@@ -286,14 +286,10 @@ When execution reveals that a design file (`design-be.md` / `design-fe.md`
 
 Use instead of this skill when the custody chain and the verifier round cap
 must be enforced by code rather than by prose (see `workflows/stdd-execute.js`'s
-own `meta.whenToUse`). Its `BLOCKED` outcomes are a pinned v2 schema
-(REQ-05): every BLOCKED result carries `status: 'blocked'`, `stage`
-(`'red'`/`'green'`/`'verify'`/`'reset'`/...), `reason` (the first blocking
-reason string) and `reasons` (the full array) — for the BLOCKED shape only,
-these REPLACE the older `result`/`phase` field names. Non-BLOCKED outcomes
-(`COMPLETE`/`INCOMPLETE`/`REVIEW_REQUIRED`) still carry the legacy
-`result`/`phase` pair (see `workflows/stdd-execute.js` around its final
-`log(...)` for the two-shape read). Any report or log line relaying an
+own `meta.whenToUse`). Its outcomes follow a pinned schema: BLOCKED outcomes
+carry `status: 'blocked'`, `stage` (`'red'`/`'green'`/`'verify'`/`'reset'`/...),
+`reason` (the first blocking reason string) and `reasons` (the full array);
+`COMPLETE`/`INCOMPLETE`/`REVIEW_REQUIRED` outcomes carry `result`/`phase`. Any report or log line relaying an
 outcome MUST branch on shape: read `status`/`stage`/`reason`/`reasons` for
 BLOCKED, `result`/`phase` for everything else.
 
@@ -394,7 +390,7 @@ with selectable options.
   *does* enforce: the unconfirmed set is derived from the checklist it read and
   is never accepted from the caller, confirmations for ids that are not on the
   checklist are discarded, and completion requires positive evidence — zero
-  tasks plus an empty checklist can no longer yield a completion claim.
+  tasks plus an empty checklist cannot yield a completion claim.
 - **There is no lock.** Two concurrent invocations against the same change
   directory will race: both pass the custody gate, both write the same
   `tasks.md` and `.progress.log`, and the second to mark a task overwrites the
@@ -434,7 +430,7 @@ with selectable options.
   this skill attempts to close.
 - Status/frontmatter approval fields (`status`, `approved_fingerprint`,
   `design_ux_fingerprint`) are never protected by a mechanical hook under
-  any configuration — this is a deliberate framework decision (REQ-09), not
+  any configuration — this is a deliberate framework decision, not
   a gap this skill can close. A *write* to those fields is still unguarded on
   the workflow path too; what the workflow adds is that the fingerprint
   *comparison* is performed by a program that reads the files itself, so a

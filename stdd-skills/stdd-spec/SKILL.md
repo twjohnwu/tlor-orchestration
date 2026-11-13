@@ -252,11 +252,9 @@ While `spec.md`'s frontmatter `status` is not `approved`, you SHALL NOT call
 - **Honest disclosure**: this is a prose rule, not a mechanical guarantee —
   nothing prevents a model from writing `approved` status or a fingerprint
   itself. The `status`/`approved_fingerprint`/`design_ux_fingerprint` fields
-  SHALL NOT depend on any mechanical hook protection (an earlier design that
-  had a hook block writes to these fields was reversed: an approved write is
-  the normal "user approved → main session authorized → a subagent or the
-  main session writes it" path, and a tool-call-level hook cannot
-  distinguish that from tampering). The only approval signal is the user's
+  SHALL NOT depend on any mechanical hook protection. These fields do not
+  rely on any mechanical hook, because a tool-call hook cannot distinguish an
+  approved write from tampering. The only approval signal is the user's
   explicit confirmation in conversation; the only after-the-fact backstop is
   `/stdd-lint` recomputing and comparing content fingerprints. This is a
   detection-only, not prevention, residual risk, and it's accepted knowingly.
@@ -271,7 +269,7 @@ This skill directory ships:
   `Test mapping`/`Verification command`, a `## Rejected options` section
   example, a `## Adjudications` section example, and a conditional C1/C2
   Mermaid `graph` example (banned constructs live only in `stdd-lint`'s
-  `references/checklist.md`, not restated here — R7-1).
+  `references/checklist.md`, not restated here).
 - `references/gwt-and-rfc2119.md` — a distilled reference on GWT quality
   rules, the frontmatter contract, and common mistakes.
 

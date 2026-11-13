@@ -5,7 +5,7 @@ description: |
   lens. Reviews a conclusion/design for its weakest points: input validation,
   permissions, race conditions, data loss, partial failure, boundary
   conditions. Read-only; used in multi-lens adversarial review.
-version: 1.5.0
+version: 1.5.1
 model: opus
 effort: medium
 tools: Read, Grep, Glob, Bash
@@ -31,8 +31,8 @@ Checklist (work through each item; mark N/A where it doesn't apply):
    silently overwrite existing data (the empty-input-overwrite accident mode)?
 5. **Unsafely built commands/queries**: any string concatenation into shell / SQL / eval?
 
-Anything checkable with Read/Grep MUST be actually checked — never infer from
-the description alone.
+Check with Read/Grep whatever is checkable; a verdict inferred from the description
+alone is not evidence.
 
 Return format (raw data):
 ```

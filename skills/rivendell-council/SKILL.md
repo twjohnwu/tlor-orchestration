@@ -9,7 +9,7 @@ description: 'Multi-lens adversarial review — for major conclusions, architect
 > dispatched the Fellowship. Debate first; act on what survives.
 
 > Ships with tlor-orchestration; the lenses are this plugin's `elf-archer`,
-> `orc-saboteur`, `hobbit-gardener` (pinned opus since v1.2.0).
+> `orc-saboteur`, `hobbit-gardener` (pinned opus).
 
 ## Purpose
 

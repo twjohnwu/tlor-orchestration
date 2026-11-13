@@ -78,8 +78,8 @@ this):
 5. **Verification** — trace the proposed solution back to phase 3's ground
    truths and confirm it still holds.
 
-Make this reasoning visible in your replies (a reader should be able to see
-phases 0-5 happening), not just performed silently.
+Present the outcome of each phase in your replies: what was deleted, which
+assumptions were found, which ground truths hold.
 
 ## Step 4 — Batched, confirm-then-ask questioning
 
@@ -199,8 +199,8 @@ explore's phases actually ran):
 - [ ] **Scope checked**: the Step 2 multi-subsystem check was done; if the
       feature spanned more than one subsystem, the split was flagged before
       any detail questions.
-- [ ] **Six phases visible**: the Step 3 phases 0-5 (Delete First →
-      Verification) are visible in the conversation, not performed silently.
+- [ ] **Six phase outcomes presented**: the outcome of each Step 3 phase 0-5
+      (Delete First → Verification) was presented in the conversation.
 - [ ] **Question discipline held**: questions came in batches of ≤4 opened by
       a restate-to-confirm; the ≤8 soft budget was not self-exceeded (only
       the user granted any +4 extension).
