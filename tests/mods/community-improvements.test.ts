@@ -1,7 +1,8 @@
 import type { On } from 'claude-code'
 import { expect, mock, test, type Engine } from 'claude-code/testing'
 
-import { rowSegments } from '../../hooks/mods/fellowship/fellowship'
+import { formatClock, parseFields, rowSegments } from '../../hooks/mods/fellowship/fellowship'
+import type { FellowshipAgent } from '../../types'
 
 const running = {
   id: 'a1',
@@ -33,6 +34,108 @@ test('idle attention starts at 120 seconds and finished rows have no attention t
   const text = rowSegments(finished, 999_999).map(segment => segment.text).join('')
   expect(text).not.toContain('idle')
   expect(text).not.toContain('slow tool')
+})
+
+const fieldsAgent: FellowshipAgent = {
+  ...running,
+  description: 'verify',
+  tokens: 380_000,
+  tools: 7,
+  model: 'claude-sonnet-5-5',
+  effort: 'medium',
+  samples: [1, 2, 3, 4],
+}
+
+const fieldText = (agent: FellowshipAgent, fields?: string[]): string =>
+  rowSegments(agent, 75_000, fields).map(segment => segment.text).join('')
+
+const ctxSegment = (agent: FellowshipAgent) =>
+  rowSegments(agent, 0, ['ctx'])[0]
+
+test('the default fields render in order with exact text', async () => {
+  expect(fieldText(fieldsAgent)).toBe(
+    '🦅 eagle-sentinel  verify  Sonnet 5.5  med  running  ⬡ ▓▓░░░ 38%  ▁▃▆█  01:15  380.0k tok  7 tools',
+  )
+  const ended = { ...fieldsAgent, status: 'completed' as const, endedAt: 61_000 }
+  expect(fieldText(ended)).toBe(
+    `🦅 eagle-sentinel  verify  Sonnet 5.5  med  completed  ⬡ ▓▓░░░ 38%  ▁▃▆█  01:01  ended ${formatClock(61_000)}  380.0k tok  7 tools`,
+  )
+})
+
+test('fellowship_fields picks and orders the fields; attention tags stay last', async () => {
+  expect(fieldText(fieldsAgent, parseFields('elapsed,name'))).toBe('01:15  🦅 eagle-sentinel')
+  const idle = { ...fieldsAgent, lastEventAt: 0 }
+  expect(fieldText(idle, ['status'])).toBe('running')
+  expect(rowSegments(idle, 130_000, ['status']).map(segment => segment.text).join('')).toBe('running  [idle]')
+})
+
+test('parseFields drops unknown names and duplicates and accepts case and whitespace', async () => {
+  expect(parseFields('name,bogus,elapsed')).toEqual(['name', 'elapsed'])
+  expect(parseFields('name,elapsed,name')).toEqual(['name', 'elapsed'])
+  expect(parseFields('ELAPSED, Name')).toEqual(['elapsed', 'name'])
+  expect(parseFields('elapsed name\ttokens')).toEqual(['elapsed', 'name', 'tokens'])
+  const everything = ['name', 'desc', 'model', 'effort', 'status', 'ctx', 'activity', 'elapsed', 'ended', 'tokens', 'tools']
+  expect(parseFields('')).toEqual(everything)
+  expect(parseFields('bogus')).toEqual(everything)
+  expect(parseFields(undefined)).toEqual(everything)
+  expect(parseFields(5)).toEqual(everything)
+})
+
+test('model field shows a display name', async () => {
+  const shown = (model: string | undefined): string | undefined =>
+    rowSegments({ ...fieldsAgent, model }, 0, ['model'])[0]?.text
+  expect(shown('claude-sonnet-5-5')).toBe('Sonnet 5.5')
+  expect(shown('claude-fable-5-2')).toBe('Fable 5.2')
+  expect(shown('claude-sonnet-4-5-20250929')).toBe('Sonnet 4.5')
+  expect(shown('claude-opus-4-6[1m]')).toBe('Opus 4.6')
+  expect(shown('sonnet')).toBe('Sonnet')
+  expect(shown(undefined)).toBeUndefined()
+  expect(rowSegments({ ...fieldsAgent, effort: undefined }, 0, ['effort'])).toEqual([])
+})
+
+test('ctx shows gauge and percent for a known window', async () => {
+  const at = (tokens: number, model = 'claude-sonnet-5-5') => ctxSegment({ ...fieldsAgent, tokens, model })
+  expect(at(0)?.text).toBe('⬡ ░░░░░ 0%')
+  expect(at(380_000)?.text).toBe('⬡ ▓▓░░░ 38%')
+  expect(at(1_000_000)?.text).toBe('⬡ ▓▓▓▓▓ 100%')
+  expect(at(2_500_000)?.text).toBe('⬡ ▓▓▓▓▓ 100%')
+  expect(at(790_000)?.color).toBe('text')
+  expect(at(800_000)?.color).toBe('warning')
+})
+
+test('ctx falls back to tokens when the window is unknown', async () => {
+  expect(ctxSegment({ ...fieldsAgent, tokens: 76_000, model: 'opus' })?.text).toBe('⬡ 76.0k')
+  expect(ctxSegment({ ...fieldsAgent, tokens: 76_000, model: undefined })?.text).toBe('⬡ 76.0k')
+  expect(ctxSegment({ ...fieldsAgent, tokens: 76_000, model: 'gpt-x' })?.text).toBe('⬡ 76.0k')
+})
+
+test('context windows follow the model id', async () => {
+  const pct = (model: string): string | undefined =>
+    ctxSegment({ ...fieldsAgent, tokens: 100_000, model })?.text
+  expect(pct('claude-opus-4-6[1m]')).toBe('⬡ ▓░░░░ 10%')
+  expect(pct('claude-opus-4-8')).toBe('⬡ ▓░░░░ 10%')
+  expect(pct('claude-opus-4-7')).toBe('⬡ ▓░░░░ 10%')
+  expect(pct('claude-opus-4-5-20251101')).toBe('⬡ ▓▓▓░░ 50%')
+  expect(pct('claude-opus-4-6')).toBe('⬡ ▓▓▓░░ 50%')
+  expect(pct('claude-opus-4-20250514')).toBe('⬡ ▓▓▓░░ 50%')
+  expect(pct('claude-sonnet-4-6')).toBe('⬡ ▓▓▓░░ 50%')
+  expect(pct('claude-sonnet-5')).toBe('⬡ ▓░░░░ 10%')
+  expect(pct('claude-haiku-4-5')).toBe('⬡ ▓▓▓░░ 50%')
+  expect(pct('claude-haiku-5-5')).toBe('⬡ ▓░░░░ 10%')
+  expect(pct('claude-fable-5')).toBe('⬡ ▓░░░░ 10%')
+})
+
+test('activity draws a sparkline of the samples', async () => {
+  const spark = (samples: number[] | undefined): string | undefined =>
+    rowSegments({ ...fieldsAgent, samples }, 0, ['activity'])[0]?.text
+  expect(spark([1, 2, 3, 4])).toBe('▁▃▆█')
+  expect(spark([5, 5, 5])).toBe('▁▁▁')
+  expect(spark([7])).toBeUndefined()
+  expect(spark([])).toBeUndefined()
+  expect(spark(undefined)).toBeUndefined()
+  expect(spark(Array.from({ length: 20 }, (_, index) => index))).toHaveLength(16)
+  const legacy: FellowshipAgent = { ...running }
+  expect(() => rowSegments(legacy, 0)).not.toThrow()
 })
 
 const BAND = {

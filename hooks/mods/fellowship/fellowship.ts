@@ -65,26 +65,99 @@ const statusStyle = (status: FellowshipAgent['status']): Pick<Segment, 'color' |
   return { color: 'inactive' }
 }
 
-export const rowSegments = (agent: FellowshipAgent, now: number): Segment[] => {
-  const elapsed = formatElapsed((agent.endedAt ?? now) - agent.startedAt)
-  const tokens = (agent.tokens / 1000).toFixed(1)
-  const effort = agent.effort === undefined || agent.effort === '' ? '-' : agent.effort
-  const model = shortModel(agent.model)
+const DEFAULT_FIELDS = ['name', 'desc', 'model', 'effort', 'status', 'ctx', 'activity', 'elapsed', 'ended', 'tokens', 'tools']
+
+// Values from the official models overview and Claude Code model-config pages, read 2026-11-14.
+// First match wins, so a newer version is listed before the bare family rule it would fall into.
+export const CONTEXT_WINDOWS: Array<{ pattern: RegExp; window: number }> = [
+  { pattern: /\[1m\]/, window: 1_000_000 },
+  { pattern: /(?:fable|mythos)-5(?!\d)/, window: 1_000_000 },
+  { pattern: /opus-(?:5|4-8|4-7)(?!\d)/, window: 1_000_000 },
+  { pattern: /opus-4(?:-[156])?(?!\d)/, window: 200_000 },
+  { pattern: /sonnet-5(?!\d)/, window: 1_000_000 },
+  { pattern: /sonnet-4(?:-[56])?(?!\d)/, window: 200_000 },
+  { pattern: /haiku-5-5(?!\d)/, window: 1_000_000 },
+  { pattern: /haiku-4-5(?!\d)/, window: 200_000 },
+]
+
+const contextWindow = (model: string | undefined): number | undefined =>
+  model === undefined ? undefined : CONTEXT_WINDOWS.find(rule => rule.pattern.test(model))?.window
+
+// `claude-sonnet-4-5-20250929` -> `Sonnet 4.5`; an id that is not family plus digits is shown as given.
+const displayModel = (model: string): string => {
+  const parts = model.toLowerCase().replace(/^claude-/, '').replace(/\[1m\]$/, '').replace(/-\d{8}$/, '').split('-')
+  const [family = '', ...version] = parts
+  if (family === '' || !version.every(part => /^\d+$/.test(part))) return model
+  const name = family.charAt(0).toUpperCase() + family.slice(1)
+
+  return version.length === 0 ? name : `${name} ${version.join('.')}`
+}
+
+const SPARKS = '▁▂▃▄▅▆▇█'
+
+const sparkline = (samples: number[]): string => {
+  const low = Math.min(...samples)
+  const high = Math.max(...samples)
+
+  return samples
+    .map(value => SPARKS.charAt(high === low ? 0 : Math.round(((value - low) / (high - low)) * (SPARKS.length - 1))))
+    .join('')
+}
+
+const formatTokens = (tokens: number): string => `${(tokens / 1000).toFixed(1)}k`
+
+type FieldStyle = { now: number; running: boolean; dim: Pick<Segment, 'dim'>; detail: ThemeKey }
+
+const FIELDS: Record<string, (agent: FellowshipAgent, style: FieldStyle) => Segment[]> = {
+  name: (agent, { dim }) => [
+    { text: `${iconFor(agent.type)} ${agent.type}`, color: modelColor(shortModel(agent.model)), bold: true, ...dim },
+  ],
+  desc: (agent, { dim }) => [{ text: agent.description, color: 'text', ...dim }],
+  model: (agent, { running, dim }) =>
+    agent.model === undefined || agent.model === ''
+      ? []
+      : [{ text: displayModel(agent.model), color: running ? 'warning' : 'subtle', ...dim }],
+  effort: (agent, { running, dim }) =>
+    agent.effort === undefined || agent.effort === ''
+      ? []
+      : [{ text: agent.effort === 'medium' ? 'med' : agent.effort, color: running ? 'warning' : 'subtle', ...dim }],
+  status: agent => [{ text: agent.status, ...statusStyle(agent.status) }],
+  ctx: (agent, { detail, dim }) => {
+    const window = contextWindow(agent.model)
+    if (window === undefined) return [{ text: `⬡ ${formatTokens(agent.tokens)}`, color: detail, ...dim }]
+    const pct = Math.min(100, Math.max(0, Math.round((agent.tokens / window) * 100)))
+    const filled = Math.min(5, Math.max(0, Math.round(pct / 20)))
+
+    return [{ text: `⬡ ${'▓'.repeat(filled)}${'░'.repeat(5 - filled)} ${pct}%`, color: pct >= 80 ? 'warning' : detail, ...dim }]
+  },
+  activity: (agent, { detail, dim }) =>
+    agent.samples === undefined || agent.samples.length < 2
+      ? []
+      : [{ text: sparkline(agent.samples.slice(-16)), color: detail, ...dim }],
+  elapsed: (agent, { now, detail, dim }) => [{ text: formatElapsed((agent.endedAt ?? now) - agent.startedAt), color: detail, ...dim }],
+  ended: (agent, { detail, dim }) =>
+    typeof agent.endedAt === 'number' ? [{ text: `ended ${formatClock(agent.endedAt)}`, color: detail, ...dim }] : [],
+  tokens: (agent, { detail, dim }) => [{ text: `${formatTokens(agent.tokens)} tok`, color: detail, ...dim }],
+  tools: (agent, { detail, dim }) => [{ text: `${agent.tools} tools`, color: detail, ...dim }],
+}
+
+export const parseFields = (raw: unknown): string[] => {
+  if (typeof raw !== 'string') return DEFAULT_FIELDS
+  const picked = raw
+    .toLowerCase()
+    .split(/[\s,]+/)
+    .filter((name, index, names) => Object.hasOwn(FIELDS, name) && names.indexOf(name) === index)
+
+  return picked.length === 0 ? DEFAULT_FIELDS : picked
+}
+
+export const rowSegments = (agent: FellowshipAgent, now: number, fields: string[] = DEFAULT_FIELDS): Segment[] => {
   const running = agent.status === 'running'
-  const dim: Pick<Segment, 'dim'> = running ? {} : { dim: true }
-  const detail: ThemeKey = running ? 'text' : 'subtle'
+  const style: FieldStyle = { now, running, dim: running ? {} : { dim: true }, detail: running ? 'text' : 'subtle' }
+  const segments = fields.flatMap(name => (Object.hasOwn(FIELDS, name) ? FIELDS[name]?.(agent, style) ?? [] : []))
 
   return [
-    { text: `${iconFor(agent.type)} ${agent.type}`, color: modelColor(model), bold: true, ...dim },
-    { text: `  ${model}/${effort}`, color: running ? 'warning' : 'subtle', ...dim },
-    { text: `  ${agent.description}`, color: 'text', ...dim },
-    { text: `  ${agent.status}`, ...statusStyle(agent.status) },
-    { text: `  ${elapsed}`, color: detail, ...dim },
-    ...(typeof agent.endedAt === 'number'
-      ? [{ text: `  ended ${formatClock(agent.endedAt)}`, color: detail, ...dim }]
-      : []),
-    { text: `  ${tokens}k tok`, color: detail, ...dim },
-    { text: `  ${agent.tools} tools`, color: detail, ...dim },
+    ...segments.map((segment, index) => (index === 0 ? segment : { ...segment, text: `  ${segment.text}` })),
     ...attentionTags(agent, now).map(text => ({ text: `  [${text}]`, color: 'warning' as const, bold: true })),
   ]
 }
@@ -98,8 +171,8 @@ export const attentionTags = (agent: FellowshipAgent, now: number): string[] => 
   ]
 }
 
-export const formatRow = (agent: FellowshipAgent, now: number): string =>
-  rowSegments(agent, now).map(segment => segment.text).join('')
+export const formatRow = (agent: FellowshipAgent, now: number, fields?: string[]): string =>
+  rowSegments(agent, now, fields).map(segment => segment.text).join('')
 
 // Records a spawned agent: the only way a row is created. A repeated spawn of one id updates its row.
 export const register = (
@@ -129,7 +202,11 @@ export const recordStepTokens = (
   list: FellowshipAgent[],
   id: string | undefined,
   usage: Parameters<typeof tokensOf>[0] | null,
-): FellowshipAgent[] => (usage == null ? list : update(list, id, one => ({ ...one, tokens: tokensOf(usage) })))
+): FellowshipAgent[] => (usage == null ? list : update(list, id, one => ({
+    ...one,
+    tokens: tokensOf(usage),
+    samples: [...(one.samples ?? []), tokensOf(usage)].slice(-16),
+  })))
 
 export const completeAgent = (
   list: FellowshipAgent[],

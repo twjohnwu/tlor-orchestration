@@ -88,7 +88,7 @@ Claude Code 只在 session 啟動時讀取一次 `settings.json` 裡的 PreToolU
 
 | Mod | 顯示內容 | 開關（`/plugin` → tlor → configure） |
 |---|---|---|
-| Fellowship | 每個 Agent tool 列前加角色圖示；「Fellowship」pane 列出本 session 的 subagent：類型、model/effort、描述、狀態、經過時間、token（最近一次請求的總量，也就是 agent 目前的 context）、tool 次數。用 `/fellowship` 開啟。 | `fellowship`：`auto`（預設，第一個 subagent 出現時開啟）、`manual`、`off`。`fellowship_max_rows`：預設 8，分成 5 列執行中、3 列最近完成；多出的執行中列收成 `+K running`，較舊的完成列直接不顯示 |
+| Fellowship | 每個 Agent tool 列前加角色圖示；「Fellowship」pane 列出本 session 的 subagent。每列顯示 `fellowship_fields` 選定的欄位，預設是類型、描述、model、effort、狀態、context gauge、activity sparkline、經過時間、結束時間、token（最近一次請求的總量，也就是 agent 目前的 context）、tool 次數。用 `/fellowship` 開啟。 | `fellowship`：`auto`（預設，第一個 subagent 出現時開啟）、`manual`、`off`。`fellowship_max_rows`：預設 8，分成 5 列執行中、3 列最近完成；多出的執行中列收成 `+K running`，較舊的完成列直接不顯示。`fellowship_fields`：列的欄位與顯示順序，用逗號或空白分隔；預設 `name,desc,model,effort,status,ctx,activity,elapsed,ended,tokens,tools`。不認得的名字會略過，空值使用預設。`ctx` 在 model 的 context window 列於內建表時顯示 gauge 與百分比，否則顯示 token 數；`activity` 是最近 16 筆 token 樣本的 sparkline |
 | STDD progress | prompt 上方一條帶狀列，顯示本 session 碰過、最近修改且尚未完成的 `STDD/<name>/` change：階段；execute 階段另有 K/T 進度條與第一個 `[wip]` id。K 計 `[x]` 行，T 計全部 task 行，`[MANUAL]` 行不計。 | `stdd_progress`：`on`（預設）、`off` |
 | Plan progress | 沒有未完成的 STDD change 時，同一條帶狀列改顯示主對話的任務清單（TodoWrite，或 TaskCreate/TaskUpdate）：`Plan · K/T tasks`、進度條與進行中的任務。清單為空或全部完成時隱藏；subagent 的任務清單不計。沒有這類任務清單時，改讀本對話最近用 Write/Edit 寫入或修改（或 ExitPlanMode 存下的 plan 檔）、且至少有兩個 `- [ ]` / `- [x]` 項目的 `.md` 檔，顯示為 `Plan · <檔名> · K/T items` 與下一個未勾項目；之後的 Bash/Write/Edit 會更新它。plan 核准後，mod 本身會提醒模型在 plan 檔中維護 `- [ ]` 步驟清單並逐步勾選，因此不需要額外的 user rule。 | `plan_progress`：`on`（預設）、`off` |
 

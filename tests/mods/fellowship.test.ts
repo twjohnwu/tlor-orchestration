@@ -43,12 +43,14 @@ test('pane row format', async () => {
     effort: 'medium',
   }
   const endedClock = formatClock(61_000)
-  expect(formatRow(agent, 1000 + 75_000)).toBe('🦅 eagle-sentinel  opus/medium  verify diff  running  01:15  12.3k tok  7 tools')
+  expect(formatRow(agent, 1000 + 75_000)).toBe(
+    '🦅 eagle-sentinel  verify diff  Opus 4.7  med  running  ⬡ ░░░░░ 1%  01:15  12.3k tok  7 tools',
+  )
   expect(formatRow({ ...agent, status: 'completed', endedAt: 61_000 }, 999_999)).toBe(
-    `🦅 eagle-sentinel  opus/medium  verify diff  completed  01:00  ended ${endedClock}  12.3k tok  7 tools`,
+    `🦅 eagle-sentinel  verify diff  Opus 4.7  med  completed  ⬡ ░░░░░ 1%  01:00  ended ${endedClock}  12.3k tok  7 tools`,
   )
   expect(formatRow({ ...agent, model: undefined, effort: undefined }, 1000)).toBe(
-    '🦅 eagle-sentinel  -/-  verify diff  running  00:00  12.3k tok  7 tools',
+    '🦅 eagle-sentinel  verify diff  running  ⬡ 12.3k  00:00  12.3k tok  7 tools',
   )
 })
 
@@ -126,13 +128,13 @@ test('row segments colour statuses and dim every non-status segment after finish
 test('running rows brighten model/effort to warning and detail segments to text; finished rows stay subtle', async () => {
   const base = { ...spawned, model: 'sonnet', effort: 'high' }
   const colours = (agent: FellowshipAgent): Array<string | undefined> =>
-    [1, 4, 5, 6].map(index => rowSegments(agent, 5000)[index]?.color)
+    [2, 3, 6, 7, 8].map(index => rowSegments(agent, 5000)[index]?.color)
 
-  expect(colours({ ...base, status: 'running', endedAt: null })).toEqual(['warning', 'text', 'text', 'text'])
+  expect(colours({ ...base, status: 'running', endedAt: null })).toEqual(['warning', 'warning', 'text', 'text', 'text'])
   for (const status of ['completed', 'failed', 'killed'] as const) {
     const agent = { ...base, status, endedAt: 2000 }
-    expect(colours(agent)).toEqual(['subtle', 'subtle', 'subtle', 'subtle'])
-    expect([1, 4, 5, 6].every(index => rowSegments(agent, 5000)[index]?.dim === true)).toBe(true)
+    expect(colours(agent)).toEqual(['subtle', 'subtle', 'subtle', 'subtle', 'subtle'])
+    expect([2, 3, 6, 7, 8].every(index => rowSegments(agent, 5000)[index]?.dim === true)).toBe(true)
   }
 })
 
@@ -477,6 +479,45 @@ test('several turn.step usages show the latest step and turn.complete adds nothi
   const done = await mountPane($, 24)
   expect(await done.find({ type: 'Text', text: /0\.1k tok/ })).toBeDefined()
   expect(await done.find({ type: 'Text', text: /completed/ })).toBeDefined()
+})
+
+test('turn.step keeps the last 16 token samples', { options: { fellowship: 'manual', fellowship_fields: 'activity', stdd_progress: 'off' } }, async ($, on) => {
+  mock.clock(on)
+  on('agent.spawn', async () => ({ agentId: 'sample-agent', model: 'claude-sonnet-5-5' }) as never)
+  on('ui.open', async () => ({ value: { isPlaced: true } }) as never)
+  let step = 0
+  on('turn.step', async function* (_$, e) {
+    step += 1
+    // the first value is huge: it only shows in the sparkline if the oldest sample was kept
+    const tokens = step === 1 ? 1_000_000 : step * 10
+    return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], usage: { input_tokens: tokens, output_tokens: 0 } } as never
+  })
+  const spawned = await $.agent.spawn(spawnInput('sampling'))
+  const id = (spawned as { agentId: string }).agentId
+  for (let index = 0; index < 17; index += 1) {
+    for await (const _chunk of $.turn.step({ turnId: 'turn-1', index, model: 'claude-sonnet-5-5', messageCount: 1, agentId: id } as never)) {
+      // drain the stream so the hook chain finishes
+    }
+  }
+  const ui = await mountPane($, 24)
+  expect(await ui.find({ type: 'Text', text: '▁▁▂▂▃▃▄▄▅▅▆▆▇▇██' })).toBeDefined()
+})
+
+test('step tokens are recorded as samples, capped at the last 16', async () => {
+  let list: FellowshipAgent[] = [spawned]
+  for (let step = 1; step <= 17; step += 1) list = recordStepTokens(list, 'a1', { input_tokens: step })
+  expect(list[0]?.samples).toHaveLength(16)
+  expect(list[0]?.samples).toEqual(Array.from({ length: 16 }, (_, index) => index + 2))
+  expect(list[0]?.tokens).toBe(17)
+})
+
+test('/fellowship and the pane use the configured fields', { options: { fellowship: 'manual', fellowship_fields: 'tools, NAME', stdd_progress: 'off' } }, async ($, on) => {
+  bottom(on, [])
+  await $.agent.spawn(spawnInput('configured'))
+  expect(await fellowshipRows($)).toBe('0 tools  🏇 rohirrim-outrider')
+  const ui = await mountPane($, 24)
+  expect(await ui.find({ type: 'Text', text: '  🏇 rohirrim-outrider' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /running/ })).toBeUndefined()
 })
 
 test('step tokens include cached input', async () => {
