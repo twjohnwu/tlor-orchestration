@@ -18,6 +18,7 @@ const PLAN_DECLARATION = { plugin: 'tlor', key: 'planDeclaration' } as const
 const PLAN_FINISHED_LEDGERS = { plugin: 'tlor', key: 'planFinishedLedgers' } as const
 const PLAN_TASKS = { plugin: 'tlor', key: 'planTasks' } as const
 const PLAN_CHECKLIST = { plugin: 'tlor', key: 'planChecklist' } as const
+const OWN_PLUGIN = 'tlor'
 const PLAN_ROW = /^Plan · /
 const STDD_TOUCHED = { plugin: 'tlor', key: 'stddTouched' } as const
 const PLAN_TRACK_TOOL = 'mcp__tlor__PlanTrack'
@@ -168,8 +169,6 @@ export const register = (on: On, options: PluginOptions): void => {
     const below = await next(e)
     const lines = drawn?.lines
     if (lines === undefined || lines === null || lines === BAND_RETRY) return below
-    // A lower plugin that already draws a Plan row would show the plan twice; STDD rows are unrelated.
-    if (drawn?.source !== 'stdd' && renderedTextLines(below).some(line => PLAN_ROW.test(line))) return below
 
     const { Box, Text } = $.ui.resolve(e)
 
@@ -186,4 +185,15 @@ export const register = (on: On, options: PluginOptions): void => {
       </Box>
     )
   })
+
+  // Another plugin's Plan row already shows the plan, so ours would draw it twice; STDD rows are unrelated.
+  on('ui.render', { component: 'AbovePromptList' }, async ($, e, next) => {
+    const drawsPlan = (tree: Parameters<typeof renderedTextLines>[0]): boolean =>
+      renderedTextLines(tree).some(line => PLAN_ROW.test(line))
+    const own = e.props.rows.find(row => row.plugin === OWN_PLUGIN)
+    if (own === undefined || !drawsPlan(own.tree)) return next(e)
+    if (!e.props.rows.some(row => row.plugin !== OWN_PLUGIN && drawsPlan(row.tree))) return next(e)
+
+    return next({ ...e, props: { ...e.props, rows: e.props.rows.filter(row => row !== own) } })
+  }).catch(($, e, next) => next(e))
 }

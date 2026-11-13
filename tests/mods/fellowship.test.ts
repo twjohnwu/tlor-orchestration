@@ -255,7 +255,7 @@ test('a completed turn does not count step tokens twice', async () => {
   expect(afterComplete[0]?.endedAt).toBe(500)
 })
 
-const BAND_REGISTRATION = ['tool.call', 'ui.render']
+const BAND_REGISTRATION = ['tool.call', 'ui.render', 'ui.render']
 
 const recordRegistrations = (options: { fellowship: string; stdd_progress: string }): string[] => {
   const events: string[] = []
