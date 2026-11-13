@@ -71,8 +71,8 @@ export const rowSegments = (agent: FellowshipAgent, now: number): Segment[] => {
   const effort = agent.effort === undefined || agent.effort === '' ? '-' : agent.effort
   const model = shortModel(agent.model)
   const running = agent.status === 'running'
-  const dim = running ? {} : { dim: true }
-  const detail = running ? 'text' : 'subtle'
+  const dim: Pick<Segment, 'dim'> = running ? {} : { dim: true }
+  const detail: ThemeKey = running ? 'text' : 'subtle'
 
   return [
     { text: `${iconFor(agent.type)} ${agent.type}`, color: modelColor(model), bold: true, ...dim },

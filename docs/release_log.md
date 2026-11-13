@@ -6,6 +6,18 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.21.3 (2026-11-13)
+
+Mods (Plan band):
+- The Plan row is skipped when another plugin already draws a `Plan · ` row, on the current engine too: the check moved from the `AbovePrompt` hook to an `AbovePromptList` hook, because the band is now one row per plugin and a hook no longer sees the rows beneath it. An STDD row is never dropped.
+- Mods type-check against the current plugin API types again: `fellowship.ts` and `sources/planTasks.ts` gain type annotations only, and two mod test files pass the tool and command input fields the types now require. No behaviour change.
+
+Wording cleanup from a prompt audit (no behaviour change):
+- STDD skills: `stdd-plan` and `stdd-execute` name the same canonical sources (status and fingerprint rules in `stdd-spec/SKILL.md` Step 6, Lint-STOP in `stdd-lint` Check 8); a dangling "check 4" reference, review-round tags and version-history phrasing are removed; `stdd-explore` asks for each phase's outcome instead of visible reasoning.
+- Agents: `palantir-stone` cites `mirror-of-galadriel` rule 3 instead of a stale line range; `eagle-sentinel` and `cirdan-shipwright` use a qualitative report-length rule instead of a line cap; `orc-saboteur` wording; `cirdan-shipwright` drops its provenance note.
+- erebor-ledger skill: the run command uses `${CLAUDE_SKILL_DIR}`; the fast-mode limitation covers Fable as well as Opus and names no prices; dated one-run measurements are removed.
+- tlor-init, rivendell-council, westmarch-scribe, `rules/dispatch.md`: stale version references and "this round" phrasing removed; the tlor-init summary lists `dispatch_guard`.
+
 ## v0.21.2 (2026-10-26)
 
 Mods (Plan band, ledger mode):

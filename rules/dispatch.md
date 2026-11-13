@@ -2,7 +2,7 @@
 description: Role dispatch and delegation rules for the fourteen tlor-orchestration roles (plus the Explore backup mirror)
 managed-by: tlor-orchestration  # plugin-managed, do not edit; overrides go in rules/customize/
 audience: all
-version: 0.10.1
+version: 0.10.2
 ---
 
 ## Agent routing priority
@@ -64,7 +64,7 @@ dispatching subagents, integrating conclusions, and talking to the user.
   exact before/after, a version bump, a one-paragraph insert) that is ≤30
   lines across ≤2 files is done inline — a subagent dispatch carries a fixed
   context floor of roughly 33–46k tokens before it reads a single line
-  (measured in the statusline review under `docs/en/stdd-reviews/`), so a brief longer
+  (measured in the plugin repository's statusline review, `docs/en/stdd-reviews/`), so a brief longer
   than the diff is a loss, not discipline. Verification for such edits is the Maia
   reading its own diff and running the gate (§5 exception). The test does
   NOT cover anything that still needs judgment about *what* to write, nor

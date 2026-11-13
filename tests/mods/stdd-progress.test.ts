@@ -175,9 +175,9 @@ test('progress switches register one shared band only when either feature is on'
   }
 
   expect(registered('off', 'off')).toEqual([])
-  expect(registered('on', 'off')).toEqual(['tool.call', 'ui.render'])
-  expect(registered('off', 'on')).toEqual(['session.start', 'tool.call', 'tool.call', 'ui.render'])
-  expect(registered('on', 'on')).toEqual(['session.start', 'tool.call', 'tool.call', 'ui.render'])
+  expect(registered('on', 'off')).toEqual(['tool.call', 'ui.render', 'ui.render'])
+  expect(registered('off', 'on')).toEqual(['session.start', 'tool.call', 'tool.call', 'ui.render', 'ui.render'])
+  expect(registered('on', 'on')).toEqual(['session.start', 'tool.call', 'tool.call', 'ui.render', 'ui.render'])
 })
 
 test('plan bar segments share sizing, show K/T and one warning cell, and truncate the active label', async () => {
@@ -317,6 +317,22 @@ const BAND = {
   props: { hasSurvey: false },
   viewport: { columns: 80, rows: 24 },
 } as never
+
+// The band's arrangement, mounted with the rows the engine would hand it: one per plugin, in chain order.
+const BAND_LIST = (rows: unknown[]) => ({
+  plugin: 'tlor',
+  surface: 'terminal',
+  component: 'AbovePromptList',
+  props: { rows, hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 10, bodyColumns: 80 },
+  viewport: { columns: 80, rows: 24 },
+}) as never
+
+const bandRow = (plugin: string, text: string) => ({ plugin, tree: h('Box', null, h('Text', null, text)) })
+
+type Finder = { findAll: (q: { type: string; text: RegExp }) => Promise<Array<{ text: string }>> }
+
+const planRows = async (ui: unknown): Promise<string[]> =>
+  (await (ui as Finder).findAll({ type: 'Text', text: /^Plan · / })).map(found => found.text)
 
 const bandText = async (ui: { find: (q: { type: string; text: RegExp }) => Promise<unknown> }, text: RegExp): Promise<boolean> => {
   return (await ui.find({ type: 'Text', text })) !== undefined
@@ -741,15 +757,31 @@ test('a lower AbovePrompt hook still draws when the plan band has nothing to sho
 
 const LOWER_PLAN_ROW = 'Plan · x.md · 1/2 items'
 
-test('the plan band is skipped when a lower band already draws a Plan row', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+test('the plan band is skipped when another plugin already draws a Plan row', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
   const path = '/work/roadmap.md'
   const content = '- [x] one\n- [ ] two'
-  mountChecklistDisk(on, { files: { [path]: content } }, LOWER_PLAN_ROW)
+  mountChecklistDisk(on, { files: { [path]: content } })
   await $.tool.call({ tool: 'Write', file_path: path, content })
 
-  const ui = await $.ui.mount(BAND)
-  expect(await (ui as never as { findAll: (q: { type: string; text: RegExp }) => Promise<unknown[]> }).findAll({ type: 'Text', text: /^Plan · / })).toHaveLength(1)
-  expect(await bandText(ui as never, /Plan · x\.md · 1\/2 items/)).toBe(true)
+  const own = await $.ui.mount(BAND)
+  expect(await bandText(own as never, /Plan · roadmap\.md · 1\/2 items/)).toBe(true)
+
+  const ui = await $.ui.mount(BAND_LIST([
+    bandRow('tlor', 'Plan · roadmap.md · 1/2 items'),
+    bandRow('other', LOWER_PLAN_ROW),
+  ]))
+  expect(await planRows(ui)).toEqual([LOWER_PLAN_ROW])
+})
+
+test('a plan row of our own still draws when no other plugin draws one', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+  mountChecklistDisk(on, { files: {} })
+
+  const ui = await $.ui.mount(BAND_LIST([
+    bandRow('tlor', 'Plan · roadmap.md · 1/2 items'),
+    bandRow('other', 'LOWER-BAND-MARKER'),
+  ]))
+  expect(await planRows(ui)).toEqual(['Plan · roadmap.md · 1/2 items'])
+  expect(await bandText(ui as never, /LOWER-BAND-MARKER/)).toBe(true)
 })
 
 test('a touched STDD change still draws above a lower Plan row', { options: { fellowship: 'off', stdd_progress: 'on', plan_progress: 'on' } }, async ($, on) => {
@@ -761,6 +793,14 @@ test('a touched STDD change still draws above a lower Plan row', { options: { fe
   const ui = await $.ui.mount(BAND)
   expect(await bandText(ui as never, /STDD checkout · execute/)).toBe(true)
   expect(await bandText(ui as never, /Plan · x\.md · 1\/2 items/)).toBe(true)
+
+  // An STDD row is never a Plan row, so another plugin's Plan row does not drop it.
+  const list = await $.ui.mount(BAND_LIST([
+    bandRow('tlor', 'STDD checkout · execute'),
+    bandRow('other', LOWER_PLAN_ROW),
+  ]))
+  expect(await bandText(list as never, /STDD checkout · execute/)).toBe(true)
+  expect(await planRows(list)).toEqual([LOWER_PLAN_ROW])
 })
 
 const PLAN_TRACK = 'mcp__tlor__PlanTrack'
@@ -864,7 +904,7 @@ test('a touched STDD change wins over a declared plan', { options: { fellowship:
   expect(await bandText(ui as never, /Plan · session\.md/)).toBe(false)
 })
 
-test('a lower Plan row suppresses a declared plan row', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
+test('another plugin\'s Plan row suppresses a declared plan row', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {
   const plan = '/work/plans/session.md'
   const ledger = '/work/.superpowers/sdd/session/progress.md'
   mountChecklistDisk(on, {
@@ -872,12 +912,17 @@ test('a lower Plan row suppresses a declared plan row', { options: { fellowship:
       [plan]: '### Task 1: first\n### Task 2: second',
       [ledger]: 'Task 1: complete\n',
     },
-  }, LOWER_PLAN_ROW)
+  })
   await $.tool.call({ tool: PLAN_TRACK, plan, progress: 'ledger', ledger } as never)
 
-  const ui = await $.ui.mount(BAND)
-  expect(await (ui as never as { findAll: (q: { type: string; text: RegExp }) => Promise<unknown[]> }).findAll({ type: 'Text', text: /^Plan · / })).toHaveLength(1)
-  expect(await bandText(ui as never, /Plan · x\.md · 1\/2 items/)).toBe(true)
+  const own = await $.ui.mount(BAND)
+  expect(await bandText(own as never, /Plan · session\.md · 1\/2 tasks/)).toBe(true)
+
+  const ui = await $.ui.mount(BAND_LIST([
+    bandRow('tlor', 'Plan · session.md · 1/2 tasks'),
+    bandRow('other', LOWER_PLAN_ROW),
+  ]))
+  expect(await planRows(ui)).toEqual([LOWER_PLAN_ROW])
 })
 
 test('PlanTrack rejects ledger mode without a ledger and does not write state', { options: { fellowship: 'off', stdd_progress: 'off', plan_progress: 'on' } }, async ($, on) => {

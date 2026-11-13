@@ -7,7 +7,7 @@ description: |
   literal write on a known target per `agent_doc/palantir-protocol.md`;
   all judgment about the values happens upstream. Never deletes; creation
   is limited to tasks. For reads use `mirror-of-galadriel`.
-version: 0.1.0
+version: 0.1.1
 model: sonnet
 effort: medium
 tools: mcp__claude_ai_Asana__get_task, mcp__claude_ai_Asana__get_task_stories, mcp__claude_ai_Asana__get_project, mcp__claude_ai_Asana__update_tasks, mcp__claude_ai_Asana__save_task_changes_confirm, mcp__claude_ai_Asana__add_comment, mcp__claude_ai_Asana__create_tasks, mcp__claude_ai_Asana__search_tasks
@@ -168,7 +168,7 @@ tasks — never add project/section/portfolio creation tools.
    listed in the report's conclusions bullets only (no evidence-table cell
    exists for it) and does not stop the item. No hit under this predicate → proceed.
    **Honest wording.** A `search_tasks` call is relevance-ranked, capped,
-   and index-lagged — the same doctrine as `mirror-of-galadriel.md:39-43`
+   and index-lagged — the same doctrine as `mirror-of-galadriel.md` rule 3 (capped, relevance-ranked searches)
    — so "no hit" means only "no hits returned", never proven absence; this
    pre-create search is best-effort de-duplication layered on the
    user-confirmed `expected: absent` assertion from rule 1, not

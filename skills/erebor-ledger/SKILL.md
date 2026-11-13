@@ -48,7 +48,7 @@ call:
 - `.message.model == "<synthetic>"` records are excluded from every total —
   they are never billed and never counted
 - **Content-block duplication AND cross-session duplication (deduped,
-  machine-wide since 2026-07-27)**: Claude Code writes one
+  machine-wide)**: Claude Code writes one
   `"type":"assistant"` line per CONTENT BLOCK of a single API response — a
   `thinking` block, a `text` block, and a `tool_use` block each get their
   own line — and every one of those lines repeats the SAME `.message.usage`
@@ -69,14 +69,11 @@ call:
   the cross-session duplication above means a handful of duplicate keys
   cross session boundaries, not just main/subagent file boundaries within
   one session. Do not narrow this back to per-session as an
-  "optimisation": that was the exact bug the 2026-07-27 widening fixed
-  (measured 62 cross-file duplicate keys spanning different top-level
-  session files on this machine).
+  "optimisation".
 
   **Two separate rules — do not merge them.** "Which usage VALUE is
   canonical" and "which occurrence OWNS the tokens" are different questions,
-  and the answer is a different occurrence for each. Conflating them was the
-  defect fixed on 2026-07-27:
+  and the answer is a different occurrence for each. Do not conflate them:
 
   1. **Canonical VALUE = the per-field MAXIMUM across the key's
      occurrences.** Claude Code writes *progressive* usage snapshots for one
@@ -86,13 +83,9 @@ call:
      `3305`. Usage counters for one response are cumulative and
      non-decreasing, so the maximum is the completed reading and cannot
      under-count.
-     **Why the old rule was wrong, recorded so nobody reinstates it**: this
-     step used to credit the EARLIEST occurrence's VALUE. 2,021 of 3,059
-     duplicate keys disagreed across occurrences, output tokens were reported
-     as 1,684,019 against an actual 3,204,383 (**47.4% lost**), and the Fable
-     group's headroom figure understated by 14.6% ($269.77 vs $316.00).
-     Independent ground truth fits the corrected rule better on both model
-     families (Fable 5.x −0.050% → +0.022%; Opus −0.376% → −0.049%). Also do
+     **Do not reinstate crediting the earliest occurrence's VALUE**: the first
+     snapshot is a partial mid-stream reading, so it under-counts output tokens
+     heavily. Also do
      not "simplify" this to taking the latest record wholesale — per-field
      max is robust to an out-of-order or truncated final line.
   2. **ATTRIBUTION (which project/session/role the tokens are credited to) =
@@ -114,9 +107,7 @@ call:
   been violated — a future change to Claude Code's record format would
   otherwise corrupt totals silently. The report then emits a warning naming
   the key and the field; the maximum is still what gets accounted. **Zero
-  violations is the expected state, and is what this machine currently
-  reports** (0 across 9,552 multi-occurrence keys, full history,
-  2026-07-27). A non-zero count means investigate the record format before
+  violations is the expected state.** A non-zero count means investigate the record format before
   trusting any figure in the report. The derived `cache_write_5m`/
   `cache_write_1h` tier split is deliberately NOT checked: a record lacking
   the `usage.cache_creation` breakdown has its whole amount synthesized into
@@ -134,7 +125,7 @@ trusting a "clean" run.
 ## How to run it
 
 ```bash
-python3 skills/erebor-ledger/scripts/erebor_ledger.py [--project SUBSTR] \
+python3 "${CLAUDE_SKILL_DIR}/scripts/erebor_ledger.py" [--project SUBSTR] \
     [--since YYYY-MM-DD] [--until YYYY-MM-DD] [--month YYYY-MM ...] [--detail-others] \
     [--cycle N] [--subscription-usd USD] [--calibration-ceiling-usd USD]
 ```
@@ -237,8 +228,7 @@ It also discloses a pricing-tier method: prompt caching bills a cache write
 at one of two multipliers of the base input price — 1.25x for the 5-minute
 default TTL, 2x for the 1-hour opt-in TTL. Claude Code transcripts carry this
 split explicitly in `.message.usage.cache_creation.{ephemeral_5m_input_tokens,
-ephemeral_1h_input_tokens}` (verified present on every non-zero cache-write
-record examined on this machine, 2026-07-27), so the script prices each
+ephemeral_1h_input_tokens}`, so the script prices each
 tier's tokens at its own rate rather than assuming one. Empirically on this
 machine, main-session (orchestrator) records are consistently 1-hour-tier and
 subagent-dispatch records are consistently 5-minute-tier — but the script
@@ -254,9 +244,7 @@ run — never omit it.
 `usage.cache_creation_input_tokens`, while the COST is computed from the
 per-tier `cache_creation.{ephemeral_5m_input_tokens,
 ephemeral_1h_input_tokens}` fields. On a small number of records the two do
-not agree — 3 unique `(message.id, requestId)` keys on this machine as of
-2026-07-27, appearing across 11 content-block lines (e.g. tier fields summing
-to 502,248 against a stated total of 410,862). For those records the
+not agree — a few keys on a typical machine. For those records the
 displayed write volume and the volume the cost is based on therefore diverge.
 **The cost always uses the per-tier breakdown, never the total**, and the
 report names every such key in its Warnings section. Never silently reconcile
@@ -264,13 +252,12 @@ the two by overwriting one with the other: the divergence is a property of
 the source data, and hiding it would make an over- or under-priced record
 indistinguishable from a correct one.
 
-It also discloses a known, undetected limitation: **fast mode** (a separate
-premium tier — $10 input / $50 output per MTok for Opus 5 and Opus 4.8, $8 input / $40 output for Opus 5.5,
-applied across the full context window) is not modeled by
-`model-prices.json` or the resolver. Claude Code transcripts may not reveal
-whether fast mode was active for a given record, so every Opus record in
-this report is priced at standard-tier rates; a session run under fast mode
-will be under-priced by this report. This is a disclosed limitation, not
+It also discloses a known, undetected limitation: **fast mode** (a premium tier priced above
+standard on some Opus and Fable models) is not modeled by `model-prices.json`
+or the resolver. Claude Code transcripts may not reveal whether fast mode was
+active for a given record, so every record in this report is priced at
+standard-tier rates; a session run under fast mode will be under-priced by
+this report. This is a disclosed limitation, not
 something the script attempts to detect.
 
 It also discloses an effort-source assumption: Claude Code transcripts
@@ -435,21 +422,14 @@ run on `sonnet-5` shows `sonnet-5 (downgrade)` because the role pins
 marker. `Effort` is a recorded per-dispatch value if one exists, else
 the role's pinned frontmatter marked with a trailing `*`, else `—`.
 
-The full framework role set is **discovered, not hardcoded** (design for N,
-not for the N you know — a hardcoded list drifted to nine names while eleven
-role files/manifest entries existed): the script reads the installed role
-manifest (`~/.claude/agents/.tlor-manifest`, the same file `install.sh`
-writes — one `<name>.md` line per role it actually installed) as the
-authoritative source, and falls back to globbing this repo's own `agents/`
-directory only when no manifest is present (e.g. running straight out of a
-checked-out repo without an install). Both sources exclude any filename
-containing `.bak` (stale/backup copies). As of this writing that's fifteen
-files — fourteen roles plus the `Explore` backup mirror
-(`rohirrim-outrider`, `ranger-pathfinder`, `Explore`, `noldor-loremaster`,
-`dwarf-smith`, `gondor-builder`, `eagle-sentinel`, `elf-archer`,
-`orc-saboteur`, `hobbit-gardener`, `mirror-of-galadriel`, `palantir-stone`,
-`cirdan-shipwright`, `bombadil-freeagent`, `bilbo-scribe`) — a sixteenth role
-added later is picked up automatically, no script edit needed.
+The full framework role set is **discovered, not hardcoded** (design for N):
+the script reads the installed role manifest (`~/.claude/agents/.tlor-manifest`,
+the same file `install.sh` writes — one `<name>.md` line per role it actually
+installed) as the authoritative source, and falls back to globbing this repo's
+own `agents/` directory only when no manifest is present (e.g. running
+straight out of a checked-out repo without an install). Both sources exclude
+any filename containing `.bak` (stale/backup copies), so a new role is picked
+up with no script edit.
 
 Each discovered framework role gets its own row(s) when it appears in the
 data. Anything else (built-in Explore, `general-purpose`, other plugin
@@ -519,14 +499,13 @@ in order — not a digest of it. Prose may add observations, but never
   shows only the comparison table, or folds the months into prose, has
   dropped exactly the detail the user asked for.
 
-**Group label = SESSION group, never a model total (annotated in the output
-since 2026-07-27).** "Fable group" / "Opus group" names *every session whose
+**Group label = SESSION group, never a model total (annotated in the output).** "Fable group" / "Opus group" names *every session whose
 ORCHESTRATOR (main-session) model was that model* — the rows underneath are
 the models the DISPATCHED work actually ran on, so the table's totals are
 mostly NOT that model's tokens. Because the label sits within a few lines of
 a genuine per-model figure (the `fable-5` rows in the `Model` column, and the
-group summary's orchestrator-cumulative volume), the two were easy to
-confuse; each per-role table now carries a `Grouping:` line under its heading
+group summary's orchestrator-cumulative volume), the two are easy to
+confuse; each per-role table carries a `Grouping:` line under its heading
 stating the distinction explicitly. Keep that line: dropping it restores the
 ambiguity.
 
@@ -669,9 +648,9 @@ match a `claude-opus-4` price-table entry, not require an exact match).
 
 ## Before you report — checklist
 
-Run through this before handing the report to the user; it guards the two
-failure modes that have actually happened — a requested month silently
-dropped, and a comparison run pasted without its comparison table:
+Run through this before handing the report to the user; it guards against
+a requested month silently dropped and a comparison run pasted without its
+comparison table:
 
 - [ ] **One run only**: the whole report is the quoted output of a single
       script invocation (the run-once rule above); months were not stitched

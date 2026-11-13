@@ -127,6 +127,13 @@ const spawnInput = {
   turnId: 'turn-1',
 } as never
 
+const fellowshipCommand = {
+  command: 'fellowship',
+  args: '',
+  origin: { kind: 'composer' },
+  presentation: { isFullscreen: false, columns: 80 },
+} as const
+
 const mountFellowship = (on: On, toasts: string[]): void => {
   mock.clock(on)
   on('agent.spawn', async () => {
@@ -193,13 +200,13 @@ test('notify toast emits once when the main plan reaches 100% and ignores subage
     return h(Text, null, '') as never
   })
 
-  await $.tool.call({ tool: 'TodoWrite', todos: [{ content: 'one', status: 'pending' }] })
+  await $.tool.call({ tool: 'TodoWrite', todos: [{ content: 'one', status: 'pending', activeForm: 'one' }] })
   await $.tool.call({
     tool: 'TodoWrite',
     agentId: 'subagent-1',
     todos: [{ content: 'child', status: 'completed' }],
   } as never)
-  await $.tool.call({ tool: 'TodoWrite', todos: [{ content: 'one', status: 'completed' }] })
+  await $.tool.call({ tool: 'TodoWrite', todos: [{ content: 'one', status: 'completed', activeForm: 'one' }] })
   await $.ui.mount(BAND)
   await $.ui.mount(BAND)
 
@@ -210,11 +217,11 @@ test('/fellowship returns empty text and current row text without a second forma
   options: { fellowship: 'manual', stdd_progress: 'off', plan_progress: 'off' },
 }, async ($, on) => {
   mountFellowship(on, [])
-  const empty = await $.command.run({ command: 'fellowship' })
+  const empty = await $.command.run(fellowshipCommand)
   expect((empty as { text: string }).text).toBe('No agents yet.')
 
   await $.agent.spawn(spawnInput)
-  const rows = await $.command.run({ command: 'fellowship' })
+  const rows = await $.command.run(fellowshipCommand)
   expect((rows as { text: string }).text).toContain('🦅 eagle-sentinel')
   expect((rows as { text: string }).text.split('\n')).toHaveLength(1)
 })
@@ -255,7 +262,12 @@ test('STDD notifies once when a main-session change first becomes done', {
 
   await $.ui.mount(BAND)
   disk.tasks = '- [x] `S-01`\n'
-  await $.tool.call({ tool: 'Edit', file_path: '/work/STDD/checkout/tasks.md' })
+  await $.tool.call({
+    tool: 'Edit',
+    file_path: '/work/STDD/checkout/tasks.md',
+    old_string: '',
+    new_string: '',
+  })
   await $.tool.call({
     tool: 'Edit',
     agentId: 'subagent-1',

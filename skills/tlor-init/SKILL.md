@@ -13,8 +13,8 @@ After a plugin upgrade, the plugin's SessionStart hook
 (`hooks/plugin_update_sync.py`, plugin route only) runs the same
 non-interactive sync as Steps 3/4/11 automatically for a user-level install
 that carries a `.tlor-init-state` marker (Step 12); a project-level install
-only gets a reminder. Installs set up by a `/tlor-init` older than 0.14.0
-have no marker, so run `/tlor-init` once on 0.14.0+ to enable this. Re-run
+only gets a reminder. A user-level install without a `.tlor-init-state`
+marker is not auto-synced; run `/tlor-init` once to create it. Re-run
 `/tlor-init` for project-level installs and for the interactive steps
 (2, 5, 6, 8, 10).
 
@@ -196,16 +196,15 @@ destination — never overwrite something already in `customize/`.
 
 Ask the user which STDD 視角 (perspective) to install, or to skip:
 
-- **RD** — stdd-plan, stdd-execute, stdd-review-loop, stdd, stdd-lint (**deferred this round**)
-- **PM** — stdd-explore, stdd-spec, stdd, stdd-lint (**deferred this round**)
-- **UIUX** — stdd-explore, stdd-uiux, stdd, stdd-lint (**deferred this round**)
-- **ALL** — all 8 skills under the plugin's `stdd-skills/` directory
+- **RD** — stdd-plan, stdd-execute, stdd-review-loop, stdd, stdd-lint (not supported yet)
+- **PM** — stdd-explore, stdd-spec, stdd, stdd-lint (not supported yet)
+- **UIUX** — stdd-explore, stdd-uiux, stdd, stdd-lint (not supported yet)
+- **ALL** — every skill under the plugin's `stdd-skills/` directory
   (discover the list dynamically — `ls stdd-skills/`, don't hardcode a count)
 - **skip** — install no STDD skills (default; keeps this step backward
   compatible with users who never asked for STDD)
 
-If the user picks **RD**, **PM**, or **UIUX**: tell them plainly "此視角
-deferred，本輪僅支援 ALL" and install nothing for that choice — never
+If the user picks **RD**, **PM**, or **UIUX**: tell them plainly "此視角尚未支援，目前僅支援 ALL" and install nothing for that choice — never
 silently fall back to installing some other subset.
 
 If the user picks **ALL**: copy each `stdd-skills/<name>/` directory from
@@ -443,7 +442,7 @@ tlor-orchestration initialization complete:
   STDD:      role=RD/PM/UIUX/ALL/skip (N skills installed)
   CLAUDE.md: created / updated / skipped
   AGENTS.md: created / updated / skipped
-  Hooks:     institution_guard (enabled/skipped), verify_gate (enabled/skipped)
+  Hooks:     institution_guard (enabled/skipped), verify_gate (enabled/skipped), dispatch_guard (enabled/skipped)
   Workflows: N installed (workflows/)
   Scripts:   N installed (scripts/)
   Backups:   N file(s) as <file>.bak-YYYYMMDD-HHMMSS (see per-file list above)
