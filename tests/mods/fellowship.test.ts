@@ -130,7 +130,7 @@ test('running rows brighten model/effort to warning and detail segments to text;
   const colours = (agent: FellowshipAgent): Array<string | undefined> =>
     [2, 3, 6, 7, 8].map(index => rowSegments(agent, 5000)[index]?.color)
 
-  expect(colours({ ...base, status: 'running', endedAt: null })).toEqual(['warning', 'warning', 'text', 'text', 'text'])
+  expect(colours({ ...base, status: 'running', endedAt: null })).toEqual(['warning', 'warning', '#FF7F50', 'text', 'text'])
   for (const status of ['completed', 'failed', 'killed'] as const) {
     const agent = { ...base, status, endedAt: 2000 }
     expect(colours(agent)).toEqual(['subtle', 'subtle', 'subtle', 'subtle', 'subtle'])

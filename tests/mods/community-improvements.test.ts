@@ -99,7 +99,7 @@ test('ctx shows gauge and percent for a known window', async () => {
   expect(at(380_000)?.text).toBe('⬡ ▓▓░░░ 38%')
   expect(at(1_000_000)?.text).toBe('⬡ ▓▓▓▓▓ 100%')
   expect(at(2_500_000)?.text).toBe('⬡ ▓▓▓▓▓ 100%')
-  expect(at(790_000)?.color).toBe('text')
+  expect(at(790_000)?.color).toBe('#00FFFF')
   expect(at(800_000)?.color).toBe('warning')
 })
 
@@ -107,6 +107,23 @@ test('ctx falls back to tokens when the window is unknown', async () => {
   expect(ctxSegment({ ...fieldsAgent, tokens: 76_000, model: 'opus' })?.text).toBe('⬡ 76.0k')
   expect(ctxSegment({ ...fieldsAgent, tokens: 76_000, model: undefined })?.text).toBe('⬡ 76.0k')
   expect(ctxSegment({ ...fieldsAgent, tokens: 76_000, model: 'gpt-x' })?.text).toBe('⬡ 76.0k')
+})
+
+test('a running row gives ctx, activity and elapsed fixed colours', async () => {
+  const colorOf = (agent: FellowshipAgent, field: string) => rowSegments(agent, 0, [field])[0]?.color
+  expect(colorOf(fieldsAgent, 'ctx')).toBe('#00FFFF')
+  expect(colorOf({ ...fieldsAgent, model: 'opus' }, 'ctx')).toBe('#00FFFF')
+  expect(colorOf(fieldsAgent, 'activity')).toBe('#008F11')
+  expect(colorOf(fieldsAgent, 'elapsed')).toBe('#FF7F50')
+})
+
+test('an ended row keeps ctx, activity and elapsed subtle and dimmed', async () => {
+  const ended = { ...fieldsAgent, status: 'completed' as const, endedAt: 61_000 }
+  for (const field of ['ctx', 'activity', 'elapsed']) {
+    const segment = rowSegments(ended, 0, [field])[0]
+    expect(segment?.color).toBe('subtle')
+    expect(segment?.dim).toBe(true)
+  }
 })
 
 test('context windows follow the model id', async () => {
