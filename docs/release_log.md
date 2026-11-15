@@ -6,6 +6,11 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.23.1 (2026-11-15)
+
+- Fellowship row colours: on a running row `ctx` is cyan (`#00FFFF`), `activity` green (`#008F11`) and `elapsed` coral (`#FF7F50`). `ctx` still turns to the warning colour from 80%. Finished rows keep the subtle, dimmed style. The colours are fixed hex values and do not follow the theme.
+- `Segment.color` now accepts any `Color` (a theme key or a raw colour string) instead of theme keys only.
+
 ## v0.23.0 (2026-11-14)
 
 - Fellowship rows are configurable: the new option `fellowship_fields` lists the per-subagent fields in display order, separated by commas or spaces. Field names: `name`, `desc`, `model`, `effort`, `status`, `ctx`, `activity`, `elapsed`, `ended`, `tokens`, `tools`. Unknown names are ignored and an empty value uses the default. The Pane and the `/fellowship` text use the same setting; the `[slow tool]` and `[idle]` tags stay at the end of every row.

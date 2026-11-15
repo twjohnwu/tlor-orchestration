@@ -106,6 +106,9 @@ const sparkline = (samples: number[]): string => {
 
 const formatTokens = (tokens: number): string => `${(tokens / 1000).toFixed(1)}k`
 
+// Fixed hex values, the same as the statusline palette; they do not follow the theme.
+const FIELD_COLORS = { ctx: '#00FFFF', activity: '#008F11', elapsed: '#FF7F50' } as const
+
 type FieldStyle = { now: number; running: boolean; dim: Pick<Segment, 'dim'>; detail: ThemeKey }
 
 const FIELDS: Record<string, (agent: FellowshipAgent, style: FieldStyle) => Segment[]> = {
@@ -122,19 +125,22 @@ const FIELDS: Record<string, (agent: FellowshipAgent, style: FieldStyle) => Segm
       ? []
       : [{ text: agent.effort === 'medium' ? 'med' : agent.effort, color: running ? 'warning' : 'subtle', ...dim }],
   status: agent => [{ text: agent.status, ...statusStyle(agent.status) }],
-  ctx: (agent, { detail, dim }) => {
+  ctx: (agent, { running, detail, dim }) => {
+    const color = running ? FIELD_COLORS.ctx : detail
     const window = contextWindow(agent.model)
-    if (window === undefined) return [{ text: `⬡ ${formatTokens(agent.tokens)}`, color: detail, ...dim }]
+    if (window === undefined) return [{ text: `⬡ ${formatTokens(agent.tokens)}`, color, ...dim }]
     const pct = Math.min(100, Math.max(0, Math.round((agent.tokens / window) * 100)))
     const filled = Math.min(5, Math.max(0, Math.round(pct / 20)))
 
-    return [{ text: `⬡ ${'▓'.repeat(filled)}${'░'.repeat(5 - filled)} ${pct}%`, color: pct >= 80 ? 'warning' : detail, ...dim }]
+    return [{ text: `⬡ ${'▓'.repeat(filled)}${'░'.repeat(5 - filled)} ${pct}%`, color: pct >= 80 ? 'warning' : color, ...dim }]
   },
-  activity: (agent, { detail, dim }) =>
+  activity: (agent, { running, detail, dim }) =>
     agent.samples === undefined || agent.samples.length < 2
       ? []
-      : [{ text: sparkline(agent.samples.slice(-16)), color: detail, ...dim }],
-  elapsed: (agent, { now, detail, dim }) => [{ text: formatElapsed((agent.endedAt ?? now) - agent.startedAt), color: detail, ...dim }],
+      : [{ text: sparkline(agent.samples.slice(-16)), color: running ? FIELD_COLORS.activity : detail, ...dim }],
+  elapsed: (agent, { now, running, detail, dim }) => [
+    { text: formatElapsed((agent.endedAt ?? now) - agent.startedAt), color: running ? FIELD_COLORS.elapsed : detail, ...dim },
+  ],
   ended: (agent, { detail, dim }) =>
     typeof agent.endedAt === 'number' ? [{ text: `ended ${formatClock(agent.endedAt)}`, color: detail, ...dim }] : [],
   tokens: (agent, { detail, dim }) => [{ text: `${formatTokens(agent.tokens)} tok`, color: detail, ...dim }],

@@ -1,8 +1,8 @@
-import type { ThemeKey } from 'claude-code'
+import type { Color } from 'claude-code'
 
 export type Segment = {
   text: string
-  color?: ThemeKey
+  color?: Color
   bold?: boolean
   dim?: boolean
 }
