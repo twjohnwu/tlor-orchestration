@@ -6,6 +6,12 @@ English only — this file has no zh-TW mirror. Reconstructed from
 `git log --oneline` and `AGENTS.local.md`'s version/incident records. Newest
 release first — new sections go at the top.
 
+## v0.24.0 (2026-11-20)
+
+- Fellowship pane stacked layout: the new option `fellowship_layout` is `auto` (default), `row` or `stacked`. `auto` stacks an agent when its one-line row is wider than the pane's inner width (`bodyColumns`; wide East Asian characters count as two cells) and keeps one line when the host does not report the width; `row` always draws one line; `stacked` always stacks.
+- A stacked agent takes up to three lines: name, status, model and effort on the first; the description on the second; ctx, activity, elapsed, ended, tokens, tools and the `[slow tool]` / `[idle]` tags on the third. Lines two and three are indented two spaces; fields not in `fellowship_fields` are not drawn and an empty line is skipped.
+- The row quota now counts real lines, so a narrow pane shows fewer stacked agents (extra running agents still fold into `+K running`). The `/fellowship` text stays one line per agent and field colours are unchanged.
+
 ## v0.23.1 (2026-11-15)
 
 - Fellowship row colours: on a running row `ctx` is cyan (`#00FFFF`), `activity` green (`#008F11`) and `elapsed` coral (`#FF7F50`). `ctx` still turns to the warning colour from 80%. Finished rows keep the subtle, dimmed style. The colours are fixed hex values and do not follow the theme.
