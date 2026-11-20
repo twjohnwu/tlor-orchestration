@@ -5,14 +5,19 @@ import { register as registerMods } from '../../hooks/mods/register'
 import type { FellowshipAgent } from '../../types'
 import {
   FALLBACK_ICON,
+  agentLines,
+  displayWidth,
   recordStepTokens,
   completeAgent,
   formatClock,
   formatRow,
   iconFor,
+  parseFields,
   parseFrontmatter,
+  parseLayout,
   parseMaxRows,
   register,
+  rowLines,
   rowSegments,
   selectPaneRows,
   shortModel,
@@ -339,12 +344,12 @@ const complete = async ($: Engine, agentId: string): Promise<void> => {
   await $.turn.complete({ turnId: 'turn-1', reason: 'answer', answer: '', durationMs: 1, agentId, isAborted: false } as never)
 }
 
-const mountPane = async ($: Engine, rows: number) => {
+const mountPane = async ($: Engine, rows: number, bodyColumns?: number) => {
   return $.ui.mount({
     plugin: 'tlor',
     surface: 'terminal',
     component: 'Pane',
-    props: {} as never,
+    props: (bodyColumns === undefined ? {} : { bodyColumns }) as never,
     requestId: 'tlor-fellowship',
     viewport: { columns: 120, rows },
   } as never)
@@ -554,4 +559,125 @@ test('all agents finished: exactly the three latest rows, using every line of a 
   // no summary line is drawn for hidden finished rows, so three lines of room hold three rows
   const tight = selectPaneRows(done, 8, 3)
   expect(tight.completed).toHaveLength(3)
+})
+
+const texts = (lines: ReturnType<typeof rowLines>): string[][] => lines.map(line => line.map(segment => segment.text))
+
+const stackedAgent = { ...spawned, model: 'claude-opus-4-7', effort: 'medium', tokens: 12345, tools: 7 }
+
+test('parseLayout accepts the three layouts and falls back to auto', async () => {
+  expect(parseLayout('row')).toBe('row')
+  expect(parseLayout('stacked')).toBe('stacked')
+  expect(parseLayout('auto')).toBe('auto')
+  expect(parseLayout(undefined)).toBe('auto')
+  expect(parseLayout('sideways')).toBe('auto')
+  expect(parseLayout(3)).toBe('auto')
+})
+
+test('displayWidth counts wide characters as two cells', async () => {
+  expect(displayWidth('abc')).toBe(3)
+  expect(displayWidth('漢字')).toBe(4)
+  expect(displayWidth('한글')).toBe(4)
+  expect(displayWidth('かな')).toBe(4)
+  expect(displayWidth('ＡＢ')).toBe(4)
+  expect(displayWidth('a漢b')).toBe(4)
+})
+
+test('rowLines splits a running agent into three lines', async () => {
+  expect(texts(rowLines(stackedAgent, 75_000))).toEqual([
+    ['🏇 rohirrim-outrider', '  Opus 4.7', '  med', '  running'],
+    ['  locate'],
+    ['  ⬡ ░░░░░ 1%', '  01:15', '  12.3k tok', '  7 tools'],
+  ])
+})
+
+test('rowLines drops lines without fields and keeps attention tags on line three', async () => {
+  const noDesc = texts(rowLines(stackedAgent, 75_000, ['name', 'tools']))
+  expect(noDesc).toEqual([['🏇 rohirrim-outrider'], ['  7 tools']])
+  const idle = texts(rowLines({ ...stackedAgent, lastEventAt: 0 }, 130_000, ['name', 'tools']))
+  expect(idle).toEqual([['🏇 rohirrim-outrider'], ['  7 tools', '  [idle]']])
+  expect(texts(rowLines(stackedAgent, 0, ['desc']))).toEqual([['  locate']])
+})
+
+test('rowSegments keeps its one-line output', async () => {
+  expect(rowSegments(stackedAgent, 75_000).map(segment => segment.text).join('')).toBe(
+    '🏇 rohirrim-outrider  locate  Opus 4.7  med  running  ⬡ ░░░░░ 1%  01:15  12.3k tok  7 tools',
+  )
+})
+
+test('agentLines picks one line or stacked by layout and width', async () => {
+  const count = (layout: 'auto' | 'row' | 'stacked', columns: number | undefined, fields?: string[]) =>
+    agentLines(stackedAgent, 75_000, fields ?? parseFields(undefined), layout, columns).length
+  expect(count('auto', 40)).toBe(3)
+  expect(count('auto', 200)).toBe(1)
+  expect(count('auto', undefined)).toBe(1)
+  expect(count('stacked', 200)).toBeGreaterThan(1)
+  expect(count('row', 40)).toBe(1)
+  expect(count('auto', 40, ['name', 'model', 'effort', 'status', 'ctx', 'activity', 'elapsed', 'ended', 'tokens', 'tools'])).toBe(2)
+  expect(agentLines(stackedAgent, 75_000, parseFields(undefined), 'auto', 200)[0]?.map(segment => segment.text).join('')).toBe(
+    rowSegments(stackedAgent, 75_000).map(segment => segment.text).join(''),
+  )
+})
+
+test('selectPaneRows counts a stacked row as its real line count', async () => {
+  const running = Array.from({ length: 5 }, (_, index) => ({ ...spawned, id: `r${index}` }))
+  expect(selectPaneRows(running, 8, 6).running).toHaveLength(5)
+  const stacked = selectPaneRows(running, 8, 6, () => 3)
+  expect(stacked.running).toHaveLength(1)
+  expect(stacked.hiddenRunning).toBe(4)
+})
+
+const agentCount = async (ui: Awaited<ReturnType<typeof mountPane>>): Promise<number> =>
+  (await ui.findAll({ type: 'Text', text: /rohirrim-outrider/ })).length
+
+test('pane stacks narrow rows and fits fewer agents', { options: { fellowship: 'manual', stdd_progress: 'off' } }, async ($, on) => {
+  bottom(on, [])
+  for (const name of ['s1', 's2', 's3', 's4', 's5']) await $.agent.spawn(spawnInput(name))
+
+  const wide = await mountPane($, 10, 200)
+  expect(await agentCount(wide)).toBe(5)
+  expect((await wide.findAll({ type: 'Box' })).filter(box => box.props.flexWrap === 'wrap')).toHaveLength(0)
+  await wide.unmount()
+
+  const narrow = await mountPane($, 10, 40)
+  expect(await agentCount(narrow)).toBe(1)
+  expect((await narrow.findAll({ type: 'Box' })).filter(box => box.props.flexWrap === 'wrap').length).toBeGreaterThanOrEqual(2)
+})
+
+test('pane without bodyColumns keeps one line per agent under auto', { options: { fellowship: 'manual', stdd_progress: 'off' } }, async ($, on) => {
+  bottom(on, [])
+  await $.agent.spawn(spawnInput('plain'))
+  const ui = await mountPane($, 24)
+  expect((await ui.findAll({ type: 'Box' })).filter(box => box.props.flexWrap === 'wrap')).toHaveLength(0)
+})
+
+test('fellowship_layout stacked stacks a wide pane; row keeps a narrow one on one line', { options: { fellowship: 'manual', fellowship_layout: 'stacked', stdd_progress: 'off' } }, async ($, on) => {
+  bottom(on, [])
+  await $.agent.spawn(spawnInput('forced'))
+  const ui = await mountPane($, 24, 200)
+  expect((await ui.findAll({ type: 'Box' })).filter(box => box.props.flexWrap === 'wrap').length).toBeGreaterThan(1)
+})
+
+test('fellowship_layout row keeps a narrow pane on one line', { options: { fellowship: 'manual', fellowship_layout: 'row', stdd_progress: 'off' } }, async ($, on) => {
+  bottom(on, [])
+  await $.agent.spawn(spawnInput('forced'))
+  const ui = await mountPane($, 24, 40)
+  expect((await ui.findAll({ type: 'Box' })).filter(box => box.props.flexWrap === 'wrap')).toHaveLength(0)
+})
+
+test('an invalid fellowship_layout behaves as auto', { options: { fellowship: 'manual', fellowship_layout: 'diagonal', stdd_progress: 'off' } }, async ($, on) => {
+  bottom(on, [])
+  await $.agent.spawn(spawnInput('invalid'))
+  const narrow = await mountPane($, 24, 40)
+  expect((await narrow.findAll({ type: 'Box' })).filter(box => box.props.flexWrap === 'wrap').length).toBeGreaterThan(1)
+  await narrow.unmount()
+  const wide = await mountPane($, 24, 200)
+  expect((await wide.findAll({ type: 'Box' })).filter(box => box.props.flexWrap === 'wrap')).toHaveLength(0)
+})
+
+test('fellowship_fields without desc stacks into two lines', { options: { fellowship: 'manual', fellowship_layout: 'stacked', fellowship_fields: 'name,status,tools', stdd_progress: 'off' } }, async ($, on) => {
+  bottom(on, [])
+  await $.agent.spawn(spawnInput('nodesc'))
+  const ui = await mountPane($, 24)
+  expect((await ui.findAll({ type: 'Box' })).filter(box => box.props.flexWrap === 'wrap')).toHaveLength(2)
 })

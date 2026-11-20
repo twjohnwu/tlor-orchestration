@@ -168,6 +168,71 @@ export const rowSegments = (agent: FellowshipAgent, now: number, fields: string[
   ]
 }
 
+export type Layout = 'auto' | 'row' | 'stacked'
+
+export const parseLayout = (value: unknown): Layout => (value === 'row' || value === 'stacked' ? value : 'auto')
+
+// Which stacked line each field sits on (0-based); attention tags go on the last line.
+const FIELD_LINES: Record<string, number> = {
+  name: 0,
+  status: 0,
+  model: 0,
+  effort: 0,
+  desc: 1,
+  ctx: 2,
+  activity: 2,
+  elapsed: 2,
+  ended: 2,
+  tokens: 2,
+  tools: 2,
+}
+
+// One list of segments per stacked line; a line without segments is dropped. Lines after the first
+// are indented, and every later segment of a line is set off by the same two spaces rowSegments uses.
+export const rowLines = (agent: FellowshipAgent, now: number, fields: string[] = DEFAULT_FIELDS): Segment[][] => {
+  const running = agent.status === 'running'
+  const style: FieldStyle = { now, running, dim: running ? {} : { dim: true }, detail: running ? 'text' : 'subtle' }
+  const lines: Segment[][] = [[], [], []]
+  for (const name of fields) {
+    const segments = Object.hasOwn(FIELDS, name) ? FIELDS[name]?.(agent, style) ?? [] : []
+    lines[FIELD_LINES[name] ?? 0]?.push(...segments)
+  }
+  lines[2]?.push(...attentionTags(agent, now).map(text => ({ text: `[${text}]`, color: 'warning' as const, bold: true })))
+
+  return lines
+    .map((line, row) => line.map((segment, index) => (row === 0 && index === 0 ? segment : { ...segment, text: `  ${segment.text}` })))
+    .filter(line => line.length > 0)
+}
+
+const isWide = (code: number): boolean =>
+  (code >= 0x1100 && code <= 0x115f) ||
+  (code >= 0x2e80 && code <= 0xa4cf) ||
+  (code >= 0xac00 && code <= 0xd7a3) ||
+  (code >= 0xf900 && code <= 0xfaff) ||
+  (code >= 0xfe30 && code <= 0xfe6f) ||
+  (code >= 0xff00 && code <= 0xff60) ||
+  (code >= 0xffe0 && code <= 0xffe6) ||
+  (code >= 0x20000 && code <= 0x3fffd)
+
+// Terminal cells a text takes: East Asian wide and fullwidth characters take two, the rest one.
+export const displayWidth = (text: string): number =>
+  [...text].reduce((width, char) => width + (isWide(char.codePointAt(0) ?? 0) ? 2 : 1), 0)
+
+// The lines one agent is drawn on: a single line of rowSegments, or the stacked rowLines.
+export const agentLines = (
+  agent: FellowshipAgent,
+  now: number,
+  fields: string[],
+  layout: Layout,
+  columns: number | undefined,
+): Segment[][] => {
+  const single = rowSegments(agent, now, fields)
+  const width = single.reduce((total, segment) => total + displayWidth(segment.text), 0)
+  const stack = layout === 'stacked' || (layout === 'auto' && columns !== undefined && width > columns)
+
+  return stack ? rowLines(agent, now, fields) : [single]
+}
+
 export const attentionTags = (agent: FellowshipAgent, now: number): string[] => {
   if (agent.status !== 'running') return []
 
@@ -249,7 +314,13 @@ const latestCompleted = (completed: FellowshipAgent[], count: number): Fellowshi
 
 // Quotas cap agent rows. Summary lines also consume viewport room, so a tight pane drops
 // completed rows first and then running rows while retaining their hidden counts.
-export const selectPaneRows = (list: FellowshipAgent[], maxRows: number, room: number): FellowshipSelection => {
+// `heightOf` gives the lines a row occupies (default one), so a stacked row uses its real height.
+export const selectPaneRows = (
+  list: FellowshipAgent[],
+  maxRows: number,
+  room: number,
+  heightOf: (agent: FellowshipAgent) => number = () => 1,
+): FellowshipSelection => {
   const running = list.filter(one => one.status === 'running')
   const completed = list.filter(one => one.status !== 'running')
   const cap = parseMaxRows(maxRows)
@@ -258,8 +329,11 @@ export const selectPaneRows = (list: FellowshipAgent[], maxRows: number, room: n
   let completedCount = Math.min(completed.length, cap - runningQuota)
   const available = Number.isFinite(room) ? Math.max(0, Math.floor(room)) : 0
   // Only hidden running rows get a summary line; older finished rows just drop off.
+  const total = (rows: FellowshipAgent[]): number => rows.reduce((sum, one) => sum + heightOf(one), 0)
   const lineCount = (): number =>
-    runningCount + completedCount + (running.length > runningCount ? 1 : 0)
+    total(runningCount === 0 ? [] : running.slice(-runningCount)) +
+    total(latestCompleted(completed, completedCount)) +
+    (running.length > runningCount ? 1 : 0)
 
   while (lineCount() > available && completedCount > 0) completedCount -= 1
   while (lineCount() > available && runningCount > 0) runningCount -= 1

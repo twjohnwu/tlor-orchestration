@@ -3,6 +3,7 @@ import type { Register } from 'claude-code'
 import { notify, notifyMode } from '../notify'
 import { casUpdate } from '../state'
 import {
+  agentLines,
   recordStepTokens,
   completeAgent,
   formatElapsed,
@@ -13,12 +14,14 @@ import {
   parseFields,
   parseMaxRows,
   parseFrontmatter,
+  parseLayout,
   register as registerAgent,
   rowSegments,
   selectPaneRows,
   statusOf,
   update,
 } from './fellowship'
+import type { Segment } from '../segment'
 import type { FellowshipAgent } from '../../../types'
 
 const PANE = 'tlor-fellowship'
@@ -57,6 +60,7 @@ export const register: Register = (on, options) => {
   const opensAutomatically = options.fellowship === 'auto'
   const maxRows = parseMaxRows(options.fellowship_max_rows)
   const fields = parseFields(options.fellowship_fields)
+  const layout = parseLayout(options.fellowship_layout)
   const notifications = notifyMode(options.notify)
   let isOpened = false
   let ticker: { cancel: () => void } | undefined
@@ -298,27 +302,30 @@ export const register: Register = (on, options) => {
     const { value: list = [] } = await $.state.get(agents)
     const now = await $.clock.now()
     const room = Math.max(0, (e.viewport?.rows ?? 24) - 4)
-    const selection = selectPaneRows(list, maxRows, room)
+    const columns = typeof e.props.bodyColumns === 'number' ? e.props.bodyColumns : undefined
+    const drawn = new Map(list.map(agent => [agent, agentLines(agent, now, fields, layout, columns)]))
+    const linesOf = (agent: FellowshipAgent): Segment[][] => drawn.get(agent) ?? []
+    const selection = selectPaneRows(list, maxRows, room, agent => linesOf(agent).length)
+    const drawAgent = (agent: FellowshipAgent) => {
+      const lines = linesOf(agent)
+      const rows = lines.map(line => (
+        <Box flexDirection="row" flexWrap={lines.length > 1 ? 'wrap' : undefined}>
+          {line.map(segment => (
+            <Text color={segment.color} bold={segment.bold} dimColor={segment.dim}>{segment.text}</Text>
+          ))}
+        </Box>
+      ))
+
+      return lines.length > 1 ? <Box flexDirection="column">{rows}</Box> : rows
+    }
 
     return (
       <Box flexDirection="column">
         {selection.running.length === 0 && selection.completed.length === 0 &&
           selection.hiddenRunning === 0 && selection.hiddenCompleted === 0 && <Text dimColor>No subagents yet.</Text>}
-        {selection.running.map(agent => (
-          <Box flexDirection="row">
-            {rowSegments(agent, now, fields).map(segment => (
-              <Text color={segment.color} bold={segment.bold} dimColor={segment.dim}>{segment.text}</Text>
-            ))}
-          </Box>
-        ))}
+        {selection.running.map(drawAgent)}
         {selection.hiddenRunning > 0 && <Text color="warning" dimColor>+{selection.hiddenRunning} running</Text>}
-        {selection.completed.map(agent => (
-          <Box flexDirection="row">
-            {rowSegments(agent, now, fields).map(segment => (
-              <Text color={segment.color} bold={segment.bold} dimColor={segment.dim}>{segment.text}</Text>
-            ))}
-          </Box>
-        ))}
+        {selection.completed.map(drawAgent)}
       </Box>
     )
   })

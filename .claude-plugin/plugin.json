@@ -1,7 +1,7 @@
 {
   "name": "tlor",
   "displayName": "TLOR Agents — a Middle-earth fellowship for Claude Code",
-  "version": "0.23.1",
+  "version": "0.24.0",
   "description": "Orchestration framework for Claude Code: fourteen Middle-earth-themed subagent roles plus an Explore backup mirror, dispatch rules, judgment rubrics, risk tiers, and the /tlor-init setup skill. Roles pin model/effort/tools by design; rules enforce delegation discipline and verification.",
   "author": { "name": "twjohnwu", "url": "https://github.com/twjohnwu" },
   "repository": "https://github.com/twjohnwu/tlor-orchestration",
@@ -15,6 +15,13 @@
       "description": "auto opens the pane on the first subagent; manual opens it only with /fellowship; off disables the fellowship mod.",
       "default": "auto",
       "options": ["auto", "manual", "off"]
+    },
+    "fellowship_layout": {
+      "type": "string",
+      "title": "Fellowship row layout",
+      "description": "auto stacks each agent over two or three lines when its one-line row is wider than the pane; row always draws one line; stacked always stacks.",
+      "default": "auto",
+      "options": ["auto", "row", "stacked"]
     },
     "fellowship_max_rows": {
       "type": "number",
